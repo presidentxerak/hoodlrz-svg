@@ -1,5 +1,6 @@
 // ── Trait Definitions for Hoodlrz PFP Generation ──
 // Based on real SVG layer files in /public/layers/
+// File counts verified from actual uploads.
 
 export type RarityWeight = "common" | "uncommon" | "rare" | "legendary";
 
@@ -26,132 +27,63 @@ export const RARITY_WEIGHTS: Record<RarityWeight, number> = {
 // ── Variant (light / dark) ──
 export type LayerVariant = "light" | "dark";
 
-// ── Walls (background) ──
-export const WALLS: TraitOption[] = [
-  { name: "Brick Classic", file: "wall-1.svg", rarity: "common" },
-  { name: "Brick Worn", file: "wall-2.svg", rarity: "common" },
-  { name: "Brick Stack", file: "wall-3.svg", rarity: "common" },
-  { name: "Brick Mixed", file: "wall-4.svg", rarity: "common" },
-  { name: "Cracked", file: "wall-5.svg", rarity: "uncommon" },
-  { name: "Decay", file: "wall-6.svg", rarity: "uncommon" },
-  { name: "Scatter", file: "wall-7.svg", rarity: "rare" },
-  { name: "Fragment", file: "wall-8.svg", rarity: "rare" },
-  { name: "Dots", file: "wall-9.svg", rarity: "rare" },
-  { name: "Glitch", file: "wall-10.svg", rarity: "legendary" },
-];
+// Helper to generate trait options from file counts
+function makeTraits(
+  prefix: string,
+  count: number,
+  skip: number[] = []
+): TraitOption[] {
+  const result: TraitOption[] = [];
+  for (let i = 1; i <= count; i++) {
+    if (skip.includes(i)) continue;
+    const pct = i / count;
+    let rarity: RarityWeight;
+    if (pct > 0.85) rarity = "legendary";
+    else if (pct > 0.65) rarity = "rare";
+    else if (pct > 0.35) rarity = "uncommon";
+    else rarity = "common";
+    result.push({
+      name: `${prefix} ${i}`,
+      file: `${prefix}-${i}.svg`,
+      rarity,
+    });
+  }
+  return result;
+}
 
-// ── Foregrounds ──
-export const FOREGROUNDS: TraitOption[] = [
-  { name: "Tag", file: "foreground-1.svg", rarity: "common" },
-  { name: "Lines", file: "foreground-2.svg", rarity: "common" },
-  { name: "Skyline", file: "foreground-3.svg", rarity: "common" },
-  { name: "Wave", file: "foreground-4.svg", rarity: "uncommon" },
-  { name: "Spark", file: "foreground-5.svg", rarity: "uncommon" },
-  { name: "Minimal", file: "foreground-6.svg", rarity: "uncommon" },
-  { name: "KID", file: "foreground-7.svg", rarity: "rare" },
-  { name: "Blush", file: "foreground-8.svg", rarity: "rare" },
-  { name: "Pink Tag", file: "foreground-9.svg", rarity: "rare" },
-  { name: "Fire", file: "foreground-10.svg", rarity: "legendary" },
-  { name: "Scatter", file: "foreground-11.svg", rarity: "legendary" },
-];
+// ── Walls: wall-1 to wall-10 (both light & dark) ──
+export const WALLS: TraitOption[] = makeTraits("wall", 10);
 
-// ── Eyes ──
-export const EYES: TraitOption[] = [
-  { name: "Round", file: "eyes-1.svg", rarity: "common" },
-  { name: "Sharp", file: "eyes-2.svg", rarity: "common" },
-  { name: "X Eyes", file: "eyes-3.svg", rarity: "common" },
-  { name: "Drop", file: "eyes-4.svg", rarity: "common" },
-  { name: "Dot Dot", file: "eyes-5.svg", rarity: "common" },
-  { name: "Wide", file: "eyes-6.svg", rarity: "uncommon" },
-  { name: "Oval", file: "eyes-7.svg", rarity: "uncommon" },
-  { name: "Split", file: "eyes-8.svg", rarity: "uncommon" },
-  { name: "Lash", file: "eyes-9.svg", rarity: "uncommon" },
-  { name: "Plus", file: "eyes-10.svg", rarity: "uncommon" },
-  { name: "Infinity", file: "eyes-11.svg", rarity: "rare" },
-  { name: "Glitch", file: "eyes-12.svg", rarity: "rare" },
-  { name: "Arrow", file: "eyes-13.svg", rarity: "rare" },
-  { name: "Dash", file: "eyes-14.svg", rarity: "rare" },
-  { name: "Swirl", file: "eyes-15.svg", rarity: "rare" },
-  { name: "Double", file: "eyes-16.svg", rarity: "rare" },
-  { name: "Squint", file: "eyes-17.svg", rarity: "rare" },
-  { name: "Flame", file: "eyes-18.svg", rarity: "legendary" },
-  { name: "Slash", file: "eyes-19.svg", rarity: "legendary" },
-  { name: "Star", file: "eyes-20.svg", rarity: "legendary" },
-  { name: "Visor", file: "eyes-21.svg", rarity: "legendary" },
-];
+// ── Foregrounds: foreground-1 to foreground-11 (both light & dark) ──
+export const FOREGROUNDS: TraitOption[] = makeTraits("foreground", 11);
 
-// ── Accessories ──
-export const ACCESSORIES: TraitOption[] = [
-  { name: "Headphones", file: "object-1.svg", rarity: "common" },
-  { name: "Monitor", file: "object-2.svg", rarity: "common" },
-  { name: "Cap Green", file: "object-3.svg", rarity: "common" },
-  { name: "Cap Dark", file: "object-4.svg", rarity: "common" },
-  { name: "Earbuds", file: "object-5.svg", rarity: "uncommon" },
-  { name: "Headband", file: "object-6.svg", rarity: "uncommon" },
-  { name: "DJ Set", file: "object-7.svg", rarity: "uncommon" },
-  { name: "Crown", file: "object-8.svg", rarity: "uncommon" },
-  { name: "Visor Green", file: "object-9.svg", rarity: "rare" },
-  { name: "Headset", file: "object-10.svg", rarity: "rare" },
-  { name: "Bandana Red", file: "object-11.svg", rarity: "rare" },
-  { name: "Bandana Blue", file: "object-12.svg", rarity: "rare" },
-  { name: "Cap Pink", file: "object-13.svg", rarity: "rare" },
-  { name: "Cap Green Alt", file: "object-14.svg", rarity: "rare" },
-  { name: "Beanie", file: "object-15.svg", rarity: "legendary" },
-  { name: "Goggles", file: "object-16.svg", rarity: "legendary" },
-  { name: "Shades", file: "object-17.svg", rarity: "legendary" },
-];
+// ── Eyes: eyes-1 to eyes-21 (both light & dark) ──
+export const EYES: TraitOption[] = makeTraits("eyes", 21);
+
+// ── Accessories: object-1 to object-17 (both light & dark) ──
+export const ACCESSORIES: TraitOption[] = makeTraits("object", 17);
 
 // ── Mouths ──
-export const MOUTHS: TraitOption[] = [
-  { name: "Smirk", file: "mouth-1.svg", rarity: "common" },
-  { name: "Grin", file: "mouth-2.svg", rarity: "common" },
-  { name: "Wide", file: "mouth-3.svg", rarity: "common" },
-  { name: "Dot", file: "mouth-4.svg", rarity: "common" },
-  { name: "Circle", file: "mouth-5.svg", rarity: "common" },
-  { name: "Curve", file: "mouth-6.svg", rarity: "uncommon" },
-  { name: "Frown", file: "mouth-7.svg", rarity: "uncommon" },
-  { name: "Tongue", file: "mouth-8.svg", rarity: "uncommon" },
-  { name: "Wave", file: "mouth-9.svg", rarity: "uncommon" },
-  { name: "Flat", file: "mouth-10.svg", rarity: "uncommon" },
-  { name: "Dash", file: "mouth-11.svg", rarity: "rare" },
-  { name: "Corner", file: "mouth-12.svg", rarity: "rare" },
-  { name: "Bracket", file: "mouth-13.svg", rarity: "rare" },
-  { name: "Heart", file: "mouth-14.svg", rarity: "rare" },
-  { name: "Drool", file: "mouth-15.svg", rarity: "rare" },
-  { name: "Fangs", file: "mouth-16.svg", rarity: "legendary" },
-  { name: "Line", file: "mouth-17.svg", rarity: "legendary" },
-  { name: "Stitch", file: "mouth-18.svg", rarity: "legendary" },
-  { name: "Tilde", file: "mouth-19.svg", rarity: "legendary" },
-  { name: "Cross", file: "mouth-20.svg", rarity: "legendary" },
-];
+// Light: mouth-1 to mouth-20, MISSING mouth-11
+// Dark: mouth-1 to mouth-20, all present
+// We use the intersection (skip mouth-11 to be safe across both variants)
+export const MOUTHS_LIGHT: TraitOption[] = makeTraits("mouth", 20, [11]);
+export const MOUTHS_DARK: TraitOption[] = makeTraits("mouth", 20);
 
-// ── Hoodies ──
-// Count unknown from screenshots, assuming similar range
-export const HOODIES: TraitOption[] = [
-  { name: "Classic Black", file: "hoodie-1.svg", rarity: "common" },
-  { name: "Classic Gray", file: "hoodie-2.svg", rarity: "common" },
-  { name: "Classic White", file: "hoodie-3.svg", rarity: "common" },
-  { name: "Street Red", file: "hoodie-4.svg", rarity: "common" },
-  { name: "Street Blue", file: "hoodie-5.svg", rarity: "uncommon" },
-  { name: "Street Green", file: "hoodie-6.svg", rarity: "uncommon" },
-  { name: "Urban Purple", file: "hoodie-7.svg", rarity: "uncommon" },
-  { name: "Urban Orange", file: "hoodie-8.svg", rarity: "rare" },
-  { name: "Urban Pink", file: "hoodie-9.svg", rarity: "rare" },
-  { name: "Gold", file: "hoodie-10.svg", rarity: "legendary" },
-];
+// Default mouths (union - used for rarity calc)
+export const MOUTHS: TraitOption[] = makeTraits("mouth", 20);
+
+// ── Hoodies: hoodie-1 to hoodie-12 (both light & dark) ──
+export const HOODIES: TraitOption[] = makeTraits("hoodie", 12);
 
 // ── Graffitis ──
-export const GRAFFITIS: TraitOption[] = [
-  { name: "Tag 1", file: "graffiti-1.svg", rarity: "common" },
-  { name: "Tag 2", file: "graffiti-2.svg", rarity: "common" },
-  { name: "Tag 3", file: "graffiti-3.svg", rarity: "uncommon" },
-  { name: "Tag 4", file: "graffiti-4.svg", rarity: "uncommon" },
-  { name: "Tag 5", file: "graffiti-5.svg", rarity: "rare" },
-  { name: "Tag 6", file: "graffiti-6.svg", rarity: "rare" },
-  { name: "Tag 7", file: "graffiti-7.svg", rarity: "legendary" },
-  { name: "Tag 8", file: "graffiti-8.svg", rarity: "legendary" },
-  { name: "None", file: "", rarity: "common" },
-];
+// Light: graffiti-1 to graffiti-23
+// Dark: graffiti-1 to graffiti-24, MISSING graffiti-23
+export const GRAFFITIS_LIGHT: TraitOption[] = makeTraits("graffiti", 23);
+export const GRAFFITIS_DARK: TraitOption[] = makeTraits("graffiti", 24, [23]);
+
+// Default graffitis (used for rarity calc)
+export const GRAFFITIS: TraitOption[] = makeTraits("graffiti", 23);
 
 // ── All categories for iteration (order = layer stacking, back to front) ──
 // wall → graffiti → hoodie → eyes → mouth → accessory → foreground

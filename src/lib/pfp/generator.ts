@@ -7,10 +7,12 @@ import {
   WALLS,
   FOREGROUNDS,
   EYES,
-  MOUTHS,
+  MOUTHS_LIGHT,
+  MOUTHS_DARK,
   HOODIES,
   ACCESSORIES,
-  GRAFFITIS,
+  GRAFFITIS_LIGHT,
+  GRAFFITIS_DARK,
   RARITY_WEIGHTS,
   type TraitOption,
   type LayerVariant,
@@ -35,7 +37,7 @@ export interface LayerInfo {
   category: string;
   name: string;
   file: string;
-  path: string; // full public path e.g. "/layers/dark/02-eyes/eyes-1.svg"
+  path: string; // full public path e.g. "/layers/02-layers-dark/02-eyes/eyes-1.svg"
 }
 
 /** @deprecated Use PFPResult instead */
@@ -95,24 +97,28 @@ export function generatePFP(seed: string): PFPResult {
   // Pick variant (light or dark)
   const variant: LayerVariant = rand() > 0.5 ? "dark" : "light";
 
+  // Use variant-specific trait lists (file availability differs between light/dark)
+  const mouths = variant === "light" ? MOUTHS_LIGHT : MOUTHS_DARK;
+  const graffitis = variant === "light" ? GRAFFITIS_LIGHT : GRAFFITIS_DARK;
+
   // Pick one trait from each category
   const wall = pickTrait(WALLS, rand);
-  const foreground = pickTrait(FOREGROUNDS, rand);
+  const graffiti = pickTrait(graffitis, rand);
   const hoodie = pickTrait(HOODIES, rand);
   const eyes = pickTrait(EYES, rand);
-  const mouth = pickTrait(MOUTHS, rand);
+  const mouth = pickTrait(mouths, rand);
   const accessory = pickTrait(ACCESSORIES, rand);
-  const graffiti = pickTrait(GRAFFITIS, rand);
+  const foreground = pickTrait(FOREGROUNDS, rand);
 
   const traits: Record<string, string> = {
     variant,
     wall: wall.name,
-    foreground: foreground.name,
+    graffiti: graffiti.name,
     hoodie: hoodie.name,
     eyes: eyes.name,
     mouth: mouth.name,
     accessory: accessory.name,
-    graffiti: graffiti.name,
+    foreground: foreground.name,
   };
 
   // Build layers in stacking order (back to front)
@@ -136,7 +142,7 @@ export function generatePFP(seed: string): PFPResult {
   const layers: LayerInfo[] = [];
 
   for (const def of layerDefs) {
-    if (!def.trait.file) continue; // skip "None" traits
+    if (!def.trait.file) continue;
     const path = layerPath(variant, def.folder, def.trait.file);
     layers.push({
       category: def.category,
