@@ -116,15 +116,21 @@ export function generatePFP(seed: string): PFPResult {
   };
 
   // Build layers in stacking order (back to front)
-  // Order: foregrounds, eyes, accessories, mouths, hoodies, graffitis, walls
+  // 1. Wall (brick background)
+  // 2. Graffiti (on the wall, behind character)
+  // 3. Hoodie (the character body)
+  // 4. Eyes (on the face)
+  // 5. Mouth (on the face)
+  // 6. Accessories (headphones etc, on top of character)
+  // 7. Foreground (decorative overlay, topmost)
   const layerDefs: { category: string; trait: TraitOption; folder: string }[] = [
-    { category: "foreground", trait: foreground, folder: "01-foregrounds" },
-    { category: "eyes", trait: eyes, folder: "02-eyes" },
-    { category: "accessory", trait: accessory, folder: "03-accessories" },
-    { category: "mouth", trait: mouth, folder: "04-mouths" },
-    { category: "hoodie", trait: hoodie, folder: "05-hoodies" },
-    { category: "graffiti", trait: graffiti, folder: "06-graffitis" },
     { category: "wall", trait: wall, folder: "07-walls" },
+    { category: "graffiti", trait: graffiti, folder: "06-graffitis" },
+    { category: "hoodie", trait: hoodie, folder: "05-hoodies" },
+    { category: "eyes", trait: eyes, folder: "02-eyes" },
+    { category: "mouth", trait: mouth, folder: "04-mouths" },
+    { category: "accessory", trait: accessory, folder: "03-accessories" },
+    { category: "foreground", trait: foreground, folder: "01-foregrounds" },
   ];
 
   const layers: LayerInfo[] = [];

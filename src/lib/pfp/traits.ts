@@ -154,13 +154,13 @@ export const GRAFFITIS: TraitOption[] = [
 ];
 
 // ── All categories for iteration (order = layer stacking, back to front) ──
-// Order: foregrounds, eyes, accessories, mouths, hoodies, graffitis, walls
+// wall → graffiti → hoodie → eyes → mouth → accessory → foreground
 export const ALL_TRAIT_CATEGORIES: TraitCategory[] = [
-  { category: "foreground", folder: "01-foregrounds", options: FOREGROUNDS },
-  { category: "eyes", folder: "02-eyes", options: EYES },
-  { category: "accessory", folder: "03-accessories", options: ACCESSORIES },
-  { category: "mouth", folder: "04-mouths", options: MOUTHS },
-  { category: "hoodie", folder: "05-hoodies", options: HOODIES },
-  { category: "graffiti", folder: "06-graffitis", options: GRAFFITIS },
   { category: "wall", folder: "07-walls", options: WALLS },
+  { category: "graffiti", folder: "06-graffitis", options: GRAFFITIS },
+  { category: "hoodie", folder: "05-hoodies", options: HOODIES },
+  { category: "eyes", folder: "02-eyes", options: EYES },
+  { category: "mouth", folder: "04-mouths", options: MOUTHS },
+  { category: "accessory", folder: "03-accessories", options: ACCESSORIES },
+  { category: "foreground", folder: "01-foregrounds", options: FOREGROUNDS },
 ];

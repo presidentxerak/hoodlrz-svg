@@ -27,8 +27,8 @@ export default function PFPViewer({
 
   return (
     <div
-      className={`relative overflow-hidden ${className}`}
-      style={{ width: size, height: size, maxWidth: "100%" }}
+      className={`relative overflow-hidden aspect-square ${className}`}
+      style={{ width: size, maxWidth: "100%" }}
       onMouseEnter={() => setShowTraits(true)}
       onMouseLeave={() => setShowTraits(false)}
       onClick={toggle}
@@ -48,7 +48,7 @@ export default function PFPViewer({
           src={layer.path}
           alt={layer.name}
           className="absolute inset-0 w-full h-full"
-          style={{ objectFit: "contain" }}
+          style={{ objectFit: "cover" }}
           loading="lazy"
         />
       ))}
