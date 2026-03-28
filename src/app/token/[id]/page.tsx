@@ -177,17 +177,15 @@ export default function TokenDetailPage() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3">
-            {/* TODO: implement download by extracting SVG from the generator */}
             <Button variant="secondary" size="md" onClick={() => {
-              const blob = new Blob([pfp.svg], { type: "image/svg+xml" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `${seed}.svg`;
-              a.click();
-              URL.revokeObjectURL(url);
+              import("@/lib/pfp/export").then(({ downloadSVG }) => downloadSVG(seed, seed));
             }}>
               Download SVG
+            </Button>
+            <Button variant="secondary" size="md" onClick={() => {
+              import("@/lib/pfp/export").then(({ downloadPNG }) => downloadPNG(seed, seed));
+            }}>
+              Download PFP
             </Button>
 
             {isListed && (
