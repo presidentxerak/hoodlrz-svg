@@ -26,6 +26,7 @@ export default function HomePage() {
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
         >
+          <source src="/hero-hoodlrz-video.mp4" type="video/mp4" />
           <source src="/hero-hoodlrz-video.mov" type="video/quicktime" />
         </video>
 

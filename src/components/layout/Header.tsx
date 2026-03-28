@@ -13,6 +13,7 @@ interface HeaderProps {
 const navLinks = [
   { href: "/collections", label: "Collections" },
   { href: "/gallery", label: "Gallery" },
+  { href: "/about", label: "About" },
   { href: "/my-collection", label: "My Collection" },
 ];
 
