@@ -4,7 +4,13 @@ import Button from "@/components/ui/Button";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
 
-const FEATURED_SEEDS = ["hoodlrz-og-001", "hoodlrz-og-002", "hoodlrz-og-003", "hoodlrz-og-004"];
+// Each seed produces a different rarity tier for showcase
+const FEATURED = [
+  { seed: "hoodlrz-featured-956", label: "Legendary" },
+  { seed: "hoodlrz-featured-4", label: "Rare" },
+  { seed: "hoodlrz-featured-7", label: "Uncommon" },
+  { seed: "hoodlrz-featured-1", label: "Common" },
+];
 const DROP_DATE = "2026-04-15T18:00:00Z";
 
 export default function HomePage() {
@@ -38,9 +44,12 @@ export default function HomePage() {
           Featured
         </h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
-          {FEATURED_SEEDS.map((seed) => (
-            <div key={seed} className="animate-fade-in-up">
+          {FEATURED.map(({ seed, label }) => (
+            <div key={seed} className="animate-fade-in-up flex flex-col gap-2">
               <PFPViewer seed={seed} size={400} className="aspect-square w-full" />
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted">
+                {label}
+              </span>
             </div>
           ))}
         </div>
