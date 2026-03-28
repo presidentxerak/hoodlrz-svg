@@ -15,9 +15,15 @@ import {
 import { useAudioStore, type Track } from "@/store/audio";
 
 const DEMO_TRACKS: Track[] = [
-  { id: "1", title: "Hood Dreams", artist: "Hoodlrz", src: "/audio/track1.mp3" },
-  { id: "2", title: "Night Code", artist: "Hoodlrz", src: "/audio/track2.mp3" },
-  { id: "3", title: "Digital Rain", artist: "Hoodlrz", src: "/audio/track3.mp3" },
+  { id: "1", title: "Acid Teddy Bear", artist: "XERAK", src: "/audio/Hoodlrz-Acid-Teddy-Bear-by-XERAK.mp3" },
+  { id: "2", title: "Dolphins Are Not Your Friends", artist: "XERAK", src: "/audio/Hoodlrz-Dolphins-Are-Not-Your-Friends.mp3" },
+  { id: "3", title: "Go Go Godzilla", artist: "XERAK", src: "/audio/Hoodlrz-Go-Go-Godzilla-by-XERAK.mp3" },
+  { id: "4", title: "Hello Bitcoins", artist: "XERAK", src: "/audio/Hoodlrz-Hello-Bitcoins-by-XERAK.mp3" },
+  { id: "5", title: "Kill Your Computer", artist: "XERAK", src: "/audio/Hoodlrz-Kill-Your-Computer-Internet-Kids-Assault-by-XERAK.mp3" },
+  { id: "6", title: "Make Some Noise", artist: "XERAK", src: "/audio/Hoodlrz-Make-Some-Noise-by-XERAK.mp3" },
+  { id: "7", title: "On Your Face", artist: "XERAK", src: "/audio/Hoodlrz-On-Your-Face-by-XERAK.mp3" },
+  { id: "8", title: "Rich Frog", artist: "XERAK", src: "/audio/Hoodlrz-Rich-Frog-by-XERAK.mp3" },
+  { id: "9", title: "Tetsuo Techno", artist: "XERAK", src: "/audio/Hoodlrz-Testuo-Techno-by-XERAK.mp3" },
 ];
 
 export default function AudioPlayer() {
