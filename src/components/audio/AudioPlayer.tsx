@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Music,
+  List,
 } from "lucide-react";
 import { useAudioStore, type Track } from "@/store/audio";
 
@@ -30,6 +31,7 @@ export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [showPlaylist, setShowPlaylist] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
@@ -122,10 +124,6 @@ export default function AudioPlayer() {
   // Don't render if no tracks
   if (tracks.length === 0) return null;
 
-  const trackIndex = currentTrack
-    ? tracks.findIndex((t) => t.id === currentTrack.id)
-    : -1;
-
   return (
     <>
       <audio
@@ -137,7 +135,60 @@ export default function AudioPlayer() {
       />
 
       <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50">
-        {/* Progress bar -- always visible as a thin line */}
+        {/* Playlist panel */}
+        {showPlaylist && !collapsed && (
+          <div className="bg-[var(--surface)] border-t border-x border-[var(--border)] max-h-[50vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] sticky top-0 bg-[var(--surface)]">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                Playlist
+              </span>
+              <a
+                href="https://xerak.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+              >
+                music by <span className="text-foreground font-bold">xerak.com</span>
+              </a>
+            </div>
+            {tracks.map((track, i) => {
+              const isActive = currentTrack?.id === track.id;
+              return (
+                <button
+                  key={track.id}
+                  onClick={() => setTrack(track)}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--surface-alt)] ${
+                    isActive ? "bg-[var(--surface-alt)]" : ""
+                  }`}
+                >
+                  <span className="w-6 text-right text-[10px] font-mono text-muted flex-shrink-0">
+                    {isActive && playing ? (
+                      <span className="text-accent-red">
+                        <Pause size={12} />
+                      </span>
+                    ) : (
+                      String(i + 1).padStart(2, "0")
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-xs font-semibold uppercase tracking-widest truncate ${
+                        isActive ? "text-accent-red" : "text-foreground"
+                      }`}
+                    >
+                      {track.title}
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-muted uppercase tracking-widest flex-shrink-0">
+                    {track.artist}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Progress bar */}
         <div
           ref={progressRef}
           onClick={handleProgressClick}
@@ -169,7 +220,7 @@ export default function AudioPlayer() {
                   {playing ? <Pause size={16} /> : <Play size={16} />}
                 </button>
                 <button
-                  onClick={() => setCollapsed(false)}
+                  onClick={() => { setCollapsed(false); setShowPlaylist(false); }}
                   className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground transition-colors"
                 >
                   <ChevronUp size={16} />
@@ -179,7 +230,7 @@ export default function AudioPlayer() {
           ) : (
             /* Expanded view */
             <div className="px-4 py-3 space-y-2">
-              {/* Top row: track info + collapse */}
+              {/* Top row: track info + playlist toggle + collapse */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 bg-[var(--border)] flex items-center justify-center flex-shrink-0">
@@ -189,17 +240,35 @@ export default function AudioPlayer() {
                     <p className="text-sm font-bold uppercase tracking-widest truncate text-foreground">
                       {currentTrack?.title ?? "Select a track"}
                     </p>
-                    <p className="text-[10px] uppercase tracking-widest text-muted truncate">
-                      {currentTrack?.artist ?? "Hoodlrz"}
-                    </p>
+                    <a
+                      href="https://xerak.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+                    >
+                      {currentTrack?.artist ?? "XERAK"}
+                    </a>
                   </div>
                 </div>
-                <button
-                  onClick={() => setCollapsed(true)}
-                  className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground transition-colors flex-shrink-0"
-                >
-                  <ChevronDown size={16} />
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => setShowPlaylist((p) => !p)}
+                    className={`w-8 h-8 flex items-center justify-center transition-colors ${
+                      showPlaylist
+                        ? "text-accent-red"
+                        : "text-muted hover:text-foreground"
+                    }`}
+                    aria-label="Toggle playlist"
+                  >
+                    <List size={16} />
+                  </button>
+                  <button
+                    onClick={() => { setCollapsed(true); setShowPlaylist(false); }}
+                    className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground transition-colors"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
               </div>
 
               {/* Time stamps */}
@@ -235,10 +304,15 @@ export default function AudioPlayer() {
                   </button>
                 </div>
 
-                {/* Track counter */}
-                <span className="text-[10px] text-muted uppercase tracking-widest">
-                  {trackIndex >= 0 ? `${trackIndex + 1} / ${tracks.length}` : `${tracks.length} tracks`}
-                </span>
+                {/* Credit */}
+                <a
+                  href="https://xerak.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[10px] text-muted uppercase tracking-widest hover:text-foreground transition-colors hidden sm:block"
+                >
+                  music by <span className="font-bold">xerak.com</span>
+                </a>
 
                 {/* Volume -- desktop only */}
                 <div className="hidden md:flex items-center gap-2">
