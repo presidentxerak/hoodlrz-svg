@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       .from("listings")
       .select("*")
       .eq("id", listingId)
-      .eq("is_active", true)
+      .eq("status", "active")
       .single();
 
     if (listingError || !listing) {
@@ -64,9 +64,9 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
-            currency: listing.currency,
+            currency: "usd",
             product_data: {
-              name: `${collectionName} #${token?.token_number ?? ""}`,
+              name: `${collectionName} #${token?.serial_number ?? ""}`,
               description: "Secondary market purchase",
             },
             unit_amount: listing.price_cents,
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         buyerAccountId: user.id,
       },
       success_url: `${origin}/my-collection?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/marketplace?checkout=cancelled`,
+      cancel_url: `${origin}/collections?checkout=cancelled`,
     });
 
     return NextResponse.json({ url: checkoutSession.url });

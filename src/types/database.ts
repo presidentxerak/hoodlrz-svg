@@ -12,37 +12,31 @@ export interface Database {
       accounts: {
         Row: {
           id: string;
+          auth_id: string | null;
           email: string;
-          pseudonym: string;
-          avatar_url: string | null;
-          role: "user" | "seller" | "admin";
-          stripe_customer_id: string | null;
-          stripe_connect_id: string | null;
-          onboarding_complete: boolean;
+          pseudonym: string | null;
+          rewards_balance: number;
+          is_admin: boolean;
           created_at: string;
           updated_at: string;
         };
         Insert: {
-          id: string;
+          id?: string;
+          auth_id?: string | null;
           email: string;
-          pseudonym: string;
-          avatar_url?: string | null;
-          role?: "user" | "seller" | "admin";
-          stripe_customer_id?: string | null;
-          stripe_connect_id?: string | null;
-          onboarding_complete?: boolean;
+          pseudonym?: string | null;
+          rewards_balance?: number;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
+          auth_id?: string | null;
           email?: string;
-          pseudonym?: string;
-          avatar_url?: string | null;
-          role?: "user" | "seller" | "admin";
-          stripe_customer_id?: string | null;
-          stripe_connect_id?: string | null;
-          onboarding_complete?: boolean;
+          pseudonym?: string | null;
+          rewards_balance?: number;
+          is_admin?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -51,58 +45,46 @@ export interface Database {
       collections: {
         Row: {
           id: string;
-          seller_id: string;
-          name: string;
           slug: string;
+          name: string;
           description: string | null;
-          cover_image_url: string | null;
-          svg_template_url: string | null;
-          trait_schema: Json | null;
-          supply: number;
-          minted: number;
+          hero_media_url: string | null;
+          total_supply: number;
+          minted_count: number;
           price_cents: number;
-          currency: string;
-          is_published: boolean;
-          is_genesis: boolean;
-          drop_date: string | null;
+          whitelist_start_at: string | null;
+          public_start_at: string | null;
+          drop_status: "upcoming" | "whitelist" | "public" | "sold_out" | "closed";
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          seller_id: string;
-          name: string;
           slug: string;
+          name: string;
           description?: string | null;
-          cover_image_url?: string | null;
-          svg_template_url?: string | null;
-          trait_schema?: Json | null;
-          supply: number;
-          minted?: number;
-          price_cents: number;
-          currency?: string;
-          is_published?: boolean;
-          is_genesis?: boolean;
-          drop_date?: string | null;
+          hero_media_url?: string | null;
+          total_supply?: number;
+          minted_count?: number;
+          price_cents?: number;
+          whitelist_start_at?: string | null;
+          public_start_at?: string | null;
+          drop_status?: "upcoming" | "whitelist" | "public" | "sold_out" | "closed";
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          seller_id?: string;
-          name?: string;
           slug?: string;
+          name?: string;
           description?: string | null;
-          cover_image_url?: string | null;
-          svg_template_url?: string | null;
-          trait_schema?: Json | null;
-          supply?: number;
-          minted?: number;
+          hero_media_url?: string | null;
+          total_supply?: number;
+          minted_count?: number;
           price_cents?: number;
-          currency?: string;
-          is_published?: boolean;
-          is_genesis?: boolean;
-          drop_date?: string | null;
+          whitelist_start_at?: string | null;
+          public_start_at?: string | null;
+          drop_status?: "upcoming" | "whitelist" | "public" | "sold_out" | "closed";
           created_at?: string;
           updated_at?: string;
         };
@@ -112,12 +94,11 @@ export interface Database {
         Row: {
           id: string;
           collection_id: string;
-          owner_id: string;
-          token_number: number;
-          svg_url: string;
-          metadata: Json | null;
-          traits: Json | null;
-          rarity_score: number | null;
+          serial_number: number;
+          seed: string;
+          traits_json: Json;
+          canonical_hash: string;
+          owner_id: string | null;
           is_listed: boolean;
           created_at: string;
           updated_at: string;
@@ -125,12 +106,11 @@ export interface Database {
         Insert: {
           id?: string;
           collection_id: string;
-          owner_id: string;
-          token_number: number;
-          svg_url: string;
-          metadata?: Json | null;
-          traits?: Json | null;
-          rarity_score?: number | null;
+          serial_number: number;
+          seed: string;
+          traits_json?: Json;
+          canonical_hash: string;
+          owner_id?: string | null;
           is_listed?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -138,12 +118,11 @@ export interface Database {
         Update: {
           id?: string;
           collection_id?: string;
-          owner_id?: string;
-          token_number?: number;
-          svg_url?: string;
-          metadata?: Json | null;
-          traits?: Json | null;
-          rarity_score?: number | null;
+          serial_number?: number;
+          seed?: string;
+          traits_json?: Json;
+          canonical_hash?: string;
+          owner_id?: string | null;
           is_listed?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -153,48 +132,42 @@ export interface Database {
       orders: {
         Row: {
           id: string;
-          buyer_id: string;
-          collection_id: string;
+          account_id: string;
           token_id: string | null;
-          stripe_payment_intent_id: string;
-          stripe_checkout_session_id: string | null;
+          collection_id: string;
           amount_cents: number;
           currency: string;
-          platform_fee_cents: number;
-          seller_payout_cents: number;
-          status: "pending" | "processing" | "completed" | "failed" | "refunded";
+          stripe_session_id: string | null;
+          stripe_payment_intent_id: string | null;
+          status: "pending" | "completed" | "failed" | "refunded";
+          order_type: "collect" | "marketplace" | "reward";
           created_at: string;
-          updated_at: string;
         };
         Insert: {
           id?: string;
-          buyer_id: string;
-          collection_id: string;
+          account_id: string;
           token_id?: string | null;
-          stripe_payment_intent_id: string;
-          stripe_checkout_session_id?: string | null;
+          collection_id: string;
           amount_cents: number;
           currency?: string;
-          platform_fee_cents: number;
-          seller_payout_cents: number;
-          status?: "pending" | "processing" | "completed" | "failed" | "refunded";
+          stripe_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          status?: "pending" | "completed" | "failed" | "refunded";
+          order_type?: "collect" | "marketplace" | "reward";
           created_at?: string;
-          updated_at?: string;
         };
         Update: {
           id?: string;
-          buyer_id?: string;
-          collection_id?: string;
+          account_id?: string;
           token_id?: string | null;
-          stripe_payment_intent_id?: string;
-          stripe_checkout_session_id?: string | null;
+          collection_id?: string;
           amount_cents?: number;
           currency?: string;
-          platform_fee_cents?: number;
-          seller_payout_cents?: number;
-          status?: "pending" | "processing" | "completed" | "failed" | "refunded";
+          stripe_session_id?: string | null;
+          stripe_payment_intent_id?: string | null;
+          status?: "pending" | "completed" | "failed" | "refunded";
+          order_type?: "collect" | "marketplace" | "reward";
           created_at?: string;
-          updated_at?: string;
         };
         Relationships: [];
       };
@@ -204,9 +177,7 @@ export interface Database {
           token_id: string;
           seller_id: string;
           price_cents: number;
-          currency: string;
-          is_active: boolean;
-          expires_at: string | null;
+          status: "active" | "sold" | "cancelled";
           created_at: string;
           updated_at: string;
         };
@@ -215,9 +186,7 @@ export interface Database {
           token_id: string;
           seller_id: string;
           price_cents: number;
-          currency?: string;
-          is_active?: boolean;
-          expires_at?: string | null;
+          status?: "active" | "sold" | "cancelled";
           created_at?: string;
           updated_at?: string;
         };
@@ -226,9 +195,7 @@ export interface Database {
           token_id?: string;
           seller_id?: string;
           price_cents?: number;
-          currency?: string;
-          is_active?: boolean;
-          expires_at?: string | null;
+          status?: "active" | "sold" | "cancelled";
           created_at?: string;
           updated_at?: string;
         };
@@ -240,9 +207,7 @@ export interface Database {
           token_id: string;
           from_account_id: string | null;
           to_account_id: string;
-          event_type: "mint" | "purchase" | "transfer" | "burn";
-          order_id: string | null;
-          price_cents: number | null;
+          event_type: "collect" | "purchase" | "transfer" | "reward";
           created_at: string;
         };
         Insert: {
@@ -250,9 +215,7 @@ export interface Database {
           token_id: string;
           from_account_id?: string | null;
           to_account_id: string;
-          event_type: "mint" | "purchase" | "transfer" | "burn";
-          order_id?: string | null;
-          price_cents?: number | null;
+          event_type: "collect" | "purchase" | "transfer" | "reward";
           created_at?: string;
         };
         Update: {
@@ -260,9 +223,7 @@ export interface Database {
           token_id?: string;
           from_account_id?: string | null;
           to_account_id?: string;
-          event_type?: "mint" | "purchase" | "transfer" | "burn";
-          order_id?: string | null;
-          price_cents?: number | null;
+          event_type?: "collect" | "purchase" | "transfer" | "reward";
           created_at?: string;
         };
         Relationships: [];
@@ -271,28 +232,25 @@ export interface Database {
         Row: {
           id: string;
           account_id: string;
-          type: "referral" | "streak" | "collect" | "genesis" | "promo";
-          points: number;
-          description: string | null;
-          metadata: Json | null;
+          amount: number;
+          reason: "collect" | "marketplace_purchase" | "referral" | "bonus" | "spent";
+          reference_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           account_id: string;
-          type: "referral" | "streak" | "collect" | "genesis" | "promo";
-          points: number;
-          description?: string | null;
-          metadata?: Json | null;
+          amount: number;
+          reason: "collect" | "marketplace_purchase" | "referral" | "bonus" | "spent";
+          reference_id?: string | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           account_id?: string;
-          type?: "referral" | "streak" | "collect" | "genesis" | "promo";
-          points?: number;
-          description?: string | null;
-          metadata?: Json | null;
+          amount?: number;
+          reason?: "collect" | "marketplace_purchase" | "referral" | "bonus" | "spent";
+          reference_id?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -300,29 +258,23 @@ export interface Database {
       whitelist: {
         Row: {
           id: string;
-          collection_id: string;
           email: string;
-          account_id: string | null;
-          tier: "standard" | "priority" | "guaranteed";
-          is_redeemed: boolean;
+          collection_id: string;
+          status: "pending" | "approved" | "used";
           created_at: string;
         };
         Insert: {
           id?: string;
-          collection_id: string;
           email: string;
-          account_id?: string | null;
-          tier?: "standard" | "priority" | "guaranteed";
-          is_redeemed?: boolean;
+          collection_id: string;
+          status?: "pending" | "approved" | "used";
           created_at?: string;
         };
         Update: {
           id?: string;
-          collection_id?: string;
           email?: string;
-          account_id?: string | null;
-          tier?: "standard" | "priority" | "guaranteed";
-          is_redeemed?: boolean;
+          collection_id?: string;
+          status?: "pending" | "approved" | "used";
           created_at?: string;
         };
         Relationships: [];
@@ -330,32 +282,26 @@ export interface Database {
       seller_balances: {
         Row: {
           id: string;
-          seller_id: string;
+          account_id: string;
           available_cents: number;
           pending_cents: number;
           total_earned_cents: number;
-          total_withdrawn_cents: number;
-          currency: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
-          seller_id: string;
+          account_id: string;
           available_cents?: number;
           pending_cents?: number;
           total_earned_cents?: number;
-          total_withdrawn_cents?: number;
-          currency?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
-          seller_id?: string;
+          account_id?: string;
           available_cents?: number;
           pending_cents?: number;
           total_earned_cents?: number;
-          total_withdrawn_cents?: number;
-          currency?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -364,64 +310,49 @@ export interface Database {
         Row: {
           id: string;
           account_id: string;
-          token_id: string;
-          perks: Json;
-          is_active: boolean;
-          activated_at: string;
-          expires_at: string | null;
+          granted_at: string;
+          reason: string | null;
         };
         Insert: {
           id?: string;
           account_id: string;
-          token_id: string;
-          perks?: Json;
-          is_active?: boolean;
-          activated_at?: string;
-          expires_at?: string | null;
+          granted_at?: string;
+          reason?: string | null;
         };
         Update: {
           id?: string;
           account_id?: string;
-          token_id?: string;
-          perks?: Json;
-          is_active?: boolean;
-          activated_at?: string;
-          expires_at?: string | null;
+          granted_at?: string;
+          reason?: string | null;
         };
         Relationships: [];
       };
       access_links: {
         Row: {
           id: string;
-          collection_id: string;
           code: string;
-          max_uses: number;
-          current_uses: number;
+          collection_id: string | null;
+          max_uses: number | null;
+          use_count: number;
           expires_at: string | null;
-          is_active: boolean;
-          created_by: string;
           created_at: string;
         };
         Insert: {
           id?: string;
-          collection_id: string;
           code: string;
-          max_uses?: number;
-          current_uses?: number;
+          collection_id?: string | null;
+          max_uses?: number | null;
+          use_count?: number;
           expires_at?: string | null;
-          is_active?: boolean;
-          created_by: string;
           created_at?: string;
         };
         Update: {
           id?: string;
-          collection_id?: string;
           code?: string;
-          max_uses?: number;
-          current_uses?: number;
+          collection_id?: string | null;
+          max_uses?: number | null;
+          use_count?: number;
           expires_at?: string | null;
-          is_active?: boolean;
-          created_by?: string;
           created_at?: string;
         };
         Relationships: [];
@@ -433,16 +364,14 @@ export interface Database {
           event_type: string;
           payload: Json;
           processed: boolean;
-          error: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
           stripe_event_id: string;
           event_type: string;
-          payload: Json;
+          payload?: Json;
           processed?: boolean;
-          error?: string | null;
           created_at?: string;
         };
         Update: {
@@ -451,7 +380,6 @@ export interface Database {
           event_type?: string;
           payload?: Json;
           processed?: boolean;
-          error?: string | null;
           created_at?: string;
         };
         Relationships: [];
@@ -464,11 +392,7 @@ export interface Database {
       [_ in never]: never;
     };
     Enums: {
-      account_role: "user" | "seller" | "admin";
-      order_status: "pending" | "processing" | "completed" | "failed" | "refunded";
-      ownership_event_type: "mint" | "purchase" | "transfer" | "burn";
-      reward_type: "referral" | "streak" | "collect" | "genesis" | "promo";
-      whitelist_tier: "standard" | "priority" | "guaranteed";
+      [_ in never]: never;
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -476,7 +400,7 @@ export interface Database {
   };
 }
 
-/* ── Convenience type aliases ── */
+/* -- Convenience type aliases -- */
 
 export type Tables<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Row"];
@@ -487,10 +411,7 @@ export type InsertTables<T extends keyof Database["public"]["Tables"]> =
 export type UpdateTables<T extends keyof Database["public"]["Tables"]> =
   Database["public"]["Tables"][T]["Update"];
 
-export type Enums<T extends keyof Database["public"]["Enums"]> =
-  Database["public"]["Enums"][T];
-
-/* ── Named row types ── */
+/* -- Named row types -- */
 
 export type Account = Tables<"accounts">;
 export type Collection = Tables<"collections">;

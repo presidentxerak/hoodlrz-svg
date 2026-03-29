@@ -46,13 +46,13 @@ function generateAllTokens() {
 }
 
 const TRAIT_CATEGORIES = [
-  "background",
-  "head",
+  "wall",
+  "graffiti",
+  "hoodie",
   "eyes",
   "mouth",
-  "hood",
   "accessory",
-  "pattern",
+  "foreground",
 ];
 
 const ITEMS_PER_PAGE = 12;

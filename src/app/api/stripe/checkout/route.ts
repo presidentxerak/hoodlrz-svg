@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
       },
       success_url:
         body.successUrl ??
-        `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: body.cancelUrl ?? `${origin}/checkout/cancelled`,
+        `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: body.cancelUrl ?? `${origin}/collections`,
     });
 
     return NextResponse.json({

@@ -38,13 +38,16 @@ export default function SellModal({
     setError("");
 
     try {
-      // TODO: Replace with actual API call
-      // await fetch("/api/marketplace/list", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify({ tokenId, price: priceNum }),
-      // });
-      await new Promise((r) => setTimeout(r, 1000));
+      const res = await fetch("/api/marketplace/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenId, price: priceNum }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Listing failed (${res.status})`);
+      }
       setStatus("success");
     } catch {
       setStatus("error");

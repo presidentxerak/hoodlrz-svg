@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       .from("listings")
       .select("*")
       .eq("id", listingId)
-      .eq("is_active", true)
+      .eq("status", "active")
       .single();
 
     if (listingError || !listing) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // Deactivate listing
     const { error: updateError } = await supabase
       .from("listings")
-      .update({ is_active: false })
+      .update({ status: "cancelled" })
       .eq("id", listingId);
 
     if (updateError) {

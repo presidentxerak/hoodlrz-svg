@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
           id: newId,
           email: recipientEmail,
           pseudonym: recipientEmail.split("@")[0],
-          onboarding_complete: false,
         })
         .select()
         .single();

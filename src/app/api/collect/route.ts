@@ -41,21 +41,21 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate drop is live
-    if (!collection.is_published) {
+    if (collection.drop_status !== "public") {
       return NextResponse.json(
         { error: "This collection is not currently available." },
         { status: 403 }
       );
     }
 
-    if (collection.drop_date && new Date(collection.drop_date) > new Date()) {
+    if (collection.public_start_at && new Date(collection.public_start_at) > new Date()) {
       return NextResponse.json(
         { error: "This drop has not started yet." },
         { status: 403 }
       );
     }
 
-    if (collection.minted >= collection.supply) {
+    if (collection.minted_count >= collection.total_supply) {
       return NextResponse.json(
         { error: "This collection is sold out." },
         { status: 409 }
@@ -70,13 +70,10 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
-            currency: collection.currency,
+            currency: "usd",
             product_data: {
               name: collection.name,
               description: collection.description ?? undefined,
-              images: collection.cover_image_url
-                ? [collection.cover_image_url]
-                : undefined,
             },
             unit_amount: collection.price_cents,
           },
@@ -89,8 +86,8 @@ export async function POST(request: NextRequest) {
         accountId,
         type: "primary_sale",
       },
-      success_url: `${origin}/my-collection?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/drops/${collectionSlug}?checkout=cancelled`,
+      success_url: `${origin}/success?collection=${collectionSlug}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/collection/${collectionSlug}`,
     });
 
     return NextResponse.json({ url: checkoutSession.url });

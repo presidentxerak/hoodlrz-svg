@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         token_id: tokenId,
         seller_id: user.id,
         price_cents: price,
-        is_active: true,
+        status: "active",
       })
       .select()
       .single();

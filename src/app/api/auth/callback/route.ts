@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
 
   if (!code) {
     return NextResponse.redirect(
-      new URL("/login?error=missing_code", requestUrl.origin)
+      new URL("/access?error=missing_code", requestUrl.origin)
     );
   }
 
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   if (error) {
     console.error("[auth/callback] Exchange failed:", error.message);
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error.message)}`, requestUrl.origin)
+      new URL(`/access?error=${encodeURIComponent(error.message)}`, requestUrl.origin)
     );
   }
 

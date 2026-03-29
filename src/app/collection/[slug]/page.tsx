@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
+import CollectFlow from "@/components/collect/CollectFlow";
 
 /* ── Genesis vinyl data ── */
 const GENESIS_VINYLS = {
@@ -200,9 +201,10 @@ export default function CollectionDetailPage() {
                 </>
               )}
               {dropStatus === "live" && (
-                <Button variant="primary" size="lg">
-                  Collect - ${(collection.priceCents / 100).toFixed(2)}
-                </Button>
+                <CollectFlow
+                  collectionSlug={slug}
+                  price={`$${(collection.priceCents / 100).toFixed(2)}`}
+                />
               )}
               <Button
                 variant="secondary"

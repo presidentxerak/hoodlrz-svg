@@ -27,7 +27,7 @@ export async function GET() {
       );
     }
 
-    const totalPoints = (rewards ?? []).reduce((sum, r) => sum + r.points, 0);
+    const totalPoints = (rewards ?? []).reduce((sum, r) => sum + r.amount, 0);
 
     // Determine milestones and status
     const milestones = [
