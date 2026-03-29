@@ -382,4 +382,4 @@ $$ language plpgsql security definer;
 insert into public.collections (slug, name, description, total_supply, price_cents, drop_status, whitelist_start_at, public_start_at)
 values
   ('hoodlrz', 'Hoodlrz', 'The original collection. 10,000 unique hooded identities.', 10000, 999, 'upcoming', now() + interval '7 days', now() + interval '14 days'),
-  ('genesis', 'Genesis', '25 exclusive works reserved for top collectors.', 25, 0, 'upcoming', null, null);
+  ('genesis', 'Genesis', '25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Reserved for top collectors.', 25, 0, 'upcoming', null, null);
