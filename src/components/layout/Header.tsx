@@ -33,9 +33,14 @@ export default function Header({
             alt="Hoodlrz"
             className="h-8 w-8 sm:h-9 sm:w-9"
           />
-          <span className="font-hoodlrz text-xl font-bold tracking-wider text-foreground sm:text-2xl">
-            HOODLRZ
-          </span>
+          <div className="flex flex-col leading-none">
+            <span className="font-hoodlrz text-xl font-bold tracking-wider text-foreground sm:text-2xl">
+              HOODLRZ
+            </span>
+            <span className="text-[8px] uppercase tracking-[0.2em] text-muted">
+              by Xerak
+            </span>
+          </div>
         </Link>
 
         {/* Center: countdown ticker (optional, hidden on mobile) */}
