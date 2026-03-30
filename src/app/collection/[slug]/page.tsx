@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
+import Card from "@/components/ui/Card";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
 import CollectFlow from "@/components/collect/CollectFlow";
@@ -217,6 +218,82 @@ export default function CollectionDetailPage() {
           )}
         </div>
       </div>
+
+      {/* ── How It Works (Hoodlrz only) ── */}
+      {!isGenesis && (
+        <section className="mt-16">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-muted mb-6">
+            How It Works
+          </h2>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card className="flex flex-col gap-3">
+              <p className="text-sm font-bold text-foreground">No Gas Fees</p>
+              <p className="text-sm leading-relaxed text-muted">
+                Zero hidden costs. The price you see is the price you pay. No
+                gas fees, no wallet needed.
+              </p>
+            </Card>
+
+            <Card className="flex flex-col gap-3">
+              <p className="text-sm font-bold text-foreground">New Protocol</p>
+              <p className="text-sm leading-relaxed text-muted">
+                Collected through our revolutionary digital art protocol. No
+                blockchain complexity. Just art.
+              </p>
+            </Card>
+
+            <Card className="flex flex-col gap-3">
+              <p className="text-sm font-bold text-foreground">Fixed Price</p>
+              <p className="text-sm leading-relaxed text-muted">
+                $9.99 per collectible. Each piece is unique, generated from 7
+                hand-drawn SVG layers.
+              </p>
+            </Card>
+          </div>
+
+          {/* Pricing breakdown */}
+          <div className="mt-8 border border-[var(--border)] p-6 flex flex-col gap-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted mb-2">
+              Pricing Breakdown
+            </p>
+            {[
+              ["Collection", "Hoodlrz \u2014 10,000 unique pieces"],
+              ["Price", "$9.99 per piece"],
+              ["Gas fees", "None"],
+              ["Wallet required", "No"],
+              ["Ownership", "Instant"],
+              ["PFP download", "Immediate"],
+            ].map(([label, value]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0"
+              >
+                <span className="text-xs font-bold uppercase tracking-widest text-muted">
+                  {label}
+                </span>
+                <span className="text-sm font-bold text-foreground">
+                  {value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Price Activity (Hoodlrz only) ── */}
+      {!isGenesis && (
+        <section className="mt-16">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-muted mb-6">
+            Price Activity
+          </h2>
+          <div className="border border-[var(--border)] p-8 flex items-center justify-center">
+            <p className="text-sm text-muted text-center">
+              Price history and market activity will be available after the drop.
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* ── Gallery Preview ── */}
       <section className="mt-16">
