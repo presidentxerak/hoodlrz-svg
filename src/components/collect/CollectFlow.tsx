@@ -3,14 +3,16 @@
 import { useState, useCallback } from "react";
 import CollectButton from "./CollectButton";
 import RevealOverlay from "./RevealOverlay";
+import Modal from "@/components/ui/Modal";
+import Input from "@/components/ui/Input";
+import Button from "@/components/ui/Button";
 import { generateSeed } from "@/lib/pfp/hash";
 
-type FlowState = "idle" | "loading" | "revealing" | "complete" | "error";
+type FlowState = "idle" | "auth" | "loading" | "revealing" | "complete" | "error";
 
 interface CollectFlowProps {
   collectionSlug: string;
   price: string;
-  /** Enable preview mode: skips Stripe, uses random seed */
   preview?: boolean;
 }
 
@@ -29,10 +31,16 @@ export default function CollectFlow({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CollectResult | null>(null);
 
+  // Auth modal state
+  const [email, setEmail] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authSent, setAuthSent] = useState(false);
+  const [authError, setAuthError] = useState("");
+
   const handleCollect = useCallback(async () => {
     setError(null);
 
-    // ── Preview / demo mode ──
+    // Preview mode
     if (preview) {
       setState("revealing");
       setResult({
@@ -43,7 +51,7 @@ export default function CollectFlow({
       return;
     }
 
-    // ── Production flow ──
+    // Production flow
     setState("loading");
 
     try {
@@ -53,9 +61,9 @@ export default function CollectFlow({
         body: JSON.stringify({ collectionSlug }),
       });
 
-      // Not authenticated → redirect to access page
+      // Not authenticated → show auth modal
       if (res.status === 401) {
-        window.location.href = `/access?redirect=/${collectionSlug}`;
+        setState("auth");
         return;
       }
 
@@ -66,15 +74,11 @@ export default function CollectFlow({
 
       const data = await res.json();
 
-      // If the API returns a Stripe checkout URL, redirect to it.
-      // After payment, the user returns to a callback that re-triggers
-      // the reveal with the token data.
       if (data.url) {
         window.location.href = data.url;
         return;
       }
 
-      // Direct success (free mint, already paid, etc.)
       setState("revealing");
       setResult({
         seed: data.seed,
@@ -89,6 +93,39 @@ export default function CollectFlow({
     }
   }, [collectionSlug, preview]);
 
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+
+    if (!email || !email.includes("@")) {
+      setAuthError("Enter a valid email address.");
+      return;
+    }
+
+    setAuthLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAuthError(data.error || "Something went wrong.");
+        setAuthLoading(false);
+        return;
+      }
+
+      setAuthLoading(false);
+      setAuthSent(true);
+    } catch {
+      setAuthError("Network error. Please try again.");
+      setAuthLoading(false);
+    }
+  };
+
   const handleClose = useCallback(() => {
     setState("complete");
   }, []);
@@ -96,7 +133,6 @@ export default function CollectFlow({
   const handleCollectAgain = useCallback(() => {
     setState("idle");
     setResult(null);
-    // Small delay so the overlay closes cleanly before re-triggering
     setTimeout(() => handleCollect(), 100);
   }, [handleCollect]);
 
@@ -141,6 +177,71 @@ export default function CollectFlow({
           </p>
         </div>
       )}
+
+      {/* Auth Modal */}
+      <Modal isOpen={state === "auth"} onClose={() => setState("idle")}>
+        <div className="flex flex-col items-center gap-6 p-6 max-w-sm mx-auto">
+          <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
+            Sign Up to Collect
+          </h2>
+          <p className="text-sm text-center text-muted">
+            Enter your email to get a magic link. No passwords, no wallet, no friction.
+          </p>
+
+          {!authSent ? (
+            <form onSubmit={handleAuthSubmit} className="w-full flex flex-col gap-4">
+              <Input
+                label="Email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={authError}
+              />
+              <Button variant="primary" size="lg" disabled={authLoading}>
+                {authLoading ? "Sending..." : "Get Access"}
+              </Button>
+            </form>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center border border-emerald-500/40 bg-emerald-500/10">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-emerald-500"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <p className="text-sm text-center text-muted">
+                Check your inbox. We sent a magic link to{" "}
+                <strong className="text-foreground">{email}</strong>.
+              </p>
+              <p className="text-xs text-muted text-center">
+                Click the link in the email, then come back here and click Collect again.
+              </p>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  setState("idle");
+                  setAuthSent(false);
+                  setEmail("");
+                }}
+              >
+                Got it
+              </Button>
+            </div>
+          )}
+        </div>
+      </Modal>
 
       {/* Reveal overlay */}
       {result && (
