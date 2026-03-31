@@ -69,8 +69,8 @@ export default function CollectFlow({
       // If the API returns a Stripe checkout URL, redirect to it.
       // After payment, the user returns to a callback that re-triggers
       // the reveal with the token data.
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      if (data.url) {
+        window.location.href = data.url;
         return;
       }
 

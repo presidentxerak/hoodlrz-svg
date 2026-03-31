@@ -22,6 +22,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up the account from the authenticated user
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !account) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
     // Fetch listing and verify ownership
     const { data: listing, error: listingError } = await supabase
       .from("listings")
@@ -37,7 +51,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (listing.seller_id !== user.id) {
+    if (listing.seller_id !== account.id) {
       return NextResponse.json(
         { error: "You do not own this listing." },
         { status: 403 }

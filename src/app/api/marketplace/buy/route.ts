@@ -23,6 +23,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up the account from the authenticated user
+    const { data: buyerAccount, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !buyerAccount) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
     // Fetch active listing with token details
     const { data: listing, error: listingError } = await supabase
       .from("listings")
@@ -39,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Cannot buy your own listing
-    if (listing.seller_id === user.id) {
+    if (listing.seller_id === buyerAccount.id) {
       return NextResponse.json(
         { error: "You cannot purchase your own listing." },
         { status: 400 }
@@ -79,7 +93,7 @@ export async function POST(request: NextRequest) {
         listingId: listing.id,
         tokenId: listing.token_id,
         sellerAccountId: listing.seller_id,
-        buyerAccountId: user.id,
+        buyerAccountId: buyerAccount.id,
       },
       success_url: `${origin}/my-collection?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/collections?checkout=cancelled`,

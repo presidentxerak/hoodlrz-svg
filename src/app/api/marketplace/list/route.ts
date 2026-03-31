@@ -25,6 +25,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up the account from the authenticated user
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !account) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
     // Fetch token and verify ownership
     const { data: token, error: tokenError } = await supabase
       .from("tokens")
@@ -39,7 +53,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (token.owner_id !== user.id) {
+    if (token.owner_id !== account.id) {
       return NextResponse.json(
         { error: "You do not own this token." },
         { status: 403 }
@@ -58,7 +72,7 @@ export async function POST(request: NextRequest) {
       .from("listings")
       .insert({
         token_id: tokenId,
-        seller_id: user.id,
+        seller_id: account.id,
         price_cents: price,
         status: "active",
       })

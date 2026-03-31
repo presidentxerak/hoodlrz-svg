@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 import { getStripeServer } from "@/lib/stripe";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSeed, computeCanonicalHash } from "@/lib/pfp/hash";
 import { generatePFP } from "@/lib/pfp/generator";
 
@@ -33,15 +33,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabase = createClient();
+  const supabase = createAdminClient();
 
-  // Log event
-  await supabase.from("stripe_events").insert({
+  // Idempotency check: skip if already processed
+  const { data: existingEvent } = await supabase
+    .from("stripe_events")
+    .select("processed")
+    .eq("stripe_event_id", event.id)
+    .single();
+
+  if (existingEvent?.processed) {
+    return NextResponse.json({ received: true, already_processed: true });
+  }
+
+  // Log event (upsert to handle re-deliveries)
+  await supabase.from("stripe_events").upsert({
     stripe_event_id: event.id,
     event_type: event.type,
     payload: JSON.parse(JSON.stringify(event.data.object)),
     processed: false,
-  });
+  }, { onConflict: "stripe_event_id" });
 
   try {
     switch (event.type) {
@@ -86,7 +97,7 @@ export async function POST(request: NextRequest) {
 // ── Primary Sale Handler ──
 
 async function handlePrimarySale(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createAdminClient>,
   session: Stripe.Checkout.Session,
   metadata: Record<string, string>
 ) {
@@ -100,6 +111,11 @@ async function handlePrimarySale(
 
   if (collError || !collection) {
     throw new Error(`Collection ${collectionId} not found.`);
+  }
+
+  // Re-check supply before minting (race condition guard)
+  if (collection.minted_count >= collection.total_supply) {
+    throw new Error(`Collection ${collectionId} is sold out.`);
   }
 
   // Generate PFP token
@@ -149,10 +165,10 @@ async function handlePrimarySale(
     event_type: "collect",
   });
 
-  // Update minted count
+  // Update minted count atomically
   await supabase
     .from("collections")
-    .update({ minted_count: serialNumber })
+    .update({ minted_count: collection.minted_count + 1 })
     .eq("id", collectionId);
 
   // Award Hoodz (+1) and update account balance
@@ -167,12 +183,13 @@ async function handlePrimarySale(
 // ── Marketplace Purchase Handler ──
 
 async function handleMarketplacePurchase(
-  supabase: ReturnType<typeof createClient>,
+  supabase: ReturnType<typeof createAdminClient>,
   session: Stripe.Checkout.Session,
   metadata: Record<string, string>
 ) {
   const { listingId, buyerAccountId } = metadata;
 
+  // Re-check listing is still active (race condition guard)
   const { data: listing, error: listingError } = await supabase
     .from("listings")
     .select("*")
@@ -190,12 +207,16 @@ async function handleMarketplacePurchase(
     .eq("id", listing.token_id)
     .single();
 
+  if (!token) {
+    throw new Error(`Token for listing ${listingId} not found.`);
+  }
+
   const amountCents = session.amount_total ?? listing.price_cents;
 
   // Create order
   await supabase.from("orders").insert({
     account_id: buyerAccountId,
-    collection_id: token?.collection_id ?? listing.token_id,
+    collection_id: token.collection_id,
     token_id: listing.token_id,
     amount_cents: amountCents,
     currency: "usd",
@@ -224,6 +245,33 @@ async function handleMarketplacePurchase(
     .from("listings")
     .update({ status: "sold" })
     .eq("id", listingId);
+
+  // Credit the seller
+  const sellerPayoutCents = amountCents;
+  const { data: existingBalance } = await supabase
+    .from("seller_balances")
+    .select("*")
+    .eq("account_id", listing.seller_id)
+    .single();
+
+  if (existingBalance) {
+    await supabase
+      .from("seller_balances")
+      .update({
+        available_cents: existingBalance.available_cents + sellerPayoutCents,
+        total_earned_cents: existingBalance.total_earned_cents + sellerPayoutCents,
+      })
+      .eq("account_id", listing.seller_id);
+  } else {
+    await supabase
+      .from("seller_balances")
+      .insert({
+        account_id: listing.seller_id,
+        available_cents: sellerPayoutCents,
+        pending_cents: 0,
+        total_earned_cents: sellerPayoutCents,
+      });
+  }
 
   // Award Hoodz to buyer
   await supabase.from("rewards").insert({

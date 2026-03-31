@@ -14,17 +14,32 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { collectionSlug, accountId } = body as {
+    const { collectionSlug } = body as {
       collectionSlug?: string;
-      accountId?: string;
     };
 
-    if (!collectionSlug || !accountId) {
+    if (!collectionSlug) {
       return NextResponse.json(
-        { error: "collectionSlug and accountId are required." },
+        { error: "collectionSlug is required." },
         { status: 400 }
       );
     }
+
+    // Look up the account from the authenticated user
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !account) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
+    const accountId = account.id;
 
     // Fetch collection by slug
     const { data: collection, error: collectionError } = await supabase
