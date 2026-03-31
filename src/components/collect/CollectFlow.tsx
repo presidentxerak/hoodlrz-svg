@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import CollectButton from "./CollectButton";
 import RevealOverlay from "./RevealOverlay";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
+import { createClient } from "@/lib/supabase/client";
 import { generateSeed } from "@/lib/pfp/hash";
 
-type FlowState = "idle" | "auth" | "loading" | "revealing" | "complete" | "error";
+type FlowState = "idle" | "auth" | "quantity" | "loading" | "revealing" | "complete" | "error";
 
 interface CollectFlowProps {
   collectionSlug: string;
@@ -30,12 +31,22 @@ export default function CollectFlow({
   const [state, setState] = useState<FlowState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CollectResult | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [quantity, setQuantity] = useState(1);
 
   // Auth modal state
   const [email, setEmail] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authSent, setAuthSent] = useState(false);
   const [authError, setAuthError] = useState("");
+
+  // Check auth on mount
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user);
+    });
+  }, []);
 
   const handleCollect = useCallback(async () => {
     setError(null);
@@ -51,46 +62,59 @@ export default function CollectFlow({
       return;
     }
 
-    // Production flow
+    // Not logged in → show auth modal
+    if (!isLoggedIn) {
+      setState("auth");
+      return;
+    }
+
+    // Show quantity selector
+    setState("quantity");
+  }, [preview, isLoggedIn]);
+
+  const handleProceedToPayment = useCallback(async () => {
     setState("loading");
 
     try {
+      // Make one request per quantity (or loop)
       const res = await fetch("/api/mint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ collectionSlug }),
       });
 
-      // Not authenticated → show auth modal
       if (res.status === 401) {
         setState("auth");
+        setIsLoggedIn(false);
         return;
       }
 
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Collection failed (${res.status})`);
+        throw new Error(body.error || `Failed (${res.status})`);
       }
 
       const data = await res.json();
 
       if (data.url) {
+        // Redirect to Stripe Checkout
         window.location.href = data.url;
         return;
       }
 
+      // Direct success (free mint etc)
       setState("revealing");
       setResult({
-        seed: data.seed,
-        serialNumber: data.serialNumber,
-        username: data.username,
+        seed: data.seed ?? generateSeed(),
+        serialNumber: data.serialNumber ?? 1,
+        username: data.username ?? "Collector",
       });
     } catch (err) {
       setState("error");
       const msg = err instanceof Error ? err.message : "Something went wrong";
-      setError(msg === "Failed to fetch" ? "Connection error. Please try again." : msg);
+      setError(msg === "Failed to fetch" ? "Connection error. Please check your connection and try again." : msg);
     }
-  }, [collectionSlug, preview]);
+  }, [collectionSlug]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,7 +167,7 @@ export default function CollectFlow({
           <CollectButton
             collectionSlug={collectionSlug}
             price={price}
-            disabled={false}
+            disabled={isLoggedIn === null}
             onCollect={handleCollect}
           />
 
@@ -171,8 +195,8 @@ export default function CollectFlow({
               borderRadius: "9999px",
             }}
           />
-          <p className="text-muted text-xs uppercase tracking-widest">
-            Preparing your PFP...
+          <p className="text-white/70 text-xs uppercase tracking-widest">
+            Redirecting to payment...
           </p>
         </div>
       )}
@@ -220,11 +244,11 @@ export default function CollectFlow({
                 </svg>
               </div>
               <p className="text-sm text-center text-muted">
-                Check your inbox. We sent a magic link to{" "}
+                Check your inbox! We sent a magic link to{" "}
                 <strong className="text-foreground">{email}</strong>.
               </p>
               <p className="text-xs text-muted text-center">
-                Click the link in the email, then come back here and click Collect again.
+                Click the link in the email to sign in, then come back and collect.
               </p>
               <Button
                 variant="secondary"
@@ -233,12 +257,84 @@ export default function CollectFlow({
                   setState("idle");
                   setAuthSent(false);
                   setEmail("");
+                  // Re-check auth in case they signed in via another tab
+                  const supabase = createClient();
+                  supabase.auth.getUser().then(({ data }) => {
+                    setIsLoggedIn(!!data.user);
+                  });
                 }}
               >
-                Got it
+                Done
               </Button>
             </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Quantity Modal */}
+      <Modal isOpen={state === "quantity"} onClose={() => setState("idle")}>
+        <div className="flex flex-col items-center gap-6 p-6 max-w-sm mx-auto">
+          <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
+            Collect
+          </h2>
+          <p className="text-sm text-center text-muted">
+            Each piece is unique, generated from 7 hand-drawn layers.
+            No gas fees. No hidden costs.
+          </p>
+
+          {/* Quantity selector */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              className="w-10 h-10 border border-[var(--border)] text-foreground font-bold text-lg hover:bg-[var(--surface)] transition-colors"
+            >
+              -
+            </button>
+            <span className="font-hoodlrz text-3xl font-bold text-foreground w-12 text-center">
+              {quantity}
+            </span>
+            <button
+              onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+              className="w-10 h-10 border border-[var(--border)] text-foreground font-bold text-lg hover:bg-[var(--surface)] transition-colors"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Price summary */}
+          <div className="w-full border border-[var(--border)] p-4 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Price per piece</span>
+              <span className="text-foreground font-semibold">{price}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Quantity</span>
+              <span className="text-foreground font-semibold">{quantity}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Gas fees</span>
+              <span className="text-foreground font-semibold">$0.00</span>
+            </div>
+            <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm">
+              <span className="text-foreground font-bold">Total</span>
+              <span className="text-foreground font-bold font-hoodlrz text-lg">
+                ${(9.99 * quantity).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleProceedToPayment}
+            className="w-full"
+          >
+            Pay ${(9.99 * quantity).toFixed(2)}
+          </Button>
+
+          <p className="text-[10px] text-muted text-center">
+            Powered by Stripe. Secure payment.
+          </p>
         </div>
       </Modal>
 
