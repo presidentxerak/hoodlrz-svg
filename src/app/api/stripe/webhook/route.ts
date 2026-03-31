@@ -159,8 +159,9 @@ async function handlePrimarySale(
   metadata: Record<string, string>
 ) {
   const { collectionId, accountId } = metadata;
+  const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10));
 
-  console.log(`[stripe/webhook] Primary sale: collection=${collectionId}, account=${accountId}`);
+  console.log(`[stripe/webhook] Primary sale: collection=${collectionId}, account=${accountId}, quantity=${quantity}`);
 
   if (!collectionId || !accountId) {
     throw new Error(`Missing metadata: collectionId=${collectionId}, accountId=${accountId}`);
@@ -181,92 +182,111 @@ async function handlePrimarySale(
     throw new Error(`Collection ${collectionId} is sold out.`);
   }
 
-  // Generate PFP token
-  const seed = generateSeed();
-  const pfp = generatePFP(seed);
-  const canonicalHash = await computeCanonicalHash(pfp.svg);
-  const serialNumber = collection.minted_count + 1;
+  const amountPerToken = collection.price_cents;
+  const tokenIds: string[] = [];
 
-  console.log(`[stripe/webhook] Generated PFP: seed=${seed}, serial=${serialNumber}`);
+  // Mint N tokens in sequence
+  for (let i = 0; i < quantity; i++) {
+    // Re-fetch current minted_count for each token to avoid conflicts
+    const { data: currentCollection } = await supabase
+      .from("collections")
+      .select("minted_count, total_supply")
+      .eq("id", collectionId)
+      .single();
 
-  // Atomic increment with sold-out guard
-  const { data: updatedCollection, error: updateError } = await supabase
-    .from("collections")
-    .update({ minted_count: serialNumber })
-    .eq("id", collectionId)
-    .lt("minted_count", collection.total_supply)
-    .select("minted_count")
-    .single();
+    if (!currentCollection || currentCollection.minted_count >= currentCollection.total_supply) {
+      console.warn(`[stripe/webhook] Sold out after minting ${i}/${quantity} tokens`);
+      break;
+    }
 
-  if (updateError || !updatedCollection) {
-    throw new Error(`Collection ${collectionId} sold out or update failed: ${updateError?.message}`);
-  }
+    const serialNumber = currentCollection.minted_count + 1;
 
-  // Insert token
-  const { data: token, error: tokenError } = await supabase
-    .from("tokens")
-    .insert({
+    // Generate unique PFP for each token
+    const seed = generateSeed();
+    const pfp = generatePFP(seed);
+    const canonicalHash = await computeCanonicalHash(pfp.svg);
+
+    console.log(`[stripe/webhook] Minting token ${i + 1}/${quantity}: seed=${seed}, serial=${serialNumber}`);
+
+    // Atomic increment with sold-out guard
+    const { data: updatedCollection, error: updateError } = await supabase
+      .from("collections")
+      .update({ minted_count: serialNumber })
+      .eq("id", collectionId)
+      .lt("minted_count", currentCollection.total_supply)
+      .select("minted_count")
+      .single();
+
+    if (updateError || !updatedCollection) {
+      console.warn(`[stripe/webhook] Failed to claim serial ${serialNumber}, stopping. ${updateError?.message}`);
+      break;
+    }
+
+    // Insert token
+    const { data: token, error: tokenError } = await supabase
+      .from("tokens")
+      .insert({
+        collection_id: collectionId,
+        owner_id: accountId,
+        serial_number: serialNumber,
+        seed,
+        traits_json: pfp.traits,
+        canonical_hash: canonicalHash,
+      })
+      .select()
+      .single();
+
+    if (tokenError || !token) {
+      console.error(`[stripe/webhook] Failed to create token ${i + 1}: ${tokenError?.message}`);
+      continue;
+    }
+
+    tokenIds.push(token.id);
+    console.log(`[stripe/webhook] Token created: ${token.id} (serial #${serialNumber})`);
+
+    // Create order for each token
+    const { error: orderError } = await supabase.from("orders").insert({
+      account_id: accountId,
       collection_id: collectionId,
-      owner_id: accountId,
-      serial_number: serialNumber,
-      seed,
-      traits_json: pfp.traits,
-      canonical_hash: canonicalHash,
-    })
-    .select()
-    .single();
+      token_id: token.id,
+      amount_cents: amountPerToken,
+      currency: "usd",
+      stripe_session_id: session.id,
+      stripe_payment_intent_id: session.payment_intent as string,
+      status: "completed",
+      order_type: "collect",
+    });
 
-  if (tokenError || !token) {
-    throw new Error(`Failed to create token: ${tokenError?.message}`);
+    if (orderError) {
+      console.error("[stripe/webhook] Failed to create order:", orderError.message);
+    }
+
+    // Create ownership event
+    const { error: ownershipError } = await supabase.from("ownership_events").insert({
+      token_id: token.id,
+      from_account_id: null,
+      to_account_id: accountId,
+      event_type: "collect",
+    });
+
+    if (ownershipError) {
+      console.error("[stripe/webhook] Failed to create ownership event:", ownershipError.message);
+    }
+
+    // Award Hoodz (+1)
+    const { error: rewardError } = await supabase.from("rewards").insert({
+      account_id: accountId,
+      amount: 1,
+      reason: "collect",
+      reference_id: token.id,
+    });
+
+    if (rewardError) {
+      console.error("[stripe/webhook] Failed to create reward:", rewardError.message);
+    }
   }
 
-  console.log(`[stripe/webhook] Token created: ${token.id}`);
-
-  const amountCents = session.amount_total ?? collection.price_cents;
-
-  // Create order
-  const { error: orderError } = await supabase.from("orders").insert({
-    account_id: accountId,
-    collection_id: collectionId,
-    token_id: token.id,
-    amount_cents: amountCents,
-    currency: "usd",
-    stripe_session_id: session.id,
-    stripe_payment_intent_id: session.payment_intent as string,
-    status: "completed",
-    order_type: "collect",
-  });
-
-  if (orderError) {
-    console.error("[stripe/webhook] Failed to create order:", orderError.message);
-    // Don't throw — token was already created, order is secondary
-  }
-
-  // Create ownership event
-  const { error: ownershipError } = await supabase.from("ownership_events").insert({
-    token_id: token.id,
-    from_account_id: null,
-    to_account_id: accountId,
-    event_type: "collect",
-  });
-
-  if (ownershipError) {
-    console.error("[stripe/webhook] Failed to create ownership event:", ownershipError.message);
-  }
-
-  // Award Hoodz (+1)
-  const { error: rewardError } = await supabase.from("rewards").insert({
-    account_id: accountId,
-    amount: 1,
-    reason: "collect",
-    reference_id: token.id,
-  });
-
-  if (rewardError) {
-    console.error("[stripe/webhook] Failed to create reward:", rewardError.message);
-  }
-
-  console.log(`[stripe/webhook] Primary sale complete: token=${token.id}, serial=${serialNumber}`);
+  console.log(`[stripe/webhook] Primary sale complete: minted ${tokenIds.length}/${quantity} tokens`);
 }
 
 // ── Marketplace Purchase Handler ──

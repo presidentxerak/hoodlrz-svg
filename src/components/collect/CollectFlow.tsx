@@ -95,7 +95,7 @@ export default function CollectFlow({
       const res = await fetch("/api/mint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collectionSlug }),
+        body: JSON.stringify({ collectionSlug, quantity }),
       });
 
       if (res.status === 401) {
@@ -129,7 +129,7 @@ export default function CollectFlow({
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg === "Failed to fetch" ? "Connection error. Please check your connection and try again." : msg);
     }
-  }, [collectionSlug]);
+  }, [collectionSlug, quantity]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

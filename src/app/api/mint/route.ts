@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { collectionSlug } = body as {
+    const { collectionSlug, quantity: rawQuantity } = body as {
       collectionSlug?: string;
+      quantity?: number;
     };
 
     if (!collectionSlug) {
@@ -26,6 +27,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate quantity (1-10)
+    const quantity = Math.min(10, Math.max(1, Math.floor(Number(rawQuantity) || 1)));
 
     // Use admin client for DB operations (bypasses RLS)
     const admin = createAdminClient();
@@ -93,12 +97,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (collection.minted_count >= collection.total_supply) {
+    const remaining = collection.total_supply - collection.minted_count;
+    if (remaining <= 0) {
       return NextResponse.json(
         { error: "This collection is sold out." },
         { status: 409 }
       );
     }
+
+    // Cap quantity to remaining supply
+    const finalQuantity = Math.min(quantity, remaining);
 
     // Create Stripe checkout session
     const origin = new URL(request.url).origin;
@@ -115,13 +123,14 @@ export async function POST(request: NextRequest) {
             },
             unit_amount: collection.price_cents,
           },
-          quantity: 1,
+          quantity: finalQuantity,
         },
       ],
       metadata: {
         collectionSlug,
         collectionId: collection.id,
         accountId,
+        quantity: String(finalQuantity),
         type: "primary_sale",
       },
       success_url: `${origin}/success?collection=${collectionSlug}&session_id={CHECKOUT_SESSION_ID}`,
