@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import CollectButton from "./CollectButton";
 import RevealOverlay from "./RevealOverlay";
 import Modal from "@/components/ui/Modal";
@@ -28,11 +29,13 @@ export default function CollectFlow({
   price,
   preview = false,
 }: CollectFlowProps) {
+  const searchParams = useSearchParams();
   const [state, setState] = useState<FlowState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CollectResult | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [autoTriggered, setAutoTriggered] = useState(false);
 
   // Auth modal state
   const [email, setEmail] = useState("");
@@ -47,6 +50,19 @@ export default function CollectFlow({
       setIsLoggedIn(!!data.user);
     });
   }, []);
+
+  // Auto-trigger collect flow when ?collect=true is in URL
+  useEffect(() => {
+    if (autoTriggered || isLoggedIn === null || preview) return;
+    if (searchParams.get("collect") === "true") {
+      setAutoTriggered(true);
+      if (isLoggedIn) {
+        setState("quantity");
+      } else {
+        setState("auth");
+      }
+    }
+  }, [searchParams, isLoggedIn, autoTriggered, preview]);
 
   const handleCollect = useCallback(async () => {
     setError(null);
@@ -76,7 +92,6 @@ export default function CollectFlow({
     setState("loading");
 
     try {
-      // Make one request per quantity (or loop)
       const res = await fetch("/api/mint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -159,6 +174,17 @@ export default function CollectFlow({
     setTimeout(() => handleCollect(), 100);
   }, [handleCollect]);
 
+  // Close button component for modals
+  const CloseButton = ({ onClick }: { onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-colors text-xl leading-none"
+      aria-label="Close"
+    >
+      &times;
+    </button>
+  );
+
   return (
     <div className="collect-flow">
       {/* CTA Button */}
@@ -203,7 +229,8 @@ export default function CollectFlow({
 
       {/* Auth Modal */}
       <Modal isOpen={state === "auth"} onClose={() => setState("idle")}>
-        <div className="flex flex-col items-center gap-6 p-6 max-w-sm mx-auto">
+        <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
+          <CloseButton onClick={() => setState("idle")} />
           <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
             Sign Up to Collect
           </h2>
@@ -278,7 +305,8 @@ export default function CollectFlow({
 
       {/* Quantity Modal */}
       <Modal isOpen={state === "quantity"} onClose={() => setState("idle")}>
-        <div className="flex flex-col items-center gap-6 p-6 max-w-sm mx-auto">
+        <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
+          <CloseButton onClick={() => setState("idle")} />
           <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
             Collect
           </h2>

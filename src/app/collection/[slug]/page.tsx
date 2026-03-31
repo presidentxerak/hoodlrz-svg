@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { Suspense } from "react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -209,10 +210,12 @@ export default function CollectionDetailPage() {
                 </>
               )}
               {dropStatus === "live" && (
-                <CollectFlow
-                  collectionSlug={slug}
-                  price={`$${(collection.priceCents / 100).toFixed(2)}`}
-                />
+                <Suspense fallback={null}>
+                  <CollectFlow
+                    collectionSlug={slug}
+                    price={`$${(collection.priceCents / 100).toFixed(2)}`}
+                  />
+                </Suspense>
               )}
               <Button
                 variant="secondary"
