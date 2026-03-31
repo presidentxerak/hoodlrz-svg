@@ -254,13 +254,18 @@ export default function CollectFlow({
                 variant="secondary"
                 size="md"
                 onClick={() => {
-                  setState("idle");
                   setAuthSent(false);
                   setEmail("");
-                  // Re-check auth in case they signed in via another tab
+                  // Re-check auth — if signed in, go directly to payment
                   const supabase = createClient();
                   supabase.auth.getUser().then(({ data }) => {
-                    setIsLoggedIn(!!data.user);
+                    const loggedIn = !!data.user;
+                    setIsLoggedIn(loggedIn);
+                    if (loggedIn) {
+                      setState("quantity");
+                    } else {
+                      setState("idle");
+                    }
                   });
                 }}
               >

@@ -56,35 +56,16 @@ function SuccessContent() {
           <Button
             variant="primary"
             size="md"
-            href={`/token/${tokenId}`}
-          >
-            View Token
-          </Button>
-          <Button
-            variant="secondary"
-            size="md"
             href={`/collection/${collectionSlug}`}
           >
             Collect Again
           </Button>
           <Button
-            variant="ghost"
+            variant="secondary"
             size="md"
-            onClick={() => {
-              // TODO: implement share via Web Share API or clipboard
-              if (navigator.share) {
-                navigator.share({
-                  title: "I just collected a Hoodlrz identity!",
-                  url: `${window.location.origin}/token/${tokenId}`,
-                });
-              } else {
-                navigator.clipboard.writeText(
-                  `${window.location.origin}/token/${tokenId}`
-                );
-              }
-            }}
+            href="/my-collection"
           >
-            Share
+            View My Profile
           </Button>
         </div>
       </div>
