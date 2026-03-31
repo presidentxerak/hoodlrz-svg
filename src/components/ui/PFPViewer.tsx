@@ -12,7 +12,6 @@ interface PFPViewerProps {
 
 export default function PFPViewer({
   seed,
-  size = 400,
   className = "",
 }: PFPViewerProps) {
   const [showTraits, setShowTraits] = useState(false);
@@ -27,8 +26,7 @@ export default function PFPViewer({
 
   return (
     <div
-      className={`relative overflow-hidden aspect-square ${className}`}
-      style={{ width: size, maxWidth: "100%" }}
+      className={`relative overflow-hidden aspect-square w-full ${className}`}
       onMouseEnter={() => setShowTraits(true)}
       onMouseLeave={() => setShowTraits(false)}
       onClick={toggle}
@@ -39,8 +37,7 @@ export default function PFPViewer({
         style={{ backgroundColor: variant === "dark" ? "#000" : "#fff" }}
       />
 
-      {/* Layer stack — using <img> intentionally for SVG layer composition */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* Layer stack */}
       {layers.map((layer, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -53,13 +50,12 @@ export default function PFPViewer({
         />
       ))}
 
-      {/* Rarity badge - always visible */}
+      {/* Rarity badge */}
       <div
-        className="absolute top-2 right-2 px-2 py-0.5 text-xs font-bold uppercase tracking-wider"
+        className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 py-0.5 text-[9px] sm:text-[11px] font-bold uppercase tracking-wider"
         style={{
           backgroundColor: tierColor,
           color: rarity.tier === "Common" ? "#1a1a1a" : "#fff",
-          fontSize: Math.max(10, size * 0.03),
         }}
       >
         {rarity.tier}
@@ -67,17 +63,14 @@ export default function PFPViewer({
 
       {/* Trait badges overlay */}
       <div
-        className="absolute inset-0 flex flex-col justify-end p-2 transition-opacity duration-200"
+        className="absolute inset-0 flex flex-col justify-end p-1.5 sm:p-2 transition-opacity duration-200"
         style={{
           opacity: showTraits ? 1 : 0,
           pointerEvents: showTraits ? "auto" : "none",
           background: "linear-gradient(transparent 40%, rgba(0,0,0,0.75) 100%)",
         }}
       >
-        <div
-          className="flex flex-wrap gap-1"
-          style={{ fontSize: Math.max(9, size * 0.026) }}
-        >
+        <div className="flex flex-wrap gap-0.5 sm:gap-1 text-[8px] sm:text-[10px]">
           {Object.entries(traits)
             .filter(([key]) => key !== "variant")
             .map(([category, value]) => {
@@ -97,7 +90,7 @@ export default function PFPViewer({
               return (
                 <span
                   key={category}
-                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5"
+                  className="inline-flex items-center gap-0.5 px-1 py-0.5"
                   style={{
                     backgroundColor: "rgba(0,0,0,0.6)",
                     border: `1px solid ${badgeColor}44`,
@@ -105,12 +98,8 @@ export default function PFPViewer({
                   }}
                 >
                   <span
-                    className="inline-block"
-                    style={{
-                      width: Math.max(5, size * 0.015),
-                      height: Math.max(5, size * 0.015),
-                      backgroundColor: badgeColor,
-                    }}
+                    className="inline-block w-1 h-1 sm:w-1.5 sm:h-1.5"
+                    style={{ backgroundColor: badgeColor }}
                   />
                   <span className="opacity-60 capitalize">{category}:</span>{" "}
                   {value}
