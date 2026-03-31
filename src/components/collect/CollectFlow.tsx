@@ -87,9 +87,8 @@ export default function CollectFlow({
       });
     } catch (err) {
       setState("error");
-      setError(
-        err instanceof Error ? err.message : "Something went wrong"
-      );
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setError(msg === "Failed to fetch" ? "Connection error. Please try again." : msg);
     }
   }, [collectionSlug, preview]);
 
