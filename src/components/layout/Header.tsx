@@ -1,14 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import CountdownTimer from "@/components/ui/CountdownTimer";
-
-interface HeaderProps {
-  showCountdown?: boolean;
-  targetDate?: string | Date;
-  countdownLabel?: string;
-}
+import { createClient } from "@/lib/supabase/client";
 
 const navLinks = [
   { href: "/collections", label: "Collections" },
@@ -17,11 +14,24 @@ const navLinks = [
   { href: "/my-collection", label: "My Collection" },
 ];
 
-export default function Header({
-  showCountdown,
-  targetDate,
-  countdownLabel,
-}: HeaderProps) {
+export default function Header() {
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user);
+    });
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    setIsLoggedIn(false);
+    router.push("/");
+    router.refresh();
+  };
+
   return (
     <>
       {/* Whitelist Banner */}
@@ -61,18 +71,6 @@ export default function Header({
             </div>
           </Link>
 
-          {/* Center: countdown ticker (optional, hidden on mobile) */}
-          {showCountdown && targetDate && (
-            <div className="hidden items-center gap-2 sm:flex">
-              {countdownLabel && (
-                <span className="text-xs font-medium uppercase tracking-widest text-muted">
-                  {countdownLabel}
-                </span>
-              )}
-              <CountdownTimer targetDate={targetDate} />
-            </div>
-          )}
-
           {/* Right side */}
           <div className="flex items-center gap-1 sm:gap-4">
             {/* Desktop nav links */}
@@ -89,6 +87,24 @@ export default function Header({
             </nav>
 
             <ThemeToggle />
+
+            {isLoggedIn ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted hover:text-foreground transition-colors"
+                title="Log out"
+              >
+                <LogOut size={14} />
+                <span className="hidden sm:inline">Log out</span>
+              </button>
+            ) : (
+              <Link
+                href="/access"
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-foreground border border-[var(--border)] hover:bg-[var(--surface)] transition-colors"
+              >
+                Access
+              </Link>
+            )}
           </div>
         </div>
       </header>
