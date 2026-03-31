@@ -25,6 +25,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
+<<<<<<< HEAD
+=======
+    if (!Number.isInteger(price) || price < 100 || price > 10000000) {
+      return NextResponse.json(
+        { error: "Price must be a whole number between $1.00 and $100,000." },
+        { status: 400 }
+      );
+    }
+
+    // Look up the account from the authenticated user
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !account) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
     // Fetch token and verify ownership
     const { data: token, error: tokenError } = await supabase
       .from("tokens")
@@ -39,7 +63,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+<<<<<<< HEAD
     if (token.owner_id !== user.id) {
+=======
+    if (token.owner_id !== account.id) {
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "You do not own this token." },
         { status: 403 }
@@ -58,9 +86,15 @@ export async function POST(request: NextRequest) {
       .from("listings")
       .insert({
         token_id: tokenId,
+<<<<<<< HEAD
         seller_id: user.id,
         price_cents: price,
         is_active: true,
+=======
+        seller_id: account.id,
+        price_cents: price,
+        status: "active",
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       })
       .select()
       .single();

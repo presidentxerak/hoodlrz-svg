@@ -19,6 +19,13 @@ export const metadata: Metadata = {
   title: "HOODLRZ",
   description:
     "HOODLRZ — Premium digital collectibles. Discover, collect, and showcase unique art from the HOODLRZ universe.",
+<<<<<<< HEAD
+=======
+  icons: {
+    icon: "/logo-hoodlrz.svg",
+    apple: "/logo-hoodlrz.svg",
+  },
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
 };
 
 export default function RootLayout({

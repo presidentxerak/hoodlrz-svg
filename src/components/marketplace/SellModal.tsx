@@ -38,6 +38,7 @@ export default function SellModal({
     setError("");
 
     try {
+<<<<<<< HEAD
       // TODO: Replace with actual API call
       // await fetch("/api/marketplace/list", {
       //   method: "POST",
@@ -45,6 +46,18 @@ export default function SellModal({
       //   body: JSON.stringify({ tokenId, price: priceNum }),
       // });
       await new Promise((r) => setTimeout(r, 1000));
+=======
+      const res = await fetch("/api/marketplace/list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenId, price: priceNum }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Listing failed (${res.status})`);
+      }
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       setStatus("success");
     } catch {
       setStatus("error");

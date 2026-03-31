@@ -14,6 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+<<<<<<< HEAD
     const { collectionSlug, accountId } = body as {
       collectionSlug?: string;
       accountId?: string;
@@ -22,10 +23,38 @@ export async function POST(request: NextRequest) {
     if (!collectionSlug || !accountId) {
       return NextResponse.json(
         { error: "collectionSlug and accountId are required." },
+=======
+    const { collectionSlug } = body as {
+      collectionSlug?: string;
+    };
+
+    if (!collectionSlug) {
+      return NextResponse.json(
+        { error: "collectionSlug is required." },
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
         { status: 400 }
       );
     }
 
+<<<<<<< HEAD
+=======
+    // Look up the account from the authenticated user
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !account) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
+    const accountId = account.id;
+
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
     // Fetch collection by slug
     const { data: collection, error: collectionError } = await supabase
       .from("collections")
@@ -41,21 +70,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate drop is live
+<<<<<<< HEAD
     if (!collection.is_published) {
+=======
+    if (collection.drop_status !== "public") {
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "This collection is not currently available." },
         { status: 403 }
       );
     }
 
+<<<<<<< HEAD
     if (collection.drop_date && new Date(collection.drop_date) > new Date()) {
+=======
+    if (collection.public_start_at && new Date(collection.public_start_at) > new Date()) {
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "This drop has not started yet." },
         { status: 403 }
       );
     }
 
+<<<<<<< HEAD
     if (collection.minted >= collection.supply) {
+=======
+    if (collection.minted_count >= collection.total_supply) {
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "This collection is sold out." },
         { status: 409 }
@@ -70,6 +111,7 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
+<<<<<<< HEAD
             currency: collection.currency,
             product_data: {
               name: collection.name,
@@ -77,6 +119,12 @@ export async function POST(request: NextRequest) {
               images: collection.cover_image_url
                 ? [collection.cover_image_url]
                 : undefined,
+=======
+            currency: "usd",
+            product_data: {
+              name: collection.name,
+              description: collection.description ?? undefined,
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
             },
             unit_amount: collection.price_cents,
           },
@@ -89,8 +137,13 @@ export async function POST(request: NextRequest) {
         accountId,
         type: "primary_sale",
       },
+<<<<<<< HEAD
       success_url: `${origin}/my-collection?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/drops/${collectionSlug}?checkout=cancelled`,
+=======
+      success_url: `${origin}/success?collection=${collectionSlug}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/collection/${collectionSlug}`,
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
     });
 
     return NextResponse.json({ url: checkoutSession.url });

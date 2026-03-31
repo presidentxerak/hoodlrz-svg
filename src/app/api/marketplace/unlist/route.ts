@@ -22,12 +22,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+<<<<<<< HEAD
+=======
+    // Look up the account from the authenticated user
+    const { data: account, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !account) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
     // Fetch listing and verify ownership
     const { data: listing, error: listingError } = await supabase
       .from("listings")
       .select("*")
       .eq("id", listingId)
+<<<<<<< HEAD
       .eq("is_active", true)
+=======
+      .eq("status", "active")
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       .single();
 
     if (listingError || !listing) {
@@ -37,7 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+<<<<<<< HEAD
     if (listing.seller_id !== user.id) {
+=======
+    if (listing.seller_id !== account.id) {
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "You do not own this listing." },
         { status: 403 }
@@ -47,7 +72,11 @@ export async function POST(request: NextRequest) {
     // Deactivate listing
     const { error: updateError } = await supabase
       .from("listings")
+<<<<<<< HEAD
       .update({ is_active: false })
+=======
+      .update({ status: "cancelled" })
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       .eq("id", listingId);
 
     if (updateError) {

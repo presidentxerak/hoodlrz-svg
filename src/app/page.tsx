@@ -4,12 +4,24 @@ import Button from "@/components/ui/Button";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
 
+<<<<<<< HEAD
 const FEATURED_SEEDS = ["hoodlrz-og-001", "hoodlrz-og-002", "hoodlrz-og-003", "hoodlrz-og-004"];
 const DROP_DATE = "2026-04-15T18:00:00Z";
+=======
+// Each seed produces a different rarity tier for showcase
+const FEATURED = [
+  { seed: "hoodlrz-featured-956", label: "Legendary" },
+  { seed: "hoodlrz-featured-4", label: "Rare" },
+  { seed: "hoodlrz-featured-7", label: "Uncommon" },
+  { seed: "hoodlrz-featured-1", label: "Common" },
+];
+const DROP_DATE = "2026-05-15T18:00:00Z";
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
 export default function HomePage() {
   return (
     <div className="flex flex-col items-center">
+<<<<<<< HEAD
       {/* ── Hero ── */}
       <section className="flex w-full flex-col items-center justify-center gap-6 px-4 pt-20 pb-16 sm:pt-28 sm:pb-20">
         <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[60px]">
@@ -29,18 +41,70 @@ export default function HomePage() {
           <Button variant="primary" size="lg" href="/collections">
             Collect Now
           </Button>
+=======
+      {/* ── Hero with video background ── */}
+      <section className="relative flex w-full flex-col items-center justify-center gap-6 px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden min-h-[70vh]">
+        {/* Video background */}
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src="/hero-hoodlrz-video.mp4" type="video/mp4" />
+          <source src="/hero-hoodlrz-video.mov" type="video/quicktime" />
+        </video>
+
+        {/* Dark overlay */}
+        <div className="absolute inset-0 bg-black/70" />
+
+        {/* Content over video */}
+        <div className="relative z-10 flex flex-col items-center gap-6">
+          <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-white sm:text-[60px]">
+            HOODLRZ
+          </h1>
+          <p className="max-w-md text-center text-sm leading-relaxed text-white/70 sm:text-base">
+            Own the identity. Collect the culture.
+          </p>
+
+          {/* Countdown */}
+          <div className="mt-4">
+            <Countdown targetDate={DROP_DATE} label="Next Drop" />
+          </div>
+
+          {/* CTA */}
+          <div className="mt-6">
+            <Button variant="primary" size="lg" href="/collections">
+              Collect Now
+            </Button>
+          </div>
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
         </div>
       </section>
 
       {/* ── Featured PFPs ── */}
+<<<<<<< HEAD
       <section className="mx-auto w-full max-w-5xl px-4 pb-20">
+=======
+      <section className="mx-auto w-full max-w-5xl px-4 py-20">
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
         <h2 className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-muted">
           Featured
         </h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
+<<<<<<< HEAD
           {FEATURED_SEEDS.map((seed) => (
             <div key={seed} className="animate-fade-in-up">
               <PFPViewer seed={seed} size={400} className="aspect-square w-full" />
+=======
+          {FEATURED.map(({ seed, label }) => (
+            <div key={seed} className="animate-fade-in-up flex flex-col gap-2">
+              <PFPViewer seed={seed} size={400} className="aspect-square w-full" />
+              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted">
+                {label}
+              </span>
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
             </div>
           ))}
         </div>

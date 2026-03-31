@@ -21,12 +21,35 @@ export default function AccessPage() {
 
     setLoading(true);
 
+<<<<<<< HEAD
     // TODO: replace with Supabase auth magic link
     // const { error } = await supabase.auth.signInWithOtp({ email });
     await new Promise((r) => setTimeout(r, 1200));
 
     setLoading(false);
     setSubmitted(true);
+=======
+    try {
+      const res = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Something went wrong. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(false);
+      setSubmitted(true);
+    } catch {
+      setError("Network error. Please try again.");
+      setLoading(false);
+    }
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
   }
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+<<<<<<< HEAD
 import { create } from "zustand";
 import { useEffect } from "react";
 
@@ -36,6 +37,12 @@ export default function ThemeToggle() {
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+=======
+import { useTheme } from "@/lib/theme";
+
+export default function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
   return (
     <button

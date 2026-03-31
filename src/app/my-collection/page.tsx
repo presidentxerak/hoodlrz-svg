@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< HEAD
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import PFPViewer from "@/components/ui/PFPViewer";
@@ -50,6 +51,16 @@ export default function MyCollectionPage() {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [sellModal, setSellModal] = useState<{ tokenId: string; seed: string } | null>(null);
   const [transferModal, setTransferModal] = useState<{ tokenId: string; seed: string } | null>(null);
+=======
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Button from "@/components/ui/Button";
+import { createClient } from "@/lib/supabase/client";
+
+export default function MyCollectionPage() {
+  const router = useRouter();
+  const [authed, setAuthed] = useState<boolean | null>(null);
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
   /* ── Auth check ── */
   useEffect(() => {
@@ -59,16 +70,22 @@ export default function MyCollectionPage() {
         router.replace("/access");
       } else {
         setAuthed(true);
+<<<<<<< HEAD
         // TODO: Fetch user tokens from Supabase
         setTokens(DEMO_TOKENS);
+=======
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       }
     });
   }, [router]);
 
+<<<<<<< HEAD
   const listedTokens = useMemo(() => tokens.filter((t) => t.listed), [tokens]);
   const hoodzRemaining = HOODZ_PER_FREE - DEMO_HOODZ_BALANCE;
   const hoodzProgress = Math.min(100, (DEMO_HOODZ_BALANCE / HOODZ_PER_FREE) * 100);
 
+=======
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
   /* Loading / redirect */
   if (authed === null) {
     return (
@@ -78,6 +95,7 @@ export default function MyCollectionPage() {
     );
   }
 
+<<<<<<< HEAD
   /* Empty state */
   if (tokens.length === 0) {
     return (
@@ -103,10 +121,15 @@ export default function MyCollectionPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pt-16 pb-20 sm:pt-20">
+=======
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       {/* ── Header ── */}
       <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[48px]">
         My Collection
       </h1>
+<<<<<<< HEAD
       <p className="mt-3 text-sm text-muted">
         {tokens.length} collectible{tokens.length !== 1 ? "s" : ""} owned
       </p>
@@ -363,6 +386,43 @@ export default function MyCollectionPage() {
           seed={transferModal.seed}
         />
       )}
+=======
+
+      {/* ── Placeholder ── */}
+      <div className="mt-20 flex flex-col items-center gap-6 text-center">
+        {/* Hourglass icon */}
+        <div className="w-20 h-20 border border-[var(--border)] flex items-center justify-center">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="text-muted"
+          >
+            <path d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2z" />
+            <path d="M6 2h12" />
+            <path d="M6 22h12" />
+          </svg>
+        </div>
+
+        <h2 className="text-lg font-bold text-foreground">
+          Your collection will appear here after the drop
+        </h2>
+
+        <p className="max-w-md text-sm leading-relaxed text-muted">
+          Once the Hoodlrz collection drops, all your collectibles, Hoodz
+          rewards, seller balance, and Genesis eligibility will be visible here.
+        </p>
+
+        <Button variant="primary" size="lg" href="/collections">
+          View Collections
+        </Button>
+
+        <p className="text-xs text-muted">Drop date: May 15, 2026</p>
+      </div>
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
     </div>
   );
 }

@@ -46,6 +46,7 @@ function generateAllTokens() {
 }
 
 const TRAIT_CATEGORIES = [
+<<<<<<< HEAD
   "background",
   "head",
   "eyes",
@@ -53,6 +54,15 @@ const TRAIT_CATEGORIES = [
   "hood",
   "accessory",
   "pattern",
+=======
+  "wall",
+  "graffiti",
+  "hoodie",
+  "eyes",
+  "mouth",
+  "accessory",
+  "foreground",
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
 ];
 
 const ITEMS_PER_PAGE = 12;

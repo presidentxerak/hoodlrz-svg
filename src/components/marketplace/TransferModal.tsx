@@ -37,6 +37,7 @@ export default function TransferModal({
     setError("");
 
     try {
+<<<<<<< HEAD
       // TODO: Replace with actual API call
       // await fetch("/api/transfer", {
       //   method: "POST",
@@ -44,6 +45,18 @@ export default function TransferModal({
       //   body: JSON.stringify({ tokenId, recipientEmail: email }),
       // });
       await new Promise((r) => setTimeout(r, 1000));
+=======
+      const res = await fetch("/api/transfer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tokenId, recipientEmail: email }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Transfer failed (${res.status})`);
+      }
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       setStatus("success");
     } catch {
       setStatus("error");

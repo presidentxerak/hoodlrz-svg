@@ -23,12 +23,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+<<<<<<< HEAD
+=======
+    // Look up the account from the authenticated user
+    const { data: buyerAccount, error: accountError } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (accountError || !buyerAccount) {
+      return NextResponse.json(
+        { error: "Account not found." },
+        { status: 404 }
+      );
+    }
+
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
     // Fetch active listing with token details
     const { data: listing, error: listingError } = await supabase
       .from("listings")
       .select("*")
       .eq("id", listingId)
+<<<<<<< HEAD
       .eq("is_active", true)
+=======
+      .eq("status", "active")
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       .single();
 
     if (listingError || !listing) {
@@ -39,7 +60,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Cannot buy your own listing
+<<<<<<< HEAD
     if (listing.seller_id === user.id) {
+=======
+    if (listing.seller_id === buyerAccount.id) {
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "You cannot purchase your own listing." },
         { status: 400 }
@@ -64,9 +89,15 @@ export async function POST(request: NextRequest) {
       line_items: [
         {
           price_data: {
+<<<<<<< HEAD
             currency: listing.currency,
             product_data: {
               name: `${collectionName} #${token?.token_number ?? ""}`,
+=======
+            currency: "usd",
+            product_data: {
+              name: `${collectionName} #${token?.serial_number ?? ""}`,
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
               description: "Secondary market purchase",
             },
             unit_amount: listing.price_cents,
@@ -79,10 +110,17 @@ export async function POST(request: NextRequest) {
         listingId: listing.id,
         tokenId: listing.token_id,
         sellerAccountId: listing.seller_id,
+<<<<<<< HEAD
         buyerAccountId: user.id,
       },
       success_url: `${origin}/my-collection?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/marketplace?checkout=cancelled`,
+=======
+        buyerAccountId: buyerAccount.id,
+      },
+      success_url: `${origin}/my-collection?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/collections?checkout=cancelled`,
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
     });
 
     return NextResponse.json({ url: checkoutSession.url });

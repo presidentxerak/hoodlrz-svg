@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripeServer } from "@/lib/stripe";
@@ -71,4 +72,15 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+=======
+import { NextResponse } from "next/server";
+
+// This generic checkout route is disabled for security.
+// Use /api/collect for primary sales or /api/marketplace/buy for marketplace purchases.
+export async function POST() {
+  return NextResponse.json(
+    { error: "This endpoint is disabled. Use /api/collect or /api/marketplace/buy." },
+    { status: 403 }
+  );
+>>>>>>> claude/build-hoodlrz-platform-7Ex6i
 }
