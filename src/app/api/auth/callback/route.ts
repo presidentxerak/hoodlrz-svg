@@ -21,5 +21,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(new URL("/my-collection", requestUrl.origin));
+  // Redirect to the page they came from, or home
+  const redirect = requestUrl.searchParams.get("redirect") || "/";
+  return NextResponse.redirect(new URL(redirect, requestUrl.origin));
 }
