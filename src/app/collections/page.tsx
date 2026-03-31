@@ -5,13 +5,6 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import PFPViewer from "@/components/ui/PFPViewer";
 
-/* ── Genesis vinyl pieces ── */
-const GENESIS_COVERS = [
-  "/images/genesis/black/01-black.png",
-  "/images/genesis/white/01-white.png",
-  "/images/genesis/craft/01-craft.png",
-];
-
 export default function CollectionsPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
@@ -61,18 +54,12 @@ export default function CollectionsPage() {
         <Link href="/collection/genesis">
           <Card className="group flex flex-col gap-0 p-0 overflow-hidden">
             <div className="relative w-full aspect-square overflow-hidden bg-[var(--surface)]">
-              {/* Show 3 vinyl covers in a grid preview */}
-              <div className="w-full h-full grid grid-cols-3 gap-0">
-                {GENESIS_COVERS.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={src}
-                    alt={`Genesis vinyl ${i + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                ))}
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/genesis/black/01-black.png"
+                alt="Genesis vinyl"
+                className="w-full h-full object-cover"
+              />
               <div className="absolute top-3 right-3">
                 <Badge variant="legendary">Genesis</Badge>
               </div>
