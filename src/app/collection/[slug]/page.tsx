@@ -47,6 +47,7 @@ const COLLECTIONS_MAP: Record<
     minted: number;
     priceCents: number;
     isGenesis: boolean;
+    dropStatus: string;
     dropDate: string;
     whitelistDate: string;
   }
@@ -60,6 +61,7 @@ const COLLECTIONS_MAP: Record<
     minted: 0,
     priceCents: 999,
     isGenesis: false,
+    dropStatus: "public" as const,
     dropDate: "2026-05-15T18:00:00Z",
     whitelistDate: "2026-05-12T18:00:00Z",
   },
@@ -72,6 +74,7 @@ const COLLECTIONS_MAP: Record<
     minted: 0,
     priceCents: 0,
     isGenesis: true,
+    dropStatus: "upcoming" as const,
     dropDate: "2026-05-10T18:00:00Z",
     whitelistDate: "2026-05-08T18:00:00Z",
   },
@@ -90,7 +93,10 @@ const GALLERY_SEEDS = [
 
 type DropStatus = "pre-whitelist" | "whitelist-live" | "live";
 
-function getDropStatus(whitelistDate: string, dropDate: string): DropStatus {
+function getDropStatus(whitelistDate: string, dropDate: string, dbStatus?: string): DropStatus {
+  // If the DB says public, the drop is live regardless of dates
+  if (dbStatus === "public") return "live";
+
   const now = Date.now();
   const wl = new Date(whitelistDate).getTime();
   const drop = new Date(dropDate).getTime();
@@ -118,7 +124,8 @@ export default function CollectionDetailPage() {
 
   const dropStatus = getDropStatus(
     collection.whitelistDate,
-    collection.dropDate
+    collection.dropDate,
+    collection.dropStatus
   );
 
   const countdownTarget =
