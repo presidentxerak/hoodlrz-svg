@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
@@ -15,8 +15,6 @@ import {
   type RarityTier,
 } from "@/lib/pfp/rarity";
 import type { RarityWeight } from "@/lib/pfp/traits";
-import SellModal from "@/components/marketplace/SellModal";
-import TransferModal from "@/components/marketplace/TransferModal";
 
 /* ── Helpers ── */
 
@@ -82,13 +80,7 @@ export default function TokenDetailPage() {
     [pfp.traits]
   );
 
-  /* TODO: fetch real owner from Supabase */
   const owner = { pseudonym: "—" };
-  const isListed = false; // TODO: check if listed for sale
-
-  /* Modal state */
-  const [sellOpen, setSellOpen] = useState(false);
-  const [transferOpen, setTransferOpen] = useState(false);
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
@@ -232,28 +224,11 @@ export default function TokenDetailPage() {
             >
               Download PFP
             </Button>
-
-            <Button
-              variant="primary"
-              size="md"
-              onClick={() => setSellOpen(true)}
-            >
-              List for Sale
-            </Button>
-            <Button
-              variant="ghost"
-              size="md"
-              onClick={() => setTransferOpen(true)}
-            >
-              Transfer
-            </Button>
-
-            {isListed && (
-              <Button variant="primary" size="md">
-                Buy
-              </Button>
-            )}
           </div>
+
+          <p className="text-xs text-muted">
+            Listing, selling, and transferring will be available after the drop.
+          </p>
         </div>
       </div>
 
@@ -332,19 +307,6 @@ export default function TokenDetailPage() {
         </Card>
       </section>
 
-      {/* ── Modals ── */}
-      <SellModal
-        isOpen={sellOpen}
-        onClose={() => setSellOpen(false)}
-        tokenId={id}
-        seed={seed}
-      />
-      <TransferModal
-        isOpen={transferOpen}
-        onClose={() => setTransferOpen(false)}
-        tokenId={id}
-        seed={seed}
-      />
     </div>
   );
 }
