@@ -11,19 +11,11 @@ import {
   ChevronDown,
   ChevronUp,
   Music,
-<<<<<<< HEAD
-=======
   List,
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 } from "lucide-react";
 import { useAudioStore, type Track } from "@/store/audio";
 
 const DEMO_TRACKS: Track[] = [
-<<<<<<< HEAD
-  { id: "1", title: "Hood Dreams", artist: "Hoodlrz", src: "/audio/track1.mp3" },
-  { id: "2", title: "Night Code", artist: "Hoodlrz", src: "/audio/track2.mp3" },
-  { id: "3", title: "Digital Rain", artist: "Hoodlrz", src: "/audio/track3.mp3" },
-=======
   { id: "1", title: "Acid Teddy Bear", artist: "XERAK", src: "/audio/Hoodlrz-Acid-Teddy-Bear-by-XERAK.mp3" },
   { id: "2", title: "Dolphins Are Not Your Friends", artist: "XERAK", src: "/audio/Hoodlrz-Dolphins-Are-Not-Your-Friends.mp3" },
   { id: "3", title: "Go Go Godzilla", artist: "XERAK", src: "/audio/Hoodlrz-Go-Go-Godzilla-by-XERAK.mp3" },
@@ -33,17 +25,13 @@ const DEMO_TRACKS: Track[] = [
   { id: "7", title: "On Your Face", artist: "XERAK", src: "/audio/Hoodlrz-On-Your-Face-by-XERAK.mp3" },
   { id: "8", title: "Rich Frog", artist: "XERAK", src: "/audio/Hoodlrz-Rich-Frog-by-XERAK.mp3" },
   { id: "9", title: "Tetsuo Techno", artist: "XERAK", src: "/audio/Hoodlrz-Testuo-Techno-by-XERAK.mp3" },
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 ];
 
 export default function AudioPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(false);
-<<<<<<< HEAD
-=======
   const [showPlaylist, setShowPlaylist] = useState(false);
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
@@ -136,13 +124,6 @@ export default function AudioPlayer() {
   // Don't render if no tracks
   if (tracks.length === 0) return null;
 
-<<<<<<< HEAD
-  const trackIndex = currentTrack
-    ? tracks.findIndex((t) => t.id === currentTrack.id)
-    : -1;
-
-=======
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   return (
     <>
       <audio
@@ -154,9 +135,6 @@ export default function AudioPlayer() {
       />
 
       <div className="fixed bottom-16 md:bottom-0 left-0 right-0 z-50">
-<<<<<<< HEAD
-        {/* Progress bar -- always visible as a thin line */}
-=======
         {/* Playlist panel */}
         {showPlaylist && !collapsed && (
           <div className="bg-[var(--surface)] border-t border-x border-[var(--border)] max-h-[50vh] overflow-y-auto">
@@ -211,7 +189,6 @@ export default function AudioPlayer() {
         )}
 
         {/* Progress bar */}
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
         <div
           ref={progressRef}
           onClick={handleProgressClick}
@@ -243,11 +220,7 @@ export default function AudioPlayer() {
                   {playing ? <Pause size={16} /> : <Play size={16} />}
                 </button>
                 <button
-<<<<<<< HEAD
-                  onClick={() => setCollapsed(false)}
-=======
                   onClick={() => { setCollapsed(false); setShowPlaylist(false); }}
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
                   className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground transition-colors"
                 >
                   <ChevronUp size={16} />
@@ -257,11 +230,7 @@ export default function AudioPlayer() {
           ) : (
             /* Expanded view */
             <div className="px-4 py-3 space-y-2">
-<<<<<<< HEAD
-              {/* Top row: track info + collapse */}
-=======
               {/* Top row: track info + playlist toggle + collapse */}
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 bg-[var(--border)] flex items-center justify-center flex-shrink-0">
@@ -271,19 +240,6 @@ export default function AudioPlayer() {
                     <p className="text-sm font-bold uppercase tracking-widest truncate text-foreground">
                       {currentTrack?.title ?? "Select a track"}
                     </p>
-<<<<<<< HEAD
-                    <p className="text-[10px] uppercase tracking-widest text-muted truncate">
-                      {currentTrack?.artist ?? "Hoodlrz"}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setCollapsed(true)}
-                  className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground transition-colors flex-shrink-0"
-                >
-                  <ChevronDown size={16} />
-                </button>
-=======
                     <a
                       href="https://xerak.com"
                       target="_blank"
@@ -313,7 +269,6 @@ export default function AudioPlayer() {
                     <ChevronDown size={16} />
                   </button>
                 </div>
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
               </div>
 
               {/* Time stamps */}
@@ -349,12 +304,6 @@ export default function AudioPlayer() {
                   </button>
                 </div>
 
-<<<<<<< HEAD
-                {/* Track counter */}
-                <span className="text-[10px] text-muted uppercase tracking-widest">
-                  {trackIndex >= 0 ? `${trackIndex + 1} / ${tracks.length}` : `${tracks.length} tracks`}
-                </span>
-=======
                 {/* Credit */}
                 <a
                   href="https://xerak.com"
@@ -364,7 +313,6 @@ export default function AudioPlayer() {
                 >
                   music by <span className="font-bold">xerak.com</span>
                 </a>
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
                 {/* Volume -- desktop only */}
                 <div className="hidden md:flex items-center gap-2">

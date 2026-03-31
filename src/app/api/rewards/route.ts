@@ -12,13 +12,6 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-<<<<<<< HEAD
-    // Fetch all rewards for the user
-    const { data: rewards, error: rewardsError } = await supabase
-      .from("rewards")
-      .select("*")
-      .eq("account_id", user.id)
-=======
     // Look up account
     const { data: account } = await supabase
       .from("accounts")
@@ -35,7 +28,6 @@ export async function GET() {
       .from("rewards")
       .select("*")
       .eq("account_id", account.id)
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
       .order("created_at", { ascending: false });
 
     if (rewardsError) {
@@ -46,11 +38,7 @@ export async function GET() {
       );
     }
 
-<<<<<<< HEAD
-    const totalPoints = (rewards ?? []).reduce((sum, r) => sum + r.points, 0);
-=======
     const totalPoints = (rewards ?? []).reduce((sum, r) => sum + r.amount, 0);
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
     // Determine milestones and status
     const milestones = [

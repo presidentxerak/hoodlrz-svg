@@ -3,12 +3,6 @@
 import { useParams } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
-<<<<<<< HEAD
-import Countdown from "@/components/ui/Countdown";
-import PFPViewer from "@/components/ui/PFPViewer";
-
-/* ── Sample data — TODO: replace with Supabase query by slug ── */
-=======
 import Card from "@/components/ui/Card";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
@@ -43,7 +37,6 @@ const ALL_VINYLS = [
 ];
 
 /* ── Collection data ── */
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 const COLLECTIONS_MAP: Record<
   string,
   {
@@ -62,15 +55,6 @@ const COLLECTIONS_MAP: Record<
     name: "Hoodlrz",
     slug: "hoodlrz",
     description:
-<<<<<<< HEAD
-      "The flagship collection. 10,000 unique hooded identities generated on-chain as SVGs. Each one is deterministic, verifiable, and entirely yours. Own the identity. Collect the culture.",
-    supply: 10_000,
-    minted: 2_347,
-    priceCents: 4900,
-    isGenesis: false,
-    dropDate: "2026-04-15T18:00:00Z",
-    whitelistDate: "2026-04-12T18:00:00Z",
-=======
       "The flagship collection. 10,000 unique hooded identities generated as layered SVGs. Each one composed of 7 hand-drawn layers. Own the identity. Collect the culture.",
     supply: 10_000,
     minted: 0,
@@ -78,21 +62,11 @@ const COLLECTIONS_MAP: Record<
     isGenesis: false,
     dropDate: "2026-05-15T18:00:00Z",
     whitelistDate: "2026-05-12T18:00:00Z",
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   },
   genesis: {
     name: "Genesis",
     slug: "genesis",
     description:
-<<<<<<< HEAD
-      "Premium genesis pass. Limited to 500 holders. Unlocks early access, rare traits, lifetime perks, and priority on every future drop. The key to the inner circle.",
-    supply: 500,
-    minted: 127,
-    priceCents: 14900,
-    isGenesis: true,
-    dropDate: "2026-04-10T18:00:00Z",
-    whitelistDate: "2026-04-08T18:00:00Z",
-=======
       "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece is a unique vinyl cover drawn by hand. Reserved for top collectors.",
     supply: 25,
     minted: 0,
@@ -100,7 +74,6 @@ const COLLECTIONS_MAP: Record<
     isGenesis: true,
     dropDate: "2026-05-10T18:00:00Z",
     whitelistDate: "2026-05-08T18:00:00Z",
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   },
 };
 
@@ -115,11 +88,7 @@ const GALLERY_SEEDS = [
   "gallery-preview-008",
 ];
 
-<<<<<<< HEAD
-type DropStatus = "pre-whitelist" | "whitelist-live" | "public-drop" | "live";
-=======
 type DropStatus = "pre-whitelist" | "whitelist-live" | "live";
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
 function getDropStatus(whitelistDate: string, dropDate: string): DropStatus {
   const now = Date.now();
@@ -131,13 +100,6 @@ function getDropStatus(whitelistDate: string, dropDate: string): DropStatus {
   return "live";
 }
 
-<<<<<<< HEAD
-function formatPrice(cents: number): string {
-  return `$${(cents / 100).toFixed(0)}`;
-}
-
-=======
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 export default function CollectionDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -152,11 +114,8 @@ export default function CollectionDetailPage() {
     );
   }
 
-<<<<<<< HEAD
-=======
   const isGenesis = collection.isGenesis;
 
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   const dropStatus = getDropStatus(
     collection.whitelistDate,
     collection.dropDate
@@ -182,13 +141,7 @@ export default function CollectionDetailPage() {
           <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[56px]">
             {collection.name}
           </h1>
-<<<<<<< HEAD
-          {collection.isGenesis && (
-            <Badge variant="legendary">Genesis</Badge>
-          )}
-=======
           {isGenesis && <Badge variant="legendary">Genesis</Badge>}
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
         </div>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
           {collection.description}
@@ -197,15 +150,6 @@ export default function CollectionDetailPage() {
 
       {/* ── Stats ── */}
       <div className="mt-10 flex flex-wrap gap-8">
-<<<<<<< HEAD
-        <Stat label="Supply" value={collection.supply.toLocaleString()} />
-        <Stat label="Collected" value={collection.minted.toLocaleString()} />
-        <Stat
-          label="Available"
-          value={(collection.supply - collection.minted).toLocaleString()}
-        />
-        <Stat label="Price" value={formatPrice(collection.priceCents)} />
-=======
         <Stat label="Supply" value={String(collection.supply)} />
         {isGenesis ? (
           <>
@@ -224,7 +168,6 @@ export default function CollectionDetailPage() {
             <Stat label="Price" value={`$${(collection.priceCents / 100).toFixed(2)}`} />
           </>
         )}
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
       </div>
 
       {/* ── Countdown + CTA ── */}
@@ -234,36 +177,6 @@ export default function CollectionDetailPage() {
         )}
 
         <div className="flex flex-wrap gap-3">
-<<<<<<< HEAD
-          {dropStatus === "pre-whitelist" && (
-            <Button variant="primary" size="lg" href="/access">
-              Join Whitelist
-            </Button>
-          )}
-          {dropStatus === "whitelist-live" && (
-            <>
-              <Button variant="primary" size="lg" href="/access">
-                Join Whitelist
-              </Button>
-              <Badge variant="success">Whitelist Open</Badge>
-            </>
-          )}
-          {dropStatus === "live" && (
-            <Button variant="primary" size="lg">
-              Collect - {formatPrice(collection.priceCents)}
-            </Button>
-          )}
-          <Button
-            variant="secondary"
-            size="lg"
-            href={`/collection/${slug}/gallery`}
-          >
-            View Gallery
-          </Button>
-        </div>
-      </div>
-
-=======
           {isGenesis ? (
             <div className="flex flex-col gap-2">
               <p className="text-sm text-muted">
@@ -382,35 +295,10 @@ export default function CollectionDetailPage() {
         </section>
       )}
 
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
       {/* ── Gallery Preview ── */}
       <section className="mt-16">
         <div className="flex items-center justify-between">
           <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
-<<<<<<< HEAD
-            Preview
-          </h2>
-          <Button
-            variant="ghost"
-            size="sm"
-            href={`/collection/${slug}/gallery`}
-          >
-            View All
-          </Button>
-        </div>
-
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
-          {GALLERY_SEEDS.map((seed) => (
-            <div key={seed} className="animate-fade-in-up">
-              <PFPViewer
-                seed={`${slug}-${seed}`}
-                size={400}
-                className="aspect-square w-full"
-              />
-            </div>
-          ))}
-        </div>
-=======
             {isGenesis ? "The Collection" : "Preview"}
           </h2>
           {!isGenesis && (
@@ -521,7 +409,6 @@ export default function CollectionDetailPage() {
             ))}
           </div>
         )}
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
       </section>
     </div>
   );

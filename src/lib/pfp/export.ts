@@ -4,10 +4,6 @@
 import { generatePFP } from "./generator";
 
 /**
-<<<<<<< HEAD
- * Convert an SVG string to a PNG Blob via an offscreen canvas.
- * Runs entirely in the browser.
-=======
  * Fetch all layer SVGs and compose them into a single inline SVG string.
  * This is needed for PNG export since <image> hrefs won't render on canvas.
  */
@@ -44,7 +40,6 @@ async function composeLayers(seed: string, size: number = 400): Promise<string> 
 
 /**
  * Convert an SVG string to a PNG Blob via an offscreen canvas.
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
  */
 export async function exportAsPNG(
   svgString: string,
@@ -105,36 +100,18 @@ function triggerDownload(blob: Blob, filename: string): void {
 }
 
 /**
-<<<<<<< HEAD
- * Generate a PFP from a seed and download it as a PNG file.
-=======
  * Generate a PFP from a seed, compose layers inline, and download as PNG.
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
  */
 export async function downloadPNG(
   seed: string,
   filename: string = "hoodlrz-pfp"
 ): Promise<void> {
-<<<<<<< HEAD
-  const { svg } = generatePFP(seed);
-  const blob = await exportAsPNG(svg, 1024);
-=======
   const inlineSvg = await composeLayers(seed, 1024);
   const blob = await exportAsPNG(inlineSvg, 1024);
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   triggerDownload(blob, filename.endsWith(".png") ? filename : `${filename}.png`);
 }
 
 /**
-<<<<<<< HEAD
- * Download an SVG string as a .svg file.
- */
-export function downloadSVG(
-  svgString: string,
-  filename: string = "hoodlrz-pfp"
-): void {
-  const blob = new Blob([svgString], {
-=======
  * Generate a PFP from a seed, compose layers inline, and download as SVG.
  */
 export async function downloadSVG(
@@ -143,7 +120,6 @@ export async function downloadSVG(
 ): Promise<void> {
   const inlineSvg = await composeLayers(seed, 400);
   const blob = new Blob([inlineSvg], {
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
     type: "image/svg+xml;charset=utf-8",
   });
   triggerDownload(blob, filename.endsWith(".svg") ? filename : `${filename}.svg`);

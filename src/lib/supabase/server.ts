@@ -3,32 +3,6 @@ import { cookies } from "next/headers";
 import type { Database } from "@/types/database";
 
 export function createClient() {
-<<<<<<< HEAD
-  const cookieStore = cookies();
-
-  return createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // The `setAll` method is called from a Server Component where
-            // cookies cannot be set. This can be safely ignored when the
-            // middleware refreshes the user session.
-          }
-        },
-      },
-    }
-  );
-=======
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -70,5 +44,4 @@ export function createClient() {
       },
     },
   });
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 }

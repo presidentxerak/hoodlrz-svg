@@ -1,18 +1,11 @@
 "use client";
 
 import { useParams } from "next/navigation";
-<<<<<<< HEAD
-import { useMemo } from "react";
-import Link from "next/link";
-import Button from "@/components/ui/Button";
-import Badge from "@/components/ui/Badge";
-=======
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 import PFPViewer from "@/components/ui/PFPViewer";
 import { generatePFP, type PFPResult } from "@/lib/pfp/generator";
 import {
@@ -22,13 +15,6 @@ import {
   type RarityTier,
 } from "@/lib/pfp/rarity";
 import type { RarityWeight } from "@/lib/pfp/traits";
-<<<<<<< HEAD
-
-/* ── Helpers ── */
-
-function parseSeedFromId(id: string): { collectionSlug: string; tokenNumber: number; seed: string } {
-  // id format: "hoodlrz-3" or "genesis-12"
-=======
 import SellModal from "@/components/marketplace/SellModal";
 import TransferModal from "@/components/marketplace/TransferModal";
 
@@ -39,7 +25,6 @@ function parseSeedFromId(id: string): {
   tokenNumber: number;
   seed: string;
 } {
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   const lastDash = id.lastIndexOf("-");
   const collectionSlug = id.substring(0, lastDash);
   const tokenNumber = parseInt(id.substring(lastDash + 1), 10);
@@ -77,18 +62,10 @@ function tierBadgeVariant(
   }
 }
 
-<<<<<<< HEAD
-/* ── Sample ownership history — TODO: replace with Supabase query ── */
-const SAMPLE_HISTORY = [
-  { event: "Minted", by: "Hoodlrz", date: "2026-03-20", price: null },
-  { event: "Collected", by: "phantom_42", date: "2026-03-21", price: "$49" },
-];
-=======
 /* ── Placeholder data ── */
 
 const PRICE_HISTORY_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 const PRICE_HISTORY_VALUES = [0, 0, 0, 0, 0, 0, 0]; // empty — no sales yet
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
 export default function TokenDetailPage() {
   const params = useParams();
@@ -106,12 +83,6 @@ export default function TokenDetailPage() {
   );
 
   /* TODO: fetch real owner from Supabase */
-<<<<<<< HEAD
-  const owner = { pseudonym: "phantom_42" };
-  const isOwned = false; // TODO: check if current user owns this token
-  const isListed = false; // TODO: check if listed for sale
-
-=======
   const owner = { pseudonym: "—" };
   const isListed = false; // TODO: check if listed for sale
 
@@ -119,7 +90,6 @@ export default function TokenDetailPage() {
   const [sellOpen, setSellOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
 
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
       {/* Back link */}
@@ -145,24 +115,15 @@ export default function TokenDetailPage() {
           {/* Name + serial */}
           <div>
             <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider text-foreground sm:text-[40px]">
-<<<<<<< HEAD
-              {collectionSlug.charAt(0).toUpperCase() + collectionSlug.slice(1)} #{tokenNumber}
-=======
               {collectionSlug.charAt(0).toUpperCase() +
                 collectionSlug.slice(1)}{" "}
               #{tokenNumber}
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
             </h1>
             <p className="mt-2 text-xs uppercase tracking-widest text-muted">
               Serial: {seed}
             </p>
           </div>
 
-<<<<<<< HEAD
-          {/* Rarity score */}
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col gap-1">
-=======
           {/* ── Stats Row ── */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
@@ -182,36 +143,15 @@ export default function TokenDetailPage() {
               </span>
             </Card>
             <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                 Rarity Score
               </span>
               <span
-<<<<<<< HEAD
-                className="font-hoodlrz text-3xl font-bold leading-none"
-=======
                 className="mt-1 block font-hoodlrz text-lg font-bold leading-none"
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
                 style={{ color: rarityColor(rarity.tier) }}
               >
                 {rarity.score}
               </span>
-<<<<<<< HEAD
-            </div>
-            <Badge variant={tierBadgeVariant(rarity.tier)}>
-              {rarity.tier}
-            </Badge>
-          </div>
-
-          {/* Owner */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Owner
-            </span>
-            <span className="text-sm font-semibold text-foreground">
-              {owner.pseudonym}
-            </span>
-=======
             </Card>
             <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
               <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
@@ -233,7 +173,6 @@ export default function TokenDetailPage() {
                 {rarity.tier}
               </Badge>
             </div>
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
           </div>
 
           {/* Traits */}
@@ -271,20 +210,6 @@ export default function TokenDetailPage() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3">
-<<<<<<< HEAD
-            {/* TODO: implement download by extracting SVG from the generator */}
-            <Button variant="secondary" size="md" onClick={() => {
-              const blob = new Blob([pfp.svg], { type: "image/svg+xml" });
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `${seed}.svg`;
-              a.click();
-              URL.revokeObjectURL(url);
-            }}>
-              Download SVG
-            </Button>
-=======
             <Button
               variant="secondary"
               size="md"
@@ -322,63 +247,16 @@ export default function TokenDetailPage() {
             >
               Transfer
             </Button>
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
 
             {isListed && (
               <Button variant="primary" size="md">
                 Buy
               </Button>
             )}
-<<<<<<< HEAD
-
-            {isOwned && !isListed && (
-              <>
-                <Button variant="primary" size="md">
-                  Sell
-                </Button>
-                <Button variant="ghost" size="md">
-                  Transfer
-                </Button>
-              </>
-            )}
-=======
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
           </div>
         </div>
       </div>
 
-<<<<<<< HEAD
-      {/* ── Ownership History ── */}
-      <section className="mt-16">
-        <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
-          History
-        </h2>
-        {/* TODO: replace with real ownership_events from Supabase */}
-        <div className="mt-4 flex flex-col gap-0">
-          {SAMPLE_HISTORY.map((event, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between border-b border-[var(--border)] py-3 text-sm"
-            >
-              <div className="flex items-center gap-3">
-                <span className="font-semibold text-foreground">
-                  {event.event}
-                </span>
-                <span className="text-muted">by {event.by}</span>
-              </div>
-              <div className="flex items-center gap-3 text-muted">
-                {event.price && (
-                  <span className="font-semibold text-foreground">
-                    {event.price}
-                  </span>
-                )}
-                <span className="text-xs">{event.date}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-=======
       {/* ── Price History ── */}
       <section className="mt-16">
         <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
@@ -467,7 +345,6 @@ export default function TokenDetailPage() {
         tokenId={id}
         seed={seed}
       />
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
     </div>
   );
 }

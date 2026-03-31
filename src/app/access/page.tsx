@@ -21,14 +21,6 @@ export default function AccessPage() {
 
     setLoading(true);
 
-<<<<<<< HEAD
-    // TODO: replace with Supabase auth magic link
-    // const { error } = await supabase.auth.signInWithOtp({ email });
-    await new Promise((r) => setTimeout(r, 1200));
-
-    setLoading(false);
-    setSubmitted(true);
-=======
     try {
       const res = await fetch("/api/auth/magic-link", {
         method: "POST",
@@ -49,7 +41,6 @@ export default function AccessPage() {
       setError("Network error. Please try again.");
       setLoading(false);
     }
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
   }
 
   return (

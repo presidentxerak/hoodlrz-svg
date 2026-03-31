@@ -25,8 +25,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-<<<<<<< HEAD
-=======
     // Basic email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(recipientEmail)) {
@@ -50,7 +48,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
     // Fetch token and verify ownership
     const { data: token, error: tokenError } = await supabase
       .from("tokens")
@@ -65,11 +62,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-<<<<<<< HEAD
-    if (token.owner_id !== user.id) {
-=======
     if (token.owner_id !== senderAccount.id) {
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "You do not own this token." },
         { status: 403 }
@@ -104,10 +97,6 @@ export async function POST(request: NextRequest) {
           id: newId,
           email: recipientEmail,
           pseudonym: recipientEmail.split("@")[0],
-<<<<<<< HEAD
-          onboarding_complete: false,
-=======
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
         })
         .select()
         .single();
@@ -124,11 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Cannot transfer to yourself
-<<<<<<< HEAD
-    if (recipientId === user.id) {
-=======
     if (recipientId === senderAccount.id) {
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
       return NextResponse.json(
         { error: "Cannot transfer a token to yourself." },
         { status: 400 }
@@ -152,11 +137,7 @@ export async function POST(request: NextRequest) {
     // Create ownership_event
     await supabase.from("ownership_events").insert({
       token_id: tokenId,
-<<<<<<< HEAD
-      from_account_id: user.id,
-=======
       from_account_id: senderAccount.id,
->>>>>>> claude/build-hoodlrz-platform-7Ex6i
       to_account_id: recipientId,
       event_type: "transfer",
     });
