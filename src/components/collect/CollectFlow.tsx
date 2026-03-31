@@ -55,7 +55,7 @@ export default function CollectFlow({
     setState("loading");
 
     try {
-      const res = await fetch("/api/collect", {
+      const res = await fetch("/api/mint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ collectionSlug }),
