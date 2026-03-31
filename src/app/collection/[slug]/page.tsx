@@ -60,8 +60,8 @@ const COLLECTIONS_MAP: Record<
     minted: 0,
     priceCents: 999,
     isGenesis: false,
-    dropDate: "2026-04-15T18:00:00Z",
-    whitelistDate: "2026-04-12T18:00:00Z",
+    dropDate: "2026-05-15T18:00:00Z",
+    whitelistDate: "2026-05-12T18:00:00Z",
   },
   genesis: {
     name: "Genesis",
@@ -72,8 +72,8 @@ const COLLECTIONS_MAP: Record<
     minted: 0,
     priceCents: 0,
     isGenesis: true,
-    dropDate: "2026-04-10T18:00:00Z",
-    whitelistDate: "2026-04-08T18:00:00Z",
+    dropDate: "2026-05-10T18:00:00Z",
+    whitelistDate: "2026-05-08T18:00:00Z",
   },
 };
 

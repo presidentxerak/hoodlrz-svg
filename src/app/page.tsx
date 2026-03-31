@@ -11,7 +11,7 @@ const FEATURED = [
   { seed: "hoodlrz-featured-7", label: "Uncommon" },
   { seed: "hoodlrz-featured-1", label: "Common" },
 ];
-const DROP_DATE = "2026-04-15T18:00:00Z";
+const DROP_DATE = "2026-05-15T18:00:00Z";
 
 export default function HomePage() {
   return (

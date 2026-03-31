@@ -69,7 +69,7 @@ export default function MyCollectionPage() {
           View Collections
         </Button>
 
-        <p className="text-xs text-muted">Drop date: April 15, 2026</p>
+        <p className="text-xs text-muted">Drop date: May 15, 2026</p>
       </div>
     </div>
   );
