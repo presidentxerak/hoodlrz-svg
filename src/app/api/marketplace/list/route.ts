@@ -25,6 +25,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!Number.isInteger(price) || price < 100 || price > 10000000) {
+      return NextResponse.json(
+        { error: "Price must be a whole number between $1.00 and $100,000." },
+        { status: 400 }
+      );
+    }
+
     // Look up the account from the authenticated user
     const { data: account, error: accountError } = await supabase
       .from("accounts")

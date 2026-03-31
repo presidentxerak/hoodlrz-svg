@@ -15,11 +15,6 @@ export function getStripeServer(): Stripe {
   return _stripe;
 }
 
-// Backwards compat export
-export const stripe = typeof process !== "undefined" && process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { typescript: true })
-  : (null as unknown as Stripe);
-
 // Client-side Stripe singleton
 let stripePromise: Promise<StripeClient | null> | null = null;
 

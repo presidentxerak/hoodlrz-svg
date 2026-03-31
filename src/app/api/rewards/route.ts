@@ -12,11 +12,22 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    // Fetch all rewards for the user
+    // Look up account
+    const { data: account } = await supabase
+      .from("accounts")
+      .select("id, rewards_balance")
+      .eq("auth_id", user.id)
+      .single();
+
+    if (!account) {
+      return NextResponse.json({ error: "Account not found." }, { status: 404 });
+    }
+
+    // Fetch rewards history
     const { data: rewards, error: rewardsError } = await supabase
       .from("rewards")
       .select("*")
-      .eq("account_id", user.id)
+      .eq("account_id", account.id)
       .order("created_at", { ascending: false });
 
     if (rewardsError) {

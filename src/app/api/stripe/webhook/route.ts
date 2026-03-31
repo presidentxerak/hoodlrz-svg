@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[stripe/webhook] Signature verification failed:", message);
     return NextResponse.json(
-      { error: `Webhook signature verification failed: ${message}` },
+      { error: "Webhook signature verification failed." },
       { status: 400 }
     );
   }
@@ -120,9 +120,22 @@ async function handlePrimarySale(
 
   // Generate PFP token
   const seed = generateSeed();
-  const canonicalHash = await computeCanonicalHash(seed);
-  const serialNumber = collection.minted_count + 1;
   const pfp = generatePFP(seed);
+  const canonicalHash = await computeCanonicalHash(pfp.svg);
+  const serialNumber = collection.minted_count + 1;
+
+  // Atomic increment with sold-out guard — claim the serial number BEFORE inserting the token
+  const { data: updatedCollection, error: updateError } = await supabase
+    .from("collections")
+    .update({ minted_count: serialNumber })
+    .eq("id", collectionId)
+    .lt("minted_count", collection.total_supply)
+    .select("minted_count")
+    .single();
+
+  if (updateError || !updatedCollection) {
+    throw new Error(`Collection ${collectionId} is sold out or update failed.`);
+  }
 
   // Insert token
   const { data: token, error: tokenError } = await supabase
@@ -164,12 +177,6 @@ async function handlePrimarySale(
     to_account_id: accountId,
     event_type: "collect",
   });
-
-  // Update minted count atomically
-  await supabase
-    .from("collections")
-    .update({ minted_count: collection.minted_count + 1 })
-    .eq("id", collectionId);
 
   // Award Hoodz (+1) and update account balance
   await supabase.from("rewards").insert({
@@ -247,6 +254,11 @@ async function handleMarketplacePurchase(
     .eq("id", listingId);
 
   // Credit the seller
+  // WARNING: This read-then-write pattern has a race condition under concurrent
+  // webhook processing. In production, replace with a Supabase RPC function that
+  // performs an atomic UPDATE ... SET available_cents = available_cents + $1,
+  // total_earned_cents = total_earned_cents + $1 WHERE account_id = $2,
+  // or use a serializable transaction.
   const sellerPayoutCents = amountCents;
   const { data: existingBalance } = await supabase
     .from("seller_balances")
