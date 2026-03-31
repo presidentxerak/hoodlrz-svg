@@ -108,6 +108,35 @@ export async function POST(request: NextRequest) {
     // Cap quantity to remaining supply
     const finalQuantity = Math.min(quantity, remaining);
 
+    // ── Per-collector limit: 100 PFPs max per collection ──
+    const MAX_PER_COLLECTOR = 100;
+
+    const { count: ownedCount, error: countError } = await admin
+      .from("tokens")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", accountId)
+      .eq("collection_id", collection.id);
+
+    if (countError) {
+      console.error("[mint] Failed to count owned tokens:", countError);
+      return NextResponse.json(
+        { error: "Failed to verify collection limit." },
+        { status: 500 }
+      );
+    }
+
+    const owned = ownedCount ?? 0;
+    if (owned >= MAX_PER_COLLECTOR) {
+      return NextResponse.json(
+        { error: `You've reached the maximum of ${MAX_PER_COLLECTOR} collectibles for this collection.` },
+        { status: 409 }
+      );
+    }
+
+    // Cap to what's left in the collector's allowance
+    const allowance = MAX_PER_COLLECTOR - owned;
+    const cappedQuantity = Math.min(finalQuantity, allowance);
+
     // Create Stripe checkout session
     const origin = new URL(request.url).origin;
 
@@ -123,14 +152,14 @@ export async function POST(request: NextRequest) {
             },
             unit_amount: collection.price_cents,
           },
-          quantity: finalQuantity,
+          quantity: cappedQuantity,
         },
       ],
       metadata: {
         collectionSlug,
         collectionId: collection.id,
         accountId,
-        quantity: String(finalQuantity),
+        quantity: String(cappedQuantity),
         type: "primary_sale",
       },
       success_url: `${origin}/success?collection=${collectionSlug}&session_id={CHECKOUT_SESSION_ID}`,
