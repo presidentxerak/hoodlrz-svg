@@ -6,10 +6,12 @@ import { generatePFP } from "./generator";
 /**
  * Fetch all layer SVGs and compose them into a single inline SVG string.
  * This is needed for PNG export since <image> hrefs won't render on canvas.
+ * Uses native 600x600 coordinate system matching the layer SVGs.
  */
-async function composeLayers(seed: string, size: number = 400): Promise<string> {
+async function composeLayers(seed: string): Promise<string> {
   const { layers, variant } = generatePFP(seed);
   const bgColor = variant === "dark" ? "#000000" : "#ffffff";
+  const native = 600; // native size of all layer SVGs
 
   // Fetch all layer SVG contents in parallel
   const fetched = await Promise.all(
@@ -32,8 +34,8 @@ async function composeLayers(seed: string, size: number = 400): Promise<string> 
 
   const innerContent = fetched.filter(Boolean).join("\n");
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">
-  <rect width="${size}" height="${size}" fill="${bgColor}" />
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${native} ${native}" width="${native}" height="${native}">
+  <rect width="${native}" height="${native}" fill="${bgColor}" />
   ${innerContent}
 </svg>`;
 }
@@ -106,7 +108,7 @@ export async function downloadPNG(
   seed: string,
   filename: string = "hoodlrz-pfp"
 ): Promise<void> {
-  const inlineSvg = await composeLayers(seed, 1024);
+  const inlineSvg = await composeLayers(seed);
   const blob = await exportAsPNG(inlineSvg, 1024);
   triggerDownload(blob, filename.endsWith(".png") ? filename : `${filename}.png`);
 }
@@ -118,7 +120,7 @@ export async function downloadSVG(
   seed: string,
   filename: string = "hoodlrz-pfp"
 ): Promise<void> {
-  const inlineSvg = await composeLayers(seed, 400);
+  const inlineSvg = await composeLayers(seed);
   const blob = new Blob([inlineSvg], {
     type: "image/svg+xml;charset=utf-8",
   });

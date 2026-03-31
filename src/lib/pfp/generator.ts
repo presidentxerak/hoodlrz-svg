@@ -153,7 +153,8 @@ export function generatePFP(seed: string): PFPResult {
   }
 
   // Build composite SVG using <image> references
-  const size = 400;
+  // Native layer size is 600x600
+  const size = 600;
   const imageElements = layers
     .map(
       (l) =>
