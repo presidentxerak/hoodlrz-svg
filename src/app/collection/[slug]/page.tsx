@@ -73,9 +73,9 @@ const COLLECTIONS_MAP: Record<
       "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece is a unique vinyl cover drawn by hand. Reserved for top collectors.",
     supply: 25,
     minted: 0,
-    priceCents: 0,
+    priceCents: 20000,
     isGenesis: true,
-    dropStatus: "upcoming" as const,
+    dropStatus: "public" as const,
     dropDate: "2026-05-10T18:00:00Z",
     whitelistDate: "2026-05-08T18:00:00Z",
   },
@@ -185,38 +185,29 @@ export default function CollectionDetailPage() {
         )}
 
         <div className="flex flex-wrap gap-3">
-          {isGenesis ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted">
-                Top collectors unlock exclusive access to Genesis works.
-              </p>
-              <Button variant="primary" size="lg" href="/collections">
-                Start Collecting
-              </Button>
-            </div>
-          ) : (
+          {dropStatus === "pre-whitelist" && (
+            <Button variant="primary" size="lg" href="/access">
+              Join Whitelist
+            </Button>
+          )}
+          {dropStatus === "whitelist-live" && (
             <>
-              {dropStatus === "pre-whitelist" && (
-                <Button variant="primary" size="lg" href="/access">
-                  Join Whitelist
-                </Button>
-              )}
-              {dropStatus === "whitelist-live" && (
-                <>
-                  <Button variant="primary" size="lg" href="/access">
-                    Join Whitelist
-                  </Button>
-                  <Badge variant="success">Whitelist Open</Badge>
-                </>
-              )}
-              {dropStatus === "live" && (
-                <Suspense fallback={null}>
-                  <CollectFlow
-                    collectionSlug={slug}
-                    price={`$${(collection.priceCents / 100).toFixed(2)}`}
-                  />
-                </Suspense>
-              )}
+              <Button variant="primary" size="lg" href="/access">
+                Join Whitelist
+              </Button>
+              <Badge variant="success">Whitelist Open</Badge>
+            </>
+          )}
+          {dropStatus === "live" && (
+            <Suspense fallback={null}>
+              <CollectFlow
+                collectionSlug={slug}
+                price={`$${(collection.priceCents / 100).toFixed(2)}`}
+              />
+            </Suspense>
+          )}
+          {!isGenesis && (
+            <>
               <Button
                 variant="secondary"
                 size="lg"
