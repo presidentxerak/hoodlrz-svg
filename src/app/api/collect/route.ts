@@ -107,9 +107,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (err) {
-    console.error("[collect] Unexpected error:", err);
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error("[collect] Unexpected error:", message, err);
     return NextResponse.json(
-      { error: "Internal server error." },
+      { error: `Internal server error: ${message}` },
       { status: 500 }
     );
   }
