@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripeServer } from "@/lib/stripe";
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check with server client (reads cookies)
     const supabase = createClient();
     const {
       data: { user },
@@ -25,24 +27,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use admin client for DB operations (bypasses RLS)
+    const admin = createAdminClient();
+
     // Look up the account from the authenticated user
-    const { data: account, error: accountError } = await supabase
+    const { data: account, error: accountError } = await admin
       .from("accounts")
       .select("id")
       .eq("auth_id", user.id)
       .single();
 
+    let accountId: string;
+
     if (accountError || !account) {
-      return NextResponse.json(
-        { error: "Account not found." },
-        { status: 404 }
-      );
+      // Auto-create account if trigger didn't fire
+      const { data: newAccount, error: createError } = await admin
+        .from("accounts")
+        .insert({
+          auth_id: user.id,
+          email: user.email ?? "",
+          pseudonym: `Collector#${user.id.substring(0, 6)}`,
+        })
+        .select("id")
+        .single();
+
+      if (createError || !newAccount) {
+        console.error("[mint] Failed to create account:", createError);
+        return NextResponse.json(
+          { error: "Failed to create account." },
+          { status: 500 }
+        );
+      }
+
+      accountId = newAccount.id;
+    } else {
+      accountId = account.id;
     }
 
-    const accountId = account.id;
-
     // Fetch collection by slug
-    const { data: collection, error: collectionError } = await supabase
+    const { data: collection, error: collectionError } = await admin
       .from("collections")
       .select("*")
       .eq("slug", collectionSlug)
@@ -108,7 +131,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url: checkoutSession.url });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[collect] Unexpected error:", message, err);
+    console.error("[mint] Unexpected error:", message, err);
     return NextResponse.json(
       { error: `Internal server error: ${message}` },
       { status: 500 }
