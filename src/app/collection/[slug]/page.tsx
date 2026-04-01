@@ -73,7 +73,7 @@ const COLLECTIONS_MAP: Record<
       "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece is a unique vinyl cover drawn by hand. Reserved for top collectors.",
     supply: 25,
     minted: 0,
-    priceCents: 20000,
+    priceCents: 30000,
     isGenesis: true,
     dropStatus: "public" as const,
     dropDate: "2026-05-10T18:00:00Z",
