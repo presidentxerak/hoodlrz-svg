@@ -205,7 +205,7 @@ async function handlePrimarySale(
     // For Genesis: store vinylId as seed (used to look up vinyl image)
     // For Hoodlrz: generate a random PFP
     let seed: string;
-    let traitsJson: Record<string, string> | null = null;
+    let traitsJson: Record<string, string> = {};
     let canonicalHash: string;
 
     if (isGenesis) {
