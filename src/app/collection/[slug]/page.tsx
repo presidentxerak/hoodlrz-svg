@@ -203,6 +203,7 @@ export default function CollectionDetailPage() {
               <CollectFlow
                 collectionSlug={slug}
                 price={`$${(collection.priceCents / 100).toFixed(2)}`}
+                isGenesis={isGenesis}
               />
             </Suspense>
           )}

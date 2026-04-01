@@ -16,6 +16,7 @@ interface CollectFlowProps {
   collectionSlug: string;
   price: string;
   preview?: boolean;
+  isGenesis?: boolean;
 }
 
 interface CollectResult {
@@ -28,6 +29,7 @@ export default function CollectFlow({
   collectionSlug,
   price,
   preview = false,
+  isGenesis = false,
 }: CollectFlowProps) {
   const searchParams = useSearchParams();
   const [state, setState] = useState<FlowState>("idle");
@@ -91,11 +93,14 @@ export default function CollectFlow({
   const handleProceedToPayment = useCallback(async () => {
     setState("loading");
 
+    // Genesis pieces are unique — always quantity 1
+    const mintQuantity = isGenesis ? 1 : quantity;
+
     try {
       const res = await fetch("/api/mint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ collectionSlug, quantity }),
+        body: JSON.stringify({ collectionSlug, quantity: mintQuantity }),
       });
 
       if (res.status === 401) {
@@ -129,7 +134,7 @@ export default function CollectFlow({
       const msg = err instanceof Error ? err.message : "Something went wrong";
       setError(msg === "Failed to fetch" ? "Connection error. Please check your connection and try again." : msg);
     }
-  }, [collectionSlug, quantity]);
+  }, [collectionSlug, quantity, isGenesis]);
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -303,73 +308,124 @@ export default function CollectFlow({
         </div>
       </Modal>
 
-      {/* Quantity Modal */}
-      <Modal isOpen={state === "quantity"} onClose={() => setState("idle")}>
-        <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
-          <CloseButton onClick={() => setState("idle")} />
-          <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-            Collect
-          </h2>
-          <p className="text-sm text-center text-muted">
-            Each piece is unique, generated from 7 hand-drawn layers.
-            No gas fees. No hidden costs.
-          </p>
+      {/* Payment Modal — Genesis (unique pieces, no quantity selector) */}
+      {isGenesis ? (
+        <Modal isOpen={state === "quantity"} onClose={() => setState("idle")}>
+          <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
+            <CloseButton onClick={() => setState("idle")} />
+            <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
+              Genesis Collection
+            </h2>
+            <p className="text-sm text-center text-muted">
+              25 exclusive hand-crafted vinyl artworks. Each piece is unique and one-of-a-kind.
+              Once collected, it&apos;s yours forever.
+            </p>
 
-          {/* Quantity selector */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="w-10 h-10 border border-[var(--border)] text-foreground font-bold text-lg hover:bg-[var(--surface)] transition-colors"
+            {/* Price summary */}
+            <div className="w-full border border-[var(--border)] p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Piece</span>
+                <span className="text-foreground font-semibold">1 unique artwork</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Edition</span>
+                <span className="text-foreground font-semibold">Black, White, or Craft</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Gas fees</span>
+                <span className="text-foreground font-semibold">$0.00</span>
+              </div>
+              <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm">
+                <span className="text-foreground font-bold">Total</span>
+                <span className="text-foreground font-bold font-hoodlrz text-lg">
+                  {price}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleProceedToPayment}
+              className="w-full"
             >
-              -
-            </button>
-            <span className="font-hoodlrz text-3xl font-bold text-foreground w-12 text-center">
-              {quantity}
-            </span>
-            <button
-              onClick={() => setQuantity((q) => Math.min(10, q + 1))}
-              className="w-10 h-10 border border-[var(--border)] text-foreground font-bold text-lg hover:bg-[var(--surface)] transition-colors"
-            >
-              +
-            </button>
+              Pay {price}
+            </Button>
+
+            <p className="text-[10px] text-muted text-center">
+              Powered by Stripe. Secure payment.
+            </p>
           </div>
+        </Modal>
+      ) : (
+        /* Payment Modal — Hoodlrz (quantity selector) */
+        <Modal isOpen={state === "quantity"} onClose={() => setState("idle")}>
+          <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
+            <CloseButton onClick={() => setState("idle")} />
+            <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
+              Collect
+            </h2>
+            <p className="text-sm text-center text-muted">
+              Each piece is unique, generated from 7 hand-drawn layers.
+              No gas fees. No hidden costs.
+            </p>
 
-          {/* Price summary */}
-          <div className="w-full border border-[var(--border)] p-4 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Price per piece</span>
-              <span className="text-foreground font-semibold">{price}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Quantity</span>
-              <span className="text-foreground font-semibold">{quantity}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Gas fees</span>
-              <span className="text-foreground font-semibold">$0.00</span>
-            </div>
-            <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm">
-              <span className="text-foreground font-bold">Total</span>
-              <span className="text-foreground font-bold font-hoodlrz text-lg">
-                ${(9.99 * quantity).toFixed(2)}
+            {/* Quantity selector */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="w-10 h-10 border border-[var(--border)] text-foreground font-bold text-lg hover:bg-[var(--surface)] transition-colors"
+              >
+                -
+              </button>
+              <span className="font-hoodlrz text-3xl font-bold text-foreground w-12 text-center">
+                {quantity}
               </span>
+              <button
+                onClick={() => setQuantity((q) => Math.min(10, q + 1))}
+                className="w-10 h-10 border border-[var(--border)] text-foreground font-bold text-lg hover:bg-[var(--surface)] transition-colors"
+              >
+                +
+              </button>
             </div>
+
+            {/* Price summary */}
+            <div className="w-full border border-[var(--border)] p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Price per piece</span>
+                <span className="text-foreground font-semibold">{price}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Quantity</span>
+                <span className="text-foreground font-semibold">{quantity}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Gas fees</span>
+                <span className="text-foreground font-semibold">$0.00</span>
+              </div>
+              <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm">
+                <span className="text-foreground font-bold">Total</span>
+                <span className="text-foreground font-bold font-hoodlrz text-lg">
+                  ${(parseFloat(price.replace("$", "")) * quantity).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleProceedToPayment}
+              className="w-full"
+            >
+              Pay ${(parseFloat(price.replace("$", "")) * quantity).toFixed(2)}
+            </Button>
+
+            <p className="text-[10px] text-muted text-center">
+              Powered by Stripe. Secure payment.
+            </p>
           </div>
-
-          <Button
-            variant="primary"
-            size="lg"
-            onClick={handleProceedToPayment}
-            className="w-full"
-          >
-            Pay ${(9.99 * quantity).toFixed(2)}
-          </Button>
-
-          <p className="text-[10px] text-muted text-center">
-            Powered by Stripe. Secure payment.
-          </p>
-        </div>
-      </Modal>
+        </Modal>
+      )}
 
       {/* Reveal overlay */}
       {result && (
