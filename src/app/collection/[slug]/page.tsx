@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -329,8 +330,8 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.black.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
-                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2">
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)] transition-transform duration-200 group-hover:-translate-y-1">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={vinyl.src}
@@ -342,7 +343,10 @@ export default function CollectionDetailPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                       Black #{String(vinyl.number).padStart(2, "0")}
                     </span>
-                  </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                      Available &mdash; $300
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -354,8 +358,8 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.white.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
-                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2">
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)] transition-transform duration-200 group-hover:-translate-y-1">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={vinyl.src}
@@ -367,7 +371,10 @@ export default function CollectionDetailPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                       White #{String(vinyl.number).padStart(2, "0")}
                     </span>
-                  </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                      Available &mdash; $300
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -379,8 +386,8 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.craft.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
-                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2">
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)] transition-transform duration-200 group-hover:-translate-y-1">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={vinyl.src}
@@ -392,7 +399,10 @@ export default function CollectionDetailPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                       Craft #{String(vinyl.number).padStart(2, "0")}
                     </span>
-                  </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                      Available &mdash; $300
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
