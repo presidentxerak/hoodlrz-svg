@@ -178,6 +178,9 @@ export async function POST(request: NextRequest) {
       ? `${origin}/genesis/${vinylId}`
       : `${origin}/collection/${collectionSlug}`;
 
+    // For Genesis (physical vinyl), collect shipping address natively in Stripe
+    const isGenesisCheckout = !!vinylId;
+
     const checkoutSession = await getStripeServer().checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -185,10 +188,10 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: vinylId
+              name: isGenesisCheckout
                 ? `Genesis — ${vinylId}`
                 : collection.name,
-              description: vinylId
+              description: isGenesisCheckout
                 ? "Physical vinyl artwork + digital collectible. Shipped worldwide."
                 : (collection.description ?? undefined),
             },
@@ -198,6 +201,16 @@ export async function POST(request: NextRequest) {
         },
       ],
       metadata,
+      ...(isGenesisCheckout && {
+        shipping_address_collection: {
+          allowed_countries: [
+            "US", "CA", "GB", "FR", "DE", "ES", "IT", "NL", "BE", "CH",
+            "AT", "AU", "JP", "KR", "SE", "NO", "DK", "FI", "PT", "IE",
+            "LU", "MC", "MX", "BR", "AR", "CL", "CO", "NZ", "SG", "HK",
+          ],
+        },
+        phone_number_collection: { enabled: true },
+      }),
       success_url: `${origin}/success?collection=${collectionSlug}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
     });

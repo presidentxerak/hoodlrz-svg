@@ -19,7 +19,7 @@ const EDITION_DESCRIPTIONS: Record<string, string> = {
     "The Craft Edition celebrates raw texture and organic imperfection. 10 unique pieces blending street art with artisanal craft.",
 };
 
-type FlowState = "idle" | "auth" | "shipping" | "loading" | "error";
+type FlowState = "idle" | "auth" | "loading" | "error";
 
 function GenesisVinylContent() {
   const params = useParams();
@@ -40,18 +40,6 @@ function GenesisVinylContent() {
   const [authSent, setAuthSent] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  // Shipping form state
-  const [shipping, setShipping] = useState({
-    fullName: "",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
-    country: "",
-    phone: "",
-  });
-  const [shippingError, setShippingError] = useState("");
-
   // Check auth on mount
   useEffect(() => {
     const supabase = createClient();
@@ -66,11 +54,12 @@ function GenesisVinylContent() {
     if (searchParams.get("collect") === "true") {
       setAutoTriggered(true);
       if (isLoggedIn) {
-        setState("shipping");
+        handleProceedToPayment();
       } else {
         setState("auth");
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, isLoggedIn, autoTriggered]);
 
   const handleCollect = useCallback(() => {
@@ -78,49 +67,12 @@ function GenesisVinylContent() {
     if (!isLoggedIn) {
       setState("auth");
     } else {
-      setState("shipping");
+      handleProceedToPayment();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    if (!email || !email.includes("@")) {
-      setAuthError("Enter a valid email address.");
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      const res = await fetch("/api/auth/magic-link", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setAuthError(data.error || "Something went wrong.");
-        setAuthLoading(false);
-        return;
-      }
-      setAuthLoading(false);
-      setAuthSent(true);
-    } catch {
-      setAuthError("Network error. Please try again.");
-      setAuthLoading(false);
-    }
-  };
-
-  const handleShippingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setShippingError("");
-
-    // Validate required fields
-    const { fullName, address, city, zip, country } = shipping;
-    if (!fullName || !address || !city || !zip || !country) {
-      setShippingError("Please fill in all required fields.");
-      return;
-    }
-
+  const handleProceedToPayment = async () => {
     setState("loading");
 
     try {
@@ -131,7 +83,6 @@ function GenesisVinylContent() {
           collectionSlug: "genesis",
           quantity: 1,
           vinylId,
-          shipping,
         }),
       });
 
@@ -159,6 +110,34 @@ function GenesisVinylContent() {
           ? "Connection error. Please check your connection and try again."
           : msg
       );
+    }
+  };
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!email || !email.includes("@")) {
+      setAuthError("Enter a valid email address.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAuthError(data.error || "Something went wrong.");
+        setAuthLoading(false);
+        return;
+      }
+      setAuthLoading(false);
+      setAuthSent(true);
+    } catch {
+      setAuthError("Network error. Please try again.");
+      setAuthLoading(false);
     }
   };
 
@@ -292,6 +271,9 @@ function GenesisVinylContent() {
                   </span>
                 </span>
               </button>
+              <p className="text-[10px] text-muted text-center">
+                Shipping address will be collected at checkout.
+              </p>
               {error && (
                 <p className="text-accent-red text-xs text-center">{error}</p>
               )}
@@ -435,7 +417,7 @@ function GenesisVinylContent() {
                     const loggedIn = !!data.user;
                     setIsLoggedIn(loggedIn);
                     if (loggedIn) {
-                      setState("shipping");
+                      handleProceedToPayment();
                     } else {
                       setState("idle");
                     }
@@ -446,151 +428,6 @@ function GenesisVinylContent() {
               </Button>
             </div>
           )}
-        </div>
-      </Modal>
-
-      {/* ── Shipping + Payment Modal ── */}
-      <Modal isOpen={state === "shipping"} onClose={() => setState("idle")}>
-        <div className="relative flex flex-col gap-6 p-6 max-w-md mx-auto bg-[var(--background)] border border-[var(--border)]">
-          <CloseButton onClick={() => setState("idle")} />
-
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 flex-shrink-0 overflow-hidden bg-[var(--surface)]">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={vinyl.src}
-                alt={vinyl.id}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div>
-              <h2 className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
-                {vinyl.edition} #{String(vinyl.number).padStart(2, "0")}
-              </h2>
-              <p className="text-sm text-muted">
-                Genesis Collection &mdash; $300.00
-              </p>
-            </div>
-          </div>
-
-          <div className="border-t border-[var(--border)] pt-4">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-              Shipping Address
-            </p>
-            <form
-              onSubmit={handleShippingSubmit}
-              className="flex flex-col gap-3"
-            >
-              <Input
-                label="Full Name *"
-                name="fullName"
-                placeholder="John Doe"
-                value={shipping.fullName}
-                onChange={(e) =>
-                  setShipping((s) => ({ ...s, fullName: e.target.value }))
-                }
-              />
-              <Input
-                label="Address *"
-                name="address"
-                placeholder="123 Main St, Apt 4"
-                value={shipping.address}
-                onChange={(e) =>
-                  setShipping((s) => ({ ...s, address: e.target.value }))
-                }
-              />
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="City *"
-                  name="city"
-                  placeholder="New York"
-                  value={shipping.city}
-                  onChange={(e) =>
-                    setShipping((s) => ({ ...s, city: e.target.value }))
-                  }
-                />
-                <Input
-                  label="State / Province"
-                  name="state"
-                  placeholder="NY"
-                  value={shipping.state}
-                  onChange={(e) =>
-                    setShipping((s) => ({ ...s, state: e.target.value }))
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="ZIP / Postal Code *"
-                  name="zip"
-                  placeholder="10001"
-                  value={shipping.zip}
-                  onChange={(e) =>
-                    setShipping((s) => ({ ...s, zip: e.target.value }))
-                  }
-                />
-                <Input
-                  label="Country *"
-                  name="country"
-                  placeholder="United States"
-                  value={shipping.country}
-                  onChange={(e) =>
-                    setShipping((s) => ({ ...s, country: e.target.value }))
-                  }
-                />
-              </div>
-              <Input
-                label="Phone"
-                name="phone"
-                type="tel"
-                placeholder="+1 (555) 000-0000"
-                value={shipping.phone}
-                onChange={(e) =>
-                  setShipping((s) => ({ ...s, phone: e.target.value }))
-                }
-              />
-
-              {shippingError && (
-                <p className="text-accent-red text-xs">{shippingError}</p>
-              )}
-
-              <div className="border-t border-[var(--border)] pt-4 mt-2 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">Vinyl</span>
-                  <span className="text-foreground font-semibold">
-                    {vinyl.edition} #{String(vinyl.number).padStart(2, "0")}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">Includes</span>
-                  <span className="text-foreground font-semibold">
-                    Physical + Digital
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted">Shipping</span>
-                  <span className="text-foreground font-semibold">
-                    Included
-                  </span>
-                </div>
-                <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm">
-                  <span className="text-foreground font-bold">Total</span>
-                  <span className="text-foreground font-bold font-hoodlrz text-lg">
-                    $300.00
-                  </span>
-                </div>
-              </div>
-
-              <Button variant="primary" size="lg">
-                Pay $300.00
-              </Button>
-
-              <p className="text-[10px] text-muted text-center">
-                Powered by Stripe. Secure payment. Your vinyl will be shipped
-                after payment confirmation.
-              </p>
-            </form>
-          </div>
         </div>
       </Modal>
     </div>
