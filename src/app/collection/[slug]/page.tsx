@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Suspense } from "react";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -73,9 +73,9 @@ const COLLECTIONS_MAP: Record<
       "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece is a unique vinyl cover drawn by hand. Reserved for top collectors.",
     supply: 25,
     minted: 0,
-    priceCents: 30000,
+    priceCents: 0,
     isGenesis: true,
-    dropStatus: "public" as const,
+    dropStatus: "upcoming" as const,
     dropDate: "2026-05-10T18:00:00Z",
     whitelistDate: "2026-05-08T18:00:00Z",
   },
@@ -185,29 +185,36 @@ export default function CollectionDetailPage() {
         )}
 
         <div className="flex flex-wrap gap-3">
-          {dropStatus === "pre-whitelist" && (
-            <Button variant="primary" size="lg" href="/access">
-              Join Whitelist
-            </Button>
-          )}
-          {dropStatus === "whitelist-live" && (
-            <>
-              <Button variant="primary" size="lg" href="/access">
-                Join Whitelist
+          {isGenesis ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted">
+                Top collectors unlock exclusive access to Genesis works.
+              </p>
+              <Button variant="primary" size="lg" href="/collections">
+                Start Collecting
               </Button>
-              <Badge variant="success">Whitelist Open</Badge>
-            </>
-          )}
-          {dropStatus === "live" && (
-            <Suspense fallback={null}>
-              <CollectFlow
-                collectionSlug={slug}
-                price={`$${(collection.priceCents / 100).toFixed(2)}`}
-              />
-            </Suspense>
-          )}
-          {!isGenesis && (
+            </div>
+          ) : (
             <>
+              {dropStatus === "pre-whitelist" && (
+                <Button variant="primary" size="lg" href="/access">
+                  Join Whitelist
+                </Button>
+              )}
+              {dropStatus === "whitelist-live" && (
+                <>
+                  <Button variant="primary" size="lg" href="/access">
+                    Join Whitelist
+                  </Button>
+                  <Badge variant="success">Whitelist Open</Badge>
+                </>
+              )}
+              {dropStatus === "live" && (
+                <CollectFlow
+                  collectionSlug={slug}
+                  price={`$${(collection.priceCents / 100).toFixed(2)}`}
+                />
+              )}
               <Button
                 variant="secondary"
                 size="lg"
@@ -323,8 +330,8 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.black.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
-                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2">
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)] transition-transform duration-200 group-hover:-translate-y-1">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={vinyl.src}
@@ -336,7 +343,10 @@ export default function CollectionDetailPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                       Black #{String(vinyl.number).padStart(2, "0")}
                     </span>
-                  </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                      Available &mdash; $300
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -348,8 +358,8 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.white.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
-                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2">
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)] transition-transform duration-200 group-hover:-translate-y-1">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={vinyl.src}
@@ -361,7 +371,10 @@ export default function CollectionDetailPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                       White #{String(vinyl.number).padStart(2, "0")}
                     </span>
-                  </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                      Available &mdash; $300
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -373,8 +386,8 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.craft.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
-                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2">
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)] transition-transform duration-200 group-hover:-translate-y-1">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={vinyl.src}
@@ -386,7 +399,10 @@ export default function CollectionDetailPage() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                       Craft #{String(vinyl.number).padStart(2, "0")}
                     </span>
-                  </div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
+                      Available &mdash; $300
+                    </span>
+                  </Link>
                 ))}
               </div>
             </div>

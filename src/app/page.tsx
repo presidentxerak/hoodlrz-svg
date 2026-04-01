@@ -1,6 +1,5 @@
 "use client";
 
-import { Suspense } from "react";
 import PFPViewer from "@/components/ui/PFPViewer";
 import CollectFlow from "@/components/collect/CollectFlow";
 
@@ -55,9 +54,7 @@ export default function HomePage() {
               <span className="text-white/30">|</span>
               <span className="text-white/50">No gas fees</span>
             </div>
-            <Suspense fallback={null}>
-              <CollectFlow collectionSlug="hoodlrz" price="$9.99" />
-            </Suspense>
+            <CollectFlow collectionSlug="hoodlrz" price="$9.99" />
           </div>
         </div>
       </section>
