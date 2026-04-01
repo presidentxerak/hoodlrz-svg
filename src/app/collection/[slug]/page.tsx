@@ -8,34 +8,7 @@ import Card from "@/components/ui/Card";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
 import CollectFlow from "@/components/collect/CollectFlow";
-
-/* ── Genesis vinyl data ── */
-const GENESIS_VINYLS = {
-  black: Array.from({ length: 10 }, (_, i) => ({
-    id: `black-${String(i + 1).padStart(2, "0")}`,
-    src: `/images/genesis/black/${String(i + 1).padStart(2, "0")}-black.png`,
-    edition: "Black",
-    number: i + 1,
-  })),
-  white: Array.from({ length: 5 }, (_, i) => ({
-    id: `white-${String(i + 1).padStart(2, "0")}`,
-    src: `/images/genesis/white/${String(i + 1).padStart(2, "0")}-white.png`,
-    edition: "White",
-    number: i + 1,
-  })),
-  craft: Array.from({ length: 10 }, (_, i) => ({
-    id: `craft-${String(i + 1).padStart(2, "0")}`,
-    src: `/images/genesis/craft/${String(i + 1).padStart(2, "0")}-craft.png`,
-    edition: "Craft",
-    number: i + 1,
-  })),
-};
-
-const ALL_VINYLS = [
-  ...GENESIS_VINYLS.black,
-  ...GENESIS_VINYLS.white,
-  ...GENESIS_VINYLS.craft,
-];
+import { GENESIS_VINYLS, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
 
 /* ── Collection data ── */
 const COLLECTIONS_MAP: Record<
@@ -198,14 +171,18 @@ export default function CollectionDetailPage() {
               <Badge variant="success">Whitelist Open</Badge>
             </>
           )}
-          {dropStatus === "live" && (
+          {dropStatus === "live" && !isGenesis && (
             <Suspense fallback={null}>
               <CollectFlow
                 collectionSlug={slug}
                 price={`$${(collection.priceCents / 100).toFixed(2)}`}
-                isGenesis={isGenesis}
               />
             </Suspense>
+          )}
+          {dropStatus === "live" && isGenesis && (
+            <p className="text-sm text-muted">
+              Click on any vinyl below to collect it.
+            </p>
           )}
           {!isGenesis && (
             <>
@@ -324,7 +301,7 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.black.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
+                  <a key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
                     <div className="aspect-square overflow-hidden bg-[var(--surface)]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -334,10 +311,13 @@ export default function CollectionDetailPage() {
                         loading="lazy"
                       />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                      Black #{String(vinyl.number).padStart(2, "0")}
-                    </span>
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                        Black #{String(vinyl.number).padStart(2, "0")}
+                      </span>
+                      <span className="text-[10px] font-bold text-foreground">$300</span>
+                    </div>
+                  </a>
                 ))}
               </div>
             </div>
@@ -349,7 +329,7 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.white.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
+                  <a key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
                     <div className="aspect-square overflow-hidden bg-[var(--surface)]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -359,10 +339,13 @@ export default function CollectionDetailPage() {
                         loading="lazy"
                       />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                      White #{String(vinyl.number).padStart(2, "0")}
-                    </span>
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                        White #{String(vinyl.number).padStart(2, "0")}
+                      </span>
+                      <span className="text-[10px] font-bold text-foreground">$300</span>
+                    </div>
+                  </a>
                 ))}
               </div>
             </div>
@@ -374,7 +357,7 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.craft.map((vinyl) => (
-                  <div key={vinyl.id} className="flex flex-col gap-2">
+                  <a key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
                     <div className="aspect-square overflow-hidden bg-[var(--surface)]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -384,17 +367,20 @@ export default function CollectionDetailPage() {
                         loading="lazy"
                       />
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                      Craft #{String(vinyl.number).padStart(2, "0")}
-                    </span>
-                  </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                        Craft #{String(vinyl.number).padStart(2, "0")}
+                      </span>
+                      <span className="text-[10px] font-bold text-foreground">$300</span>
+                    </div>
+                  </a>
                 ))}
               </div>
             </div>
 
             {/* Total */}
             <p className="text-xs text-muted uppercase tracking-widest text-center pt-4 border-t border-[var(--border)]">
-              {ALL_VINYLS.length} unique pieces across 3 editions
+              {ALL_GENESIS_VINYLS.length} unique pieces across 3 editions
             </p>
           </div>
         ) : (

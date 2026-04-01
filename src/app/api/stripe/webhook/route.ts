@@ -158,10 +158,11 @@ async function handlePrimarySale(
   session: Stripe.Checkout.Session,
   metadata: Record<string, string>
 ) {
-  const { collectionId, accountId } = metadata;
+  const { collectionId, accountId, vinylId } = metadata;
   const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10));
+  const isGenesis = !!vinylId;
 
-  console.log(`[stripe/webhook] Primary sale: collection=${collectionId}, account=${accountId}, quantity=${quantity}`);
+  console.log(`[stripe/webhook] Primary sale: collection=${collectionId}, account=${accountId}, quantity=${quantity}, vinylId=${vinylId || "none"}`);
 
   if (!collectionId || !accountId) {
     throw new Error(`Missing metadata: collectionId=${collectionId}, accountId=${accountId}`);
@@ -201,12 +202,23 @@ async function handlePrimarySale(
 
     const serialNumber = currentCollection.minted_count + 1;
 
-    // Generate unique PFP for each token
-    const seed = generateSeed();
-    const pfp = generatePFP(seed);
-    const canonicalHash = await computeCanonicalHash(pfp.svg);
+    // For Genesis: store vinylId as seed (used to look up vinyl image)
+    // For Hoodlrz: generate a random PFP
+    let seed: string;
+    let traitsJson: Record<string, string> | null = null;
+    let canonicalHash: string;
 
-    console.log(`[stripe/webhook] Minting token ${i + 1}/${quantity}: seed=${seed}, serial=${serialNumber}`);
+    if (isGenesis) {
+      seed = vinylId; // e.g. "black-01" — used to look up the vinyl image
+      canonicalHash = await computeCanonicalHash(seed);
+      console.log(`[stripe/webhook] Minting Genesis token ${i + 1}/${quantity}: vinyl=${vinylId}, serial=${serialNumber}`);
+    } else {
+      seed = generateSeed();
+      const pfp = generatePFP(seed);
+      traitsJson = pfp.traits;
+      canonicalHash = await computeCanonicalHash(pfp.svg);
+      console.log(`[stripe/webhook] Minting token ${i + 1}/${quantity}: seed=${seed}, serial=${serialNumber}`);
+    }
 
     // Atomic increment with sold-out guard
     const { data: updatedCollection, error: updateError } = await supabase
@@ -230,7 +242,7 @@ async function handlePrimarySale(
         owner_id: accountId,
         serial_number: serialNumber,
         seed,
-        traits_json: pfp.traits,
+        traits_json: traitsJson,
         canonical_hash: canonicalHash,
       })
       .select()

@@ -16,9 +16,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { collectionSlug, quantity: rawQuantity } = body as {
+    const { collectionSlug, quantity: rawQuantity, vinylId, shipping } = body as {
       collectionSlug?: string;
       quantity?: number;
+      vinylId?: string;
+      shipping?: {
+        fullName?: string;
+        address?: string;
+        city?: string;
+        state?: string;
+        zip?: string;
+        country?: string;
+        phone?: string;
+      };
     };
 
     if (!collectionSlug) {
@@ -140,6 +150,34 @@ export async function POST(request: NextRequest) {
     // Create Stripe checkout session
     const origin = new URL(request.url).origin;
 
+    // Build metadata — include vinylId and shipping for Genesis
+    const metadata: Record<string, string> = {
+      collectionSlug,
+      collectionId: collection.id,
+      accountId,
+      quantity: String(cappedQuantity),
+      type: "primary_sale",
+    };
+
+    if (vinylId) {
+      metadata.vinylId = vinylId;
+    }
+
+    if (shipping) {
+      metadata.shippingName = shipping.fullName || "";
+      metadata.shippingAddress = shipping.address || "";
+      metadata.shippingCity = shipping.city || "";
+      metadata.shippingState = shipping.state || "";
+      metadata.shippingZip = shipping.zip || "";
+      metadata.shippingCountry = shipping.country || "";
+      metadata.shippingPhone = shipping.phone || "";
+    }
+
+    // For Genesis, use the vinyl page as cancel URL
+    const cancelUrl = vinylId
+      ? `${origin}/genesis/${vinylId}`
+      : `${origin}/collection/${collectionSlug}`;
+
     const checkoutSession = await getStripeServer().checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -147,23 +185,21 @@ export async function POST(request: NextRequest) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: collection.name,
-              description: collection.description ?? undefined,
+              name: vinylId
+                ? `Genesis — ${vinylId}`
+                : collection.name,
+              description: vinylId
+                ? "Physical vinyl artwork + digital collectible. Shipped worldwide."
+                : (collection.description ?? undefined),
             },
             unit_amount: collection.price_cents,
           },
           quantity: cappedQuantity,
         },
       ],
-      metadata: {
-        collectionSlug,
-        collectionId: collection.id,
-        accountId,
-        quantity: String(cappedQuantity),
-        type: "primary_sale",
-      },
+      metadata,
       success_url: `${origin}/success?collection=${collectionSlug}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/collection/${collectionSlug}`,
+      cancel_url: cancelUrl,
     });
 
     return NextResponse.json({ url: checkoutSession.url });

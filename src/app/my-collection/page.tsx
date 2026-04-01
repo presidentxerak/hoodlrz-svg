@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import PFPViewer from "@/components/ui/PFPViewer";
 import { createClient } from "@/lib/supabase/client";
+import { getVinylImageSrc, getVinylById } from "@/lib/genesis/vinyls";
 
 interface Token {
   id: string;
   seed: string;
   serial_number: number;
   collection_id: string;
+  collection_slug: string | null;
   is_listed: boolean;
   created_at: string;
 }
@@ -112,31 +114,55 @@ export default function MyCollectionPage() {
       {/* ── Token Grid ── */}
       {tokens.length > 0 ? (
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 sm:gap-6">
-          {tokens.map((token) => (
-            <a
-              key={token.id}
-              href={`/token/${token.id}`}
-              className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]"
-            >
-              <div className="relative">
-                <PFPViewer
-                  seed={token.seed}
-                  size={400}
-                  className="aspect-square w-full"
-                />
-                {token.is_listed && (
-                  <span className="absolute bottom-1.5 left-1.5 bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
-                    Listed
+          {tokens.map((token) => {
+            const isGenesis = token.collection_slug === "genesis";
+            const vinylSrc = isGenesis ? getVinylImageSrc(token.seed) : null;
+            const vinyl = isGenesis ? getVinylById(token.seed) : null;
+
+            return (
+              <a
+                key={token.id}
+                href={isGenesis ? `/genesis/${token.seed}` : `/token/${token.id}`}
+                className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]"
+              >
+                <div className="relative">
+                  {isGenesis && vinylSrc ? (
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={vinylSrc}
+                        alt={vinyl ? `Genesis ${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}` : "Genesis Vinyl"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <PFPViewer
+                      seed={token.seed}
+                      size={400}
+                      className="aspect-square w-full"
+                    />
+                  )}
+                  {token.is_listed && (
+                    <span className="absolute bottom-1.5 left-1.5 bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
+                      Listed
+                    </span>
+                  )}
+                  {isGenesis && (
+                    <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
+                      Genesis
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted">
+                    {isGenesis && vinyl
+                      ? `${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}`
+                      : `#${String(token.serial_number).padStart(4, "0")}`}
                   </span>
-                )}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-widest text-muted">
-                  #{String(token.serial_number).padStart(4, "0")}
-                </span>
-              </div>
-            </a>
-          ))}
+                </div>
+              </a>
+            );
+          })}
         </div>
       ) : (
         /* ── Empty state ── */

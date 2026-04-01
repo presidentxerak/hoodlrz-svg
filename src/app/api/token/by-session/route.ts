@@ -39,10 +39,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ found: false });
   }
 
-  // Fetch all tokens
+  // Fetch all tokens with collection slug
   const { data: tokens, error: tokenError } = await admin
     .from("tokens")
-    .select("id, seed, serial_number, collection_id")
+    .select("id, seed, serial_number, collection_id, collections(slug)")
     .in("id", tokenIds)
     .order("serial_number", { ascending: true });
 
@@ -62,11 +62,15 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     found: true,
     totalMinted: tokens.length,
-    tokens: tokens.map((t) => ({
-      id: t.id,
-      seed: t.seed,
-      serialNumber: t.serial_number,
-      username,
-    })),
+    tokens: tokens.map((t) => {
+      const col = t.collections as unknown as { slug: string } | null;
+      return {
+        id: t.id,
+        seed: t.seed,
+        serialNumber: t.serial_number,
+        collectionSlug: col?.slug ?? null,
+        username,
+      };
+    }),
   });
 }

@@ -24,10 +24,10 @@ export async function GET() {
     return NextResponse.json({ tokens: [], account: null });
   }
 
-  // Get all tokens owned by this account
+  // Get all tokens owned by this account (join with collections for slug)
   const { data: tokens, error: tokensError } = await admin
     .from("tokens")
-    .select("id, seed, serial_number, collection_id, is_listed, created_at")
+    .select("id, seed, serial_number, collection_id, is_listed, created_at, collections(slug)")
     .eq("owner_id", account.id)
     .order("created_at", { ascending: false });
 
@@ -35,8 +35,22 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to fetch tokens." }, { status: 500 });
   }
 
+  // Flatten the collection slug into each token
+  const enrichedTokens = (tokens || []).map((t) => {
+    const col = t.collections as unknown as { slug: string } | null;
+    return {
+      id: t.id,
+      seed: t.seed,
+      serial_number: t.serial_number,
+      collection_id: t.collection_id,
+      collection_slug: col?.slug ?? null,
+      is_listed: t.is_listed,
+      created_at: t.created_at,
+    };
+  });
+
   return NextResponse.json({
-    tokens: tokens || [],
+    tokens: enrichedTokens,
     account: {
       id: account.id,
       pseudonym: account.pseudonym,

@@ -1,0 +1,612 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { Suspense, useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import Input from "@/components/ui/Input";
+import Modal from "@/components/ui/Modal";
+import { createClient } from "@/lib/supabase/client";
+import { getVinylById, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
+
+const EDITION_DESCRIPTIONS: Record<string, string> = {
+  Black:
+    "The Black Edition is the boldest expression of the Hoodlrz universe. Raw, minimal, and powerful. 10 unique hand-drawn vinyl covers.",
+  White:
+    "The White Edition is pure light. Clean lines, ethereal compositions. Only 5 exist — the rarest of the Genesis collection.",
+  Craft:
+    "The Craft Edition celebrates raw texture and organic imperfection. 10 unique pieces blending street art with artisanal craft.",
+};
+
+type FlowState = "idle" | "auth" | "shipping" | "loading" | "error";
+
+function GenesisVinylContent() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const vinylId = params.id as string;
+
+  const vinyl = getVinylById(vinylId);
+
+  // Flow state
+  const [state, setState] = useState<FlowState>("idle");
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [autoTriggered, setAutoTriggered] = useState(false);
+
+  // Auth state
+  const [email, setEmail] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authSent, setAuthSent] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  // Shipping form state
+  const [shipping, setShipping] = useState({
+    fullName: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    country: "",
+    phone: "",
+  });
+  const [shippingError, setShippingError] = useState("");
+
+  // Check auth on mount
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user);
+    });
+  }, []);
+
+  // Auto-trigger collect flow
+  useEffect(() => {
+    if (autoTriggered || isLoggedIn === null) return;
+    if (searchParams.get("collect") === "true") {
+      setAutoTriggered(true);
+      if (isLoggedIn) {
+        setState("shipping");
+      } else {
+        setState("auth");
+      }
+    }
+  }, [searchParams, isLoggedIn, autoTriggered]);
+
+  const handleCollect = useCallback(() => {
+    setError(null);
+    if (!isLoggedIn) {
+      setState("auth");
+    } else {
+      setState("shipping");
+    }
+  }, [isLoggedIn]);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!email || !email.includes("@")) {
+      setAuthError("Enter a valid email address.");
+      return;
+    }
+    setAuthLoading(true);
+    try {
+      const res = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setAuthError(data.error || "Something went wrong.");
+        setAuthLoading(false);
+        return;
+      }
+      setAuthLoading(false);
+      setAuthSent(true);
+    } catch {
+      setAuthError("Network error. Please try again.");
+      setAuthLoading(false);
+    }
+  };
+
+  const handleShippingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setShippingError("");
+
+    // Validate required fields
+    const { fullName, address, city, zip, country } = shipping;
+    if (!fullName || !address || !city || !zip || !country) {
+      setShippingError("Please fill in all required fields.");
+      return;
+    }
+
+    setState("loading");
+
+    try {
+      const res = await fetch("/api/mint", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          collectionSlug: "genesis",
+          quantity: 1,
+          vinylId,
+          shipping,
+        }),
+      });
+
+      if (res.status === 401) {
+        setState("auth");
+        setIsLoggedIn(false);
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+    } catch (err) {
+      setState("error");
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setError(
+        msg === "Failed to fetch"
+          ? "Connection error. Please check your connection and try again."
+          : msg
+      );
+    }
+  };
+
+  const CloseButton = ({ onClick }: { onClick: () => void }) => (
+    <button
+      onClick={onClick}
+      className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-colors text-xl leading-none"
+      aria-label="Close"
+    >
+      &times;
+    </button>
+  );
+
+  if (!vinyl) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted mb-4">Vinyl not found.</p>
+          <Button variant="secondary" size="md" href="/collection/genesis">
+            View Genesis Collection
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Find adjacent vinyls for navigation
+  const currentIndex = ALL_GENESIS_VINYLS.findIndex((v) => v.id === vinylId);
+  const prevVinyl = currentIndex > 0 ? ALL_GENESIS_VINYLS[currentIndex - 1] : null;
+  const nextVinyl =
+    currentIndex < ALL_GENESIS_VINYLS.length - 1
+      ? ALL_GENESIS_VINYLS[currentIndex + 1]
+      : null;
+
+  return (
+    <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
+      {/* Breadcrumb */}
+      <div className="mb-8">
+        <a
+          href="/collection/genesis"
+          className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+        >
+          &larr; Genesis Collection
+        </a>
+      </div>
+
+      {/* Main content: image + details side by side */}
+      <div className="grid gap-8 md:grid-cols-2 md:gap-12">
+        {/* Vinyl image */}
+        <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={vinyl.src}
+            alt={`Genesis ${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}`}
+            className="w-full h-full object-cover"
+          />
+        </div>
+
+        {/* Details */}
+        <div className="flex flex-col gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Badge variant="legendary">Genesis</Badge>
+              <span className="text-xs uppercase tracking-widest text-muted">
+                {vinyl.edition} Edition
+              </span>
+            </div>
+            <h1 className="font-hoodlrz text-[32px] font-bold leading-none tracking-wider text-foreground sm:text-[44px]">
+              {vinyl.edition} #{String(vinyl.number).padStart(2, "0")}
+            </h1>
+          </div>
+
+          <p className="text-sm leading-relaxed text-muted">
+            {EDITION_DESCRIPTIONS[vinyl.edition]}
+          </p>
+
+          {/* Product details */}
+          <div className="border border-[var(--border)] p-4 space-y-3">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Price</span>
+              <span className="text-foreground font-bold font-hoodlrz text-lg">
+                $300.00
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Type</span>
+              <span className="text-foreground font-semibold">
+                Physical vinyl + digital image
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Edition</span>
+              <span className="text-foreground font-semibold">
+                {vinyl.edition} ({vinyl.edition === "White" ? "5" : "10"} pieces)
+              </span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Shipping</span>
+              <span className="text-foreground font-semibold">Worldwide</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Includes</span>
+              <span className="text-foreground font-semibold">
+                Physical vinyl + digital collectible
+              </span>
+            </div>
+          </div>
+
+          {/* CTA */}
+          {(state === "idle" || state === "error") && (
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={handleCollect}
+                disabled={isLoggedIn === null}
+                className={[
+                  "w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white",
+                  "transition-all duration-150 ease-out",
+                  isLoggedIn === null
+                    ? "opacity-40 cursor-not-allowed grayscale"
+                    : "cursor-pointer hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(229,62,62,0.5)]",
+                ].join(" ")}
+                style={{
+                  background:
+                    "linear-gradient(135deg, #E53E3E 0%, #D53F8C 100%)",
+                }}
+              >
+                <span className="relative z-10 flex items-center justify-center gap-3">
+                  <span>Collect This Vinyl</span>
+                  <span className="text-white/70 text-xs font-normal">
+                    $300.00
+                  </span>
+                </span>
+              </button>
+              {error && (
+                <p className="text-accent-red text-xs text-center">{error}</p>
+              )}
+            </div>
+          )}
+
+          {/* Loading state */}
+          {state === "loading" && (
+            <div className="flex flex-col items-center gap-4 py-4">
+              <div
+                className="w-10 h-10 border-2 border-white/20 border-t-accent-red"
+                style={{
+                  animation: "spin 0.8s linear infinite",
+                  borderRadius: "9999px",
+                }}
+              />
+              <p className="text-white/70 text-xs uppercase tracking-widest">
+                Redirecting to payment...
+              </p>
+            </div>
+          )}
+
+          {/* What you get */}
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted">
+              What you get
+            </p>
+            <ul className="space-y-1.5 text-sm text-muted">
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">&#10003;</span>
+                <span>
+                  Original hand-drawn vinyl artwork shipped to your address
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">&#10003;</span>
+                <span>
+                  High-resolution digital image in your Hoodlrz collection
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">&#10003;</span>
+                <span>Certificate of authenticity</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">&#10003;</span>
+                <span>Genesis collector status + exclusive access</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation between vinyls */}
+      <div className="mt-12 flex justify-between border-t border-[var(--border)] pt-6">
+        {prevVinyl ? (
+          <a
+            href={`/genesis/${prevVinyl.id}`}
+            className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+          >
+            &larr; {prevVinyl.edition} #{String(prevVinyl.number).padStart(2, "0")}
+          </a>
+        ) : (
+          <span />
+        )}
+        {nextVinyl ? (
+          <a
+            href={`/genesis/${nextVinyl.id}`}
+            className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+          >
+            {nextVinyl.edition} #{String(nextVinyl.number).padStart(2, "0")} &rarr;
+          </a>
+        ) : (
+          <span />
+        )}
+      </div>
+
+      {/* ── Auth Modal ── */}
+      <Modal isOpen={state === "auth"} onClose={() => setState("idle")}>
+        <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
+          <CloseButton onClick={() => setState("idle")} />
+          <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
+            Sign Up to Collect
+          </h2>
+          <p className="text-sm text-center text-muted">
+            Enter your email to get a magic link. No passwords, no wallet, no
+            friction.
+          </p>
+
+          {!authSent ? (
+            <form
+              onSubmit={handleAuthSubmit}
+              className="w-full flex flex-col gap-4"
+            >
+              <Input
+                label="Email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={authError}
+              />
+              <Button variant="primary" size="lg" disabled={authLoading}>
+                {authLoading ? "Sending..." : "Get Access"}
+              </Button>
+            </form>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center border border-emerald-500/40 bg-emerald-500/10">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-emerald-500"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </div>
+              <p className="text-sm text-center text-muted">
+                Check your inbox! We sent a magic link to{" "}
+                <strong className="text-foreground">{email}</strong>.
+              </p>
+              <p className="text-xs text-muted text-center">
+                Click the link in the email to sign in, then come back and
+                collect.
+              </p>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  setAuthSent(false);
+                  setEmail("");
+                  const supabase = createClient();
+                  supabase.auth.getUser().then(({ data }) => {
+                    const loggedIn = !!data.user;
+                    setIsLoggedIn(loggedIn);
+                    if (loggedIn) {
+                      setState("shipping");
+                    } else {
+                      setState("idle");
+                    }
+                  });
+                }}
+              >
+                Done
+              </Button>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* ── Shipping + Payment Modal ── */}
+      <Modal isOpen={state === "shipping"} onClose={() => setState("idle")}>
+        <div className="relative flex flex-col gap-6 p-6 max-w-md mx-auto bg-[var(--background)] border border-[var(--border)]">
+          <CloseButton onClick={() => setState("idle")} />
+
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 flex-shrink-0 overflow-hidden bg-[var(--surface)]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={vinyl.src}
+                alt={vinyl.id}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div>
+              <h2 className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
+                {vinyl.edition} #{String(vinyl.number).padStart(2, "0")}
+              </h2>
+              <p className="text-sm text-muted">
+                Genesis Collection &mdash; $300.00
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-[var(--border)] pt-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
+              Shipping Address
+            </p>
+            <form
+              onSubmit={handleShippingSubmit}
+              className="flex flex-col gap-3"
+            >
+              <Input
+                label="Full Name *"
+                name="fullName"
+                placeholder="John Doe"
+                value={shipping.fullName}
+                onChange={(e) =>
+                  setShipping((s) => ({ ...s, fullName: e.target.value }))
+                }
+              />
+              <Input
+                label="Address *"
+                name="address"
+                placeholder="123 Main St, Apt 4"
+                value={shipping.address}
+                onChange={(e) =>
+                  setShipping((s) => ({ ...s, address: e.target.value }))
+                }
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="City *"
+                  name="city"
+                  placeholder="New York"
+                  value={shipping.city}
+                  onChange={(e) =>
+                    setShipping((s) => ({ ...s, city: e.target.value }))
+                  }
+                />
+                <Input
+                  label="State / Province"
+                  name="state"
+                  placeholder="NY"
+                  value={shipping.state}
+                  onChange={(e) =>
+                    setShipping((s) => ({ ...s, state: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="ZIP / Postal Code *"
+                  name="zip"
+                  placeholder="10001"
+                  value={shipping.zip}
+                  onChange={(e) =>
+                    setShipping((s) => ({ ...s, zip: e.target.value }))
+                  }
+                />
+                <Input
+                  label="Country *"
+                  name="country"
+                  placeholder="United States"
+                  value={shipping.country}
+                  onChange={(e) =>
+                    setShipping((s) => ({ ...s, country: e.target.value }))
+                  }
+                />
+              </div>
+              <Input
+                label="Phone"
+                name="phone"
+                type="tel"
+                placeholder="+1 (555) 000-0000"
+                value={shipping.phone}
+                onChange={(e) =>
+                  setShipping((s) => ({ ...s, phone: e.target.value }))
+                }
+              />
+
+              {shippingError && (
+                <p className="text-accent-red text-xs">{shippingError}</p>
+              )}
+
+              <div className="border-t border-[var(--border)] pt-4 mt-2 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Vinyl</span>
+                  <span className="text-foreground font-semibold">
+                    {vinyl.edition} #{String(vinyl.number).padStart(2, "0")}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Includes</span>
+                  <span className="text-foreground font-semibold">
+                    Physical + Digital
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted">Shipping</span>
+                  <span className="text-foreground font-semibold">
+                    Included
+                  </span>
+                </div>
+                <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm">
+                  <span className="text-foreground font-bold">Total</span>
+                  <span className="text-foreground font-bold font-hoodlrz text-lg">
+                    $300.00
+                  </span>
+                </div>
+              </div>
+
+              <Button variant="primary" size="lg">
+                Pay $300.00
+              </Button>
+
+              <p className="text-[10px] text-muted text-center">
+                Powered by Stripe. Secure payment. Your vinyl will be shipped
+                after payment confirmation.
+              </p>
+            </form>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+export default function GenesisVinylPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <p className="text-sm text-muted">Loading...</p>
+        </div>
+      }
+    >
+      <GenesisVinylContent />
+    </Suspense>
+  );
+}

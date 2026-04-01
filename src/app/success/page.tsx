@@ -4,11 +4,13 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import Button from "@/components/ui/Button";
 import PFPViewer from "@/components/ui/PFPViewer";
+import { getVinylImageSrc, getVinylById } from "@/lib/genesis/vinyls";
 
 interface TokenData {
   id: string;
   seed: string;
   serialNumber: number;
+  collectionSlug: string | null;
   username: string;
 }
 
@@ -17,6 +19,7 @@ function SuccessContent() {
   const collectionSlug = searchParams.get("collection") || "hoodlrz";
   const sessionId = searchParams.get("session_id");
 
+  const isGenesisCollection = collectionSlug === "genesis";
   const [tokens, setTokens] = useState<TokenData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,16 +84,18 @@ function SuccessContent() {
         {/* Title */}
         <div className="flex flex-col items-center gap-2">
           <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider text-foreground sm:text-[44px]">
-            Welcome to the Club
+            {isGenesisCollection ? "Welcome, Genesis Collector" : "Welcome to the Club"}
           </h1>
           <p className="text-center text-sm leading-relaxed text-muted">
-            {tokens.length > 1
-              ? `${tokens.length} identities have been claimed.`
-              : "Your identity has been claimed."}
+            {isGenesisCollection
+              ? "Your vinyl artwork has been claimed. It will be shipped to your address."
+              : tokens.length > 1
+                ? `${tokens.length} identities have been claimed.`
+                : "Your identity has been claimed."}
           </p>
         </div>
 
-        {/* PFP Grid */}
+        {/* Token Grid */}
         {tokens.length > 0 && (
           <div
             className={`w-full grid gap-4 ${
@@ -101,18 +106,37 @@ function SuccessContent() {
                   : "grid-cols-3 sm:grid-cols-5 max-w-2xl mx-auto"
             }`}
           >
-            {tokens.map((token) => (
-              <div key={token.id} className="flex flex-col items-center gap-1">
-                <PFPViewer
-                  seed={token.seed}
-                  size={400}
-                  className="aspect-square w-full"
-                />
-                <p className="text-[10px] uppercase tracking-widest text-muted">
-                  #{String(token.serialNumber).padStart(4, "0")}
-                </p>
-              </div>
-            ))}
+            {tokens.map((token) => {
+              const isGenesis = token.collectionSlug === "genesis";
+              const vinylSrc = isGenesis ? getVinylImageSrc(token.seed) : null;
+              const vinyl = isGenesis ? getVinylById(token.seed) : null;
+
+              return (
+                <div key={token.id} className="flex flex-col items-center gap-1">
+                  {isGenesis && vinylSrc ? (
+                    <div className="aspect-square overflow-hidden bg-[var(--surface)] w-full">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={vinylSrc}
+                        alt={vinyl ? `Genesis ${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}` : "Genesis Vinyl"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <PFPViewer
+                      seed={token.seed}
+                      size={400}
+                      className="aspect-square w-full"
+                    />
+                  )}
+                  <p className="text-[10px] uppercase tracking-widest text-muted">
+                    {isGenesis && vinyl
+                      ? `${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}`
+                      : `#${String(token.serialNumber).padStart(4, "0")}`}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -130,10 +154,14 @@ function SuccessContent() {
         {tokens.length === 0 && (
           <div className="flex flex-col items-center gap-2">
             <p className="text-sm text-muted text-center">
-              Your payment was successful! Your identit{tokens.length > 1 ? "ies are" : "y is"} being generated.
+              {isGenesisCollection
+                ? "Your payment was successful! Your vinyl is being prepared."
+                : `Your payment was successful! Your identit${tokens.length > 1 ? "ies are" : "y is"} being generated.`}
             </p>
             <p className="text-xs text-muted text-center">
-              They will appear in your collection shortly.
+              {isGenesisCollection
+                ? "It will appear in your collection shortly."
+                : "They will appear in your collection shortly."}
             </p>
           </div>
         )}
@@ -143,9 +171,9 @@ function SuccessContent() {
           <Button
             variant="primary"
             size="md"
-            href={`/collection/${collectionSlug}?collect=true`}
+            href={isGenesisCollection ? "/collection/genesis" : `/collection/${collectionSlug}?collect=true`}
           >
-            Collect Again
+            {isGenesisCollection ? "View Genesis Collection" : "Collect Again"}
           </Button>
           <Button
             variant="secondary"
