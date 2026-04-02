@@ -72,15 +72,19 @@ export default function MyCollectionPage() {
   /* ── Fetch ETH NFTs from on-chain ── */
   useEffect(() => {
     if (!HOODLRZ_NFT_ADDRESS) return;
-    (async () => {
+
+    const fetchEthNfts = async () => {
       try {
-        const eth = (window as { ethereum?: unknown }).ethereum;
+        const eth = (window as { ethereum?: { request: (args: { method: string }) => Promise<string[]> } }).ethereum;
         if (!eth) return;
+
+        // Use eth_accounts (passive, no popup) to check if already connected
+        const accounts: string[] = await eth.request({ method: "eth_accounts" });
+        if (!accounts || accounts.length === 0) return;
+        const addr = accounts[0];
+
         const { BrowserProvider, Contract } = await import("ethers");
         const provider = new BrowserProvider(eth as import("ethers").Eip1193Provider);
-        const accounts = await provider.listAccounts();
-        if (accounts.length === 0) return;
-        const addr = accounts[0].address;
 
         const network = await provider.getNetwork();
         if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) return;
@@ -97,30 +101,42 @@ export default function MyCollectionPage() {
           const parsed = contract.interface.parseLog({ topics: [...evt.topics], data: evt.data });
           if (parsed) ownedIds.push(Number(parsed.args.tokenId));
         }
-        // Verify still owned + fetch images
+
+        // Verify ownership first, show NFTs immediately (without images)
         const verified: EthNft[] = [];
         const uniqueIds = Array.from(new Set(ownedIds));
         for (const tokenId of uniqueIds) {
           try {
-            const owner = await contract.ownerOf(tokenId);
+            const owner: string = await contract.ownerOf(tokenId);
             if (owner.toLowerCase() === addr.toLowerCase()) {
-              let image: string | undefined;
-              try {
-                const uri: string = await contract.tokenURI(tokenId);
-                // uri = data:application/json;base64,...
-                const jsonStr = atob(uri.split(",")[1]);
-                const meta = JSON.parse(jsonStr);
-                image = meta.image; // data:image/svg+xml;base64,...
-              } catch { /* tokenURI may fail */ }
-              verified.push({ tokenId, image });
+              verified.push({ tokenId });
             }
           } catch { /* token may not exist */ }
         }
-        setEthNfts(verified);
+        setEthNfts([...verified]);
+
+        // Then fetch images progressively (with delays to avoid rate limiting)
+        for (let i = 0; i < verified.length; i++) {
+          try {
+            const uri: string = await contract.tokenURI(verified[i].tokenId);
+            const jsonStr = atob(uri.split(",")[1]);
+            const meta = JSON.parse(jsonStr);
+            verified[i] = { ...verified[i], image: meta.image };
+            setEthNfts([...verified]);
+          } catch { /* tokenURI may fail for some tokens */ }
+          // Small delay to avoid rate limiting
+          if (i < verified.length - 1) {
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
       } catch {
         // No wallet or wrong chain — skip silently
       }
-    })();
+    };
+
+    // Small delay to let MetaMask inject window.ethereum
+    const timer = setTimeout(fetchEthNfts, 300);
+    return () => clearTimeout(timer);
   }, []);
 
   /* Loading / redirect */
