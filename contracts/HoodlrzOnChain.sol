@@ -114,9 +114,11 @@ contract HoodlrzOnChain is ERC721, ERC2981, Ownable {
     function fnv1a(uint256 seed) public pure returns (uint32) {
         bytes memory data = abi.encodePacked(seed);
         uint32 hash = 0x811c9dc5; // FNV offset basis
-        for (uint256 i = 0; i < data.length; i++) {
-            hash ^= uint32(uint8(data[i]));
-            hash *= 0x01000193; // FNV prime
+        unchecked {
+            for (uint256 i = 0; i < data.length; i++) {
+                hash ^= uint32(uint8(data[i]));
+                hash *= 0x01000193; // FNV prime (overflow is intentional)
+            }
         }
         return hash;
     }
