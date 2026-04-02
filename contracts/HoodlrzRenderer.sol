@@ -62,7 +62,7 @@ contract HoodlrzRenderer is IHoodlrzRenderer, Ownable {
             abi.encodePacked(
                 '{"name":"Hoodlrz #',
                 tokenId.toString(),
-                '","description":"Hoodlrz On-Chain — Full on-chain SVG PFP. 10,000 unique hooded identities on Ethereum.","image":"data:image/svg+xml;base64,',
+                '","description":"Hoodlrz On-Chain - Full on-chain SVG PFP. 10,000 unique hooded identities on Ethereum.","image":"data:image/svg+xml;base64,',
                 Base64.encode(bytes(svg)),
                 '","attributes":[',
                 attributes,
