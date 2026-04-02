@@ -8,7 +8,7 @@ async function main() {
   );
   const wallet = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY!, provider);
   const nft = new ethers.Contract(
-    "0xC31Dbd6A5c15CE03aEf6d50ba655837081e811ff",
+    "0x55831e7A5BD877b7f933dFeC69D3c7bC78d7f5D1",
     [
       "function toggleMint(bool) external",
       "function mint(uint256) external payable",
