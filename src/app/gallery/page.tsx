@@ -223,6 +223,7 @@ export default function GlobalGalleryPage() {
                 seed={token.seed}
                 size={400}
                 className="aspect-square w-full"
+                example
               />
               <div className="flex items-center justify-between p-3">
                 <div className="flex flex-col">

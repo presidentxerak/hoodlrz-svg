@@ -94,7 +94,7 @@ export default function HomePage() {
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
           {FEATURED.map(({ seed, label }) => (
             <div key={seed} className="animate-fade-in-up flex flex-col gap-2">
-              <PFPViewer seed={seed} className="aspect-square w-full" />
+              <PFPViewer seed={seed} className="aspect-square w-full" example />
               <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted">
                 {label}
               </span>
@@ -128,7 +128,7 @@ export default function HomePage() {
               {/* Preview PFPs */}
               <div className="grid grid-cols-4 gap-2">
                 {FEATURED.map(({ seed }) => (
-                  <PFPViewer key={seed} seed={seed} className="aspect-square w-full" />
+                  <PFPViewer key={seed} seed={seed} className="aspect-square w-full" example />
                 ))}
               </div>
 
@@ -182,7 +182,7 @@ export default function HomePage() {
               {/* Preview PFPs */}
               <div className="grid grid-cols-4 gap-2">
                 {FEATURED.map(({ seed }) => (
-                  <PFPViewer key={`eth-${seed}`} seed={`eth-${seed}`} className="aspect-square w-full" />
+                  <PFPViewer key={`eth-${seed}`} seed={`eth-${seed}`} className="aspect-square w-full" example />
                 ))}
               </div>
 

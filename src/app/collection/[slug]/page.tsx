@@ -413,6 +413,7 @@ export default function CollectionDetailPage() {
                   seed={`${slug}-${seed}`}
                   size={400}
                   className="aspect-square w-full"
+                  example
                 />
               </div>
             ))}

@@ -27,6 +27,7 @@ export default function CollectionsPage() {
                 seed="hoodlrz-col-hero-001"
                 size={600}
                 className="aspect-square w-full"
+                example
               />
             </div>
             <div className="flex flex-col gap-3 p-5">

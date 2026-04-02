@@ -270,6 +270,7 @@ export default function AboutPage() {
               seed={seed}
               size={400}
               className="aspect-square w-full"
+              example
             />
           ))}
         </div>

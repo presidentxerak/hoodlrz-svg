@@ -186,6 +186,7 @@ export default function CollectionGalleryPage() {
                 seed={token.seed}
                 size={400}
                 className="aspect-square w-full"
+                example
               />
               <div className="flex items-center justify-between p-3">
                 <span className="text-xs font-bold text-foreground">

@@ -8,11 +8,13 @@ interface PFPViewerProps {
   seed: string;
   size?: number;
   className?: string;
+  example?: boolean;
 }
 
 export default function PFPViewer({
   seed,
   className = "",
+  example = false,
 }: PFPViewerProps) {
   const [showTraits, setShowTraits] = useState(false);
 
@@ -60,6 +62,26 @@ export default function PFPViewer({
       >
         {rarity.tier}
       </div>
+
+      {/* Example banner */}
+      {example && (
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-white text-center whitespace-nowrap"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.7)",
+              padding: "3px 0",
+              width: "150%",
+              left: "-25%",
+              top: "50%",
+              transform: "translateY(-50%) rotate(-35deg)",
+              letterSpacing: "0.15em",
+            }}
+          >
+            Example &bull; Not in drop
+          </div>
+        </div>
+      )}
 
       {/* Trait badges overlay */}
       <div
