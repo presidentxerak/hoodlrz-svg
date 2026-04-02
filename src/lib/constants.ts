@@ -4,7 +4,7 @@ export const SITE_DESCRIPTION =
   "Collect, trade, and own unique SVG-based digital collectibles powered by Stripe.";
 
 export const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://hoodlrz.com";
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.hoodlrz.com";
 
 export const PLATFORM_FEE_PERCENT = 10;
 
