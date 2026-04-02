@@ -27,6 +27,7 @@ interface AccountInfo {
 
 interface EthNft {
   tokenId: number;
+  image?: string; // data:image/svg+xml;base64,...
 }
 
 export default function MyCollectionPage() {
@@ -96,14 +97,22 @@ export default function MyCollectionPage() {
           const parsed = contract.interface.parseLog({ topics: [...evt.topics], data: evt.data });
           if (parsed) ownedIds.push(Number(parsed.args.tokenId));
         }
-        // Verify still owned (could have been transferred out)
+        // Verify still owned + fetch images
         const verified: EthNft[] = [];
         const uniqueIds = Array.from(new Set(ownedIds));
         for (const tokenId of uniqueIds) {
           try {
             const owner = await contract.ownerOf(tokenId);
             if (owner.toLowerCase() === addr.toLowerCase()) {
-              verified.push({ tokenId });
+              let image: string | undefined;
+              try {
+                const uri: string = await contract.tokenURI(tokenId);
+                // uri = data:application/json;base64,...
+                const jsonStr = atob(uri.split(",")[1]);
+                const meta = JSON.parse(jsonStr);
+                image = meta.image; // data:image/svg+xml;base64,...
+              } catch { /* tokenURI may fail */ }
+              verified.push({ tokenId, image });
             }
           } catch { /* token may not exist */ }
         }
@@ -196,11 +205,15 @@ export default function MyCollectionPage() {
                 rel="noopener noreferrer"
                 className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]"
               >
-                <div className="relative aspect-square bg-[var(--surface)] flex items-center justify-center border border-[#627eea]/20">
-                  <div className="text-center">
-                    <span className="font-hoodlrz text-3xl font-bold text-[#627eea]">#{nft.tokenId}</span>
-                    <p className="text-[10px] text-muted mt-1">On-Chain SVG</p>
-                  </div>
+                <div className="relative aspect-square bg-[var(--surface)] overflow-hidden border border-[#627eea]/20">
+                  {nft.image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={nft.image} alt={`Hoodlrz #${nft.tokenId}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="font-hoodlrz text-3xl font-bold text-[#627eea]">#{nft.tokenId}</span>
+                    </div>
+                  )}
                   <span className="absolute top-1.5 left-1.5 bg-[#627eea] text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
                     ETH
                   </span>
