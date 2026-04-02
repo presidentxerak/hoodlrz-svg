@@ -14,6 +14,10 @@ const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || "";
 const LAYER_STORE_ADDRESS = process.env.LAYER_STORE_ADDRESS || "";
 const NETWORK = process.argv[2] || "sepolia";
 
+// Max data per SSTORE2 chunk (EIP-170 limit is 24576 bytes for runtime code,
+// minus 1 byte for STOP opcode = 24575 usable). Use 24000 for safety.
+const MAX_CHUNK_SIZE = 24000;
+
 const RPC_URLS: Record<string, string> = {
   sepolia: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
   mainnet: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
@@ -38,6 +42,33 @@ function extractSvgInner(svgContent: string): string {
   let inner = svgContent.replace(/<\?xml[^?]*\?>\s*/g, "");
   inner = inner.replace(/<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
   return inner.trim();
+}
+
+async function sendWithRetry(
+  fn: () => Promise<ethers.TransactionResponse>,
+  label: string,
+  maxRetries = 3
+): Promise<boolean> {
+  let retries = 0;
+  while (retries < maxRetries) {
+    try {
+      const tx = await fn();
+      await tx.wait();
+      return true;
+    } catch (err: unknown) {
+      retries++;
+      const msg = err instanceof Error ? err.message : String(err);
+      if (retries < maxRetries && (msg.includes("429") || msg.includes("exceeded") || msg.includes("per second"))) {
+        const wait = retries * 4;
+        console.log(`    [WAIT] Rate limited on ${label}, waiting ${wait}s... (retry ${retries}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, wait * 1000));
+      } else {
+        console.error(`  [ERR] ${label} - ${msg.slice(0, 150)}`);
+        return false;
+      }
+    }
+  }
+  return false;
 }
 
 async function main() {
@@ -76,15 +107,11 @@ async function main() {
         continue;
       }
 
-      const batchV: number[] = [];
-      const batchC: number[] = [];
-      const batchI: number[] = [];
-      const batchD: Uint8Array[] = [];
-
       for (let i = 1; i <= cat.count; i++) {
         const filePath = join(catPath, `${cat.prefix}${i}.svg`);
         if (!existsSync(filePath)) continue;
 
+        // Check if already uploaded
         try {
           const has = await layerStore.hasLayer(variant.id, cat.id, i);
           if (has) { totalSkipped++; continue; }
@@ -92,50 +119,49 @@ async function main() {
         } catch { /* new contract, no layers yet */ }
 
         const inner = extractSvgInner(readFileSync(filePath, "utf-8"));
-        batchV.push(variant.id);
-        batchC.push(cat.id);
-        batchI.push(i);
-        batchD.push(ethers.toUtf8Bytes(inner));
-      }
+        const dataBytes = ethers.toUtf8Bytes(inner);
 
-      if (batchD.length === 0) {
-        console.log(`  [OK] ${cat.folder} - done`);
-        continue;
-      }
+        if (dataBytes.length <= MAX_CHUNK_SIZE) {
+          // Single chunk — use storeLayer
+          const ok = await sendWithRetry(
+            () => layerStore.storeLayer(variant.id, cat.id, i, dataBytes, { gasLimit: 8_000_000n }),
+            `${cat.folder} #${i} (${dataBytes.length}B)`
+          );
+          if (ok) {
+            totalUploaded++;
+            console.log(`  [TX] ${cat.folder} #${i} - uploaded (${dataBytes.length}B)`);
+          } else {
+            totalFailed++;
+          }
+        } else {
+          // Multi-chunk — split and use storeLayerChunk
+          const numChunks = Math.ceil(dataBytes.length / MAX_CHUNK_SIZE);
+          console.log(`  [CHUNKED] ${cat.folder} #${i} - ${dataBytes.length}B → ${numChunks} chunks`);
 
-      const BATCH_SIZE = 1;
-      for (let b = 0; b < batchD.length; b += BATCH_SIZE) {
-        const end = Math.min(b + BATCH_SIZE, batchD.length);
-        const indices = batchI.slice(b, end);
-        let retries = 0;
-        while (retries < 3) {
-          try {
-            const tx = await layerStore.storeLayerBatch(
-              batchV.slice(b, end),
-              batchC.slice(b, end),
-              indices,
-              batchD.slice(b, end),
-              { gasLimit: 8_000_000n }
+          let allOk = true;
+          for (let c = 0; c < numChunks; c++) {
+            const start = c * MAX_CHUNK_SIZE;
+            const end = Math.min(start + MAX_CHUNK_SIZE, dataBytes.length);
+            const chunk = dataBytes.slice(start, end);
+
+            const ok = await sendWithRetry(
+              () => layerStore.storeLayerChunk(variant.id, cat.id, i, c, chunk, { gasLimit: 8_000_000n }),
+              `${cat.folder} #${i} chunk ${c}/${numChunks} (${chunk.length}B)`
             );
-            await tx.wait();
-            totalUploaded += end - b;
-            console.log(`  [TX] ${cat.folder} [${indices.join(",")}] - uploaded`);
-            break;
-          } catch (err: unknown) {
-            retries++;
-            const msg = err instanceof Error ? err.message : String(err);
-            if (retries < 3 && (msg.includes("429") || msg.includes("exceeded") || msg.includes("per second"))) {
-              const wait = retries * 3;
-              console.log(`  [WAIT] Rate limited, waiting ${wait}s... (retry ${retries}/3)`);
-              await new Promise(r => setTimeout(r, wait * 1000));
-            } else {
-              totalFailed += end - b;
-              console.error(`  [ERR] ${cat.folder} [${indices.join(",")}] - ${msg.slice(0, 120)}`);
-              break;
-            }
+            if (!ok) { allOk = false; break; }
+            console.log(`    chunk ${c + 1}/${numChunks} uploaded (${chunk.length}B)`);
+            await new Promise(r => setTimeout(r, 1500));
+          }
+
+          if (allOk) {
+            totalUploaded++;
+            console.log(`  [TX] ${cat.folder} #${i} - all ${numChunks} chunks uploaded`);
+          } else {
+            totalFailed++;
           }
         }
-        // Delay between batches to avoid rate limiting
+
+        // Delay between layers to avoid rate limiting
         await new Promise(r => setTimeout(r, 1500));
       }
     }
