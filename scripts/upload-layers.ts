@@ -1,13 +1,12 @@
-import { ethers } from "hardhat";
+import hre from "hardhat";
+import { ethers } from "ethers";
 import * as fs from "fs";
 import * as path from "path";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
 /**
  * Upload all SVG layer data to the HoodlrzLayerStore contract.
- *
- * Layer structure:
- *   public/layers/01-layers-light/  (variant 0)
- *   public/layers/02-layers-dark/   (variant 1)
  *
  * Category mapping (matches contract):
  *   0 = wall       (07-walls)
@@ -27,37 +26,47 @@ const VARIANTS = [
 ];
 
 const CATEGORIES = [
-  { id: 0, folder: "07-walls",       prefix: "wall-",       count: 10 },
-  { id: 1, folder: "06-graffitis",   prefix: "graffiti-",   count: 24 }, // varies by variant
-  { id: 2, folder: "05-hoodies",     prefix: "hoodie-",     count: 12 },
-  { id: 3, folder: "02-eyes",        prefix: "eyes-",       count: 21 },
-  { id: 4, folder: "04-mouths",      prefix: "mouth-",      count: 20 }, // varies by variant
-  { id: 5, folder: "03-accessories", prefix: "object-",     count: 17 },
+  { id: 0, folder: "07-walls", prefix: "wall-", count: 10 },
+  { id: 1, folder: "06-graffitis", prefix: "graffiti-", count: 24 },
+  { id: 2, folder: "05-hoodies", prefix: "hoodie-", count: 12 },
+  { id: 3, folder: "02-eyes", prefix: "eyes-", count: 21 },
+  { id: 4, folder: "04-mouths", prefix: "mouth-", count: 20 },
+  { id: 5, folder: "03-accessories", prefix: "object-", count: 17 },
   { id: 6, folder: "01-foregrounds", prefix: "foreground-", count: 11 },
 ];
 
-/**
- * Extract the inner content of an SVG file (everything between <svg> and </svg>).
- * Strips the outer <svg> tag so the renderer can wrap it.
- */
 function extractSvgInner(svgContent: string): string {
-  // Remove XML declaration if present
   let inner = svgContent.replace(/<\?xml[^?]*\?>\s*/g, "");
-  // Remove outer <svg ...> and </svg>
   inner = inner.replace(/<svg[^>]*>/, "").replace(/<\/svg>\s*$/, "");
   return inner.trim();
 }
 
+function loadArtifact(name: string) {
+  const artifactPath = resolve(
+    __dirname,
+    `../artifacts/contracts/${name}.sol/${name}.json`
+  );
+  return JSON.parse(readFileSync(artifactPath, "utf-8"));
+}
+
 async function main() {
   if (!LAYER_STORE_ADDRESS) {
-    console.error("Set LAYER_STORE_ADDRESS env var to the deployed LayerStore address.");
+    console.error(
+      "Set LAYER_STORE_ADDRESS env var to the deployed LayerStore address."
+    );
     process.exit(1);
   }
 
-  const [deployer] = await ethers.getSigners();
+  const provider = new ethers.BrowserProvider(hre.network.provider);
+  const deployer = await provider.getSigner();
   console.log("Uploading layers with:", deployer.address);
 
-  const layerStore = await ethers.getContractAt("HoodlrzLayerStore", LAYER_STORE_ADDRESS);
+  const artifact = loadArtifact("HoodlrzLayerStore");
+  const layerStore = new ethers.Contract(
+    LAYER_STORE_ADDRESS,
+    artifact.abi,
+    deployer
+  );
 
   const layersRoot = path.resolve(__dirname, "../public/layers");
   let totalUploaded = 0;
@@ -66,20 +75,19 @@ async function main() {
 
   for (const variant of VARIANTS) {
     const variantPath = path.join(layersRoot, variant.folder);
-    console.log(`\n═══ Variant: ${variant.folder} (${variant.id}) ═══`);
+    console.log(`\n=== Variant: ${variant.folder} (${variant.id}) ===`);
 
     for (const cat of CATEGORIES) {
       const catPath = path.join(variantPath, cat.folder);
       if (!fs.existsSync(catPath)) {
-        console.log(`  [SKIP] ${cat.folder} — directory not found`);
+        console.log(`  [SKIP] ${cat.folder} - directory not found`);
         continue;
       }
 
-      // Batch: collect all layers for this category
       const batchVariants: number[] = [];
       const batchCategories: number[] = [];
       const batchIndices: number[] = [];
-      const batchDatas: string[] = [];
+      const batchDatas: Uint8Array[] = [];
 
       for (let i = 1; i <= cat.count; i++) {
         const filename = `${cat.prefix}${i}.svg`;
@@ -87,11 +95,14 @@ async function main() {
 
         if (!fs.existsSync(filePath)) continue;
 
-        // Check if already uploaded
-        const hasLayer = await layerStore.hasLayer(variant.id, cat.id, i);
-        if (hasLayer) {
-          totalSkipped++;
-          continue;
+        try {
+          const hasLayer = await layerStore.hasLayer(variant.id, cat.id, i);
+          if (hasLayer) {
+            totalSkipped++;
+            continue;
+          }
+        } catch {
+          // hasLayer might fail if contract is new, continue
         }
 
         const svgContent = fs.readFileSync(filePath, "utf-8");
@@ -100,11 +111,11 @@ async function main() {
         batchVariants.push(variant.id);
         batchCategories.push(cat.id);
         batchIndices.push(i);
-        batchDatas.push(innerSvg);
+        batchDatas.push(ethers.toUtf8Bytes(innerSvg));
       }
 
       if (batchDatas.length === 0) {
-        console.log(`  [OK] ${cat.folder} — all layers already uploaded`);
+        console.log(`  [OK] ${cat.folder} - all layers already uploaded`);
         continue;
       }
 
@@ -115,7 +126,7 @@ async function main() {
         const v = batchVariants.slice(b, end);
         const c = batchCategories.slice(b, end);
         const idx = batchIndices.slice(b, end);
-        const d = batchDatas.slice(b, end).map((s) => ethers.toUtf8Bytes(s));
+        const d = batchDatas.slice(b, end);
 
         try {
           const tx = await layerStore.storeLayerBatch(v, c, idx, d, {
@@ -123,19 +134,25 @@ async function main() {
           });
           await tx.wait();
           totalUploaded += end - b;
-          console.log(`  [TX] ${cat.folder} indices ${idx.join(",")} — uploaded`);
+          console.log(
+            `  [TX] ${cat.folder} indices ${idx.join(",")} - uploaded`
+          );
         } catch (err: unknown) {
           totalFailed += end - b;
           const msg = err instanceof Error ? err.message : String(err);
-          console.error(`  [ERR] ${cat.folder} indices ${idx.join(",")} — ${msg.slice(0, 100)}`);
+          console.error(
+            `  [ERR] ${cat.folder} indices ${idx.join(",")} - ${msg.slice(0, 100)}`
+          );
         }
       }
     }
   }
 
-  console.log("\n══════════════════════════════════════");
-  console.log(`  Upload complete: ${totalUploaded} new, ${totalSkipped} skipped, ${totalFailed} failed`);
-  console.log("══════════════════════════════════════");
+  console.log("\n======================================");
+  console.log(
+    `  Upload complete: ${totalUploaded} new, ${totalSkipped} skipped, ${totalFailed} failed`
+  );
+  console.log("======================================");
 }
 
 main().catch((error) => {
