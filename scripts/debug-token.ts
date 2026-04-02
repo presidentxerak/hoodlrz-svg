@@ -9,7 +9,7 @@ async function main() {
   const wallet = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY!, provider);
 
   const nft = new ethers.Contract(
-    "0xF6E0F440770eC93ee420213ed4ad55Ce31cf5AB0",
+    "0x66A3A05bbcf1716834C1e53BC872307936871222",
     [
       "function getTraits(uint256) view returns (uint8[8])",
       "function tokenSeed(uint256) view returns (uint256)",
@@ -18,7 +18,7 @@ async function main() {
   );
 
   const layerStore = new ethers.Contract(
-    "0xF8A26693853fc32477CF14498aF148cF9b8C2dbb",
+    "0x3468802ffcE5Aa75793cA555eb485A4eCD67449e",
     [
       "function hasLayer(uint8,uint8,uint8) view returns (bool)",
       "function getLayer(uint8,uint8,uint8) view returns (string)",
