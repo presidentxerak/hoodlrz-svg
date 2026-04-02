@@ -8,6 +8,7 @@ import Card from "@/components/ui/Card";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
 import CollectFlow from "@/components/collect/CollectFlow";
+import EthMintFlow from "@/components/collect/EthMintFlow";
 import { GENESIS_VINYLS, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
 
 /* ── Collection data ── */
@@ -172,12 +173,17 @@ export default function CollectionDetailPage() {
             </>
           )}
           {dropStatus === "live" && !isGenesis && (
-            <Suspense fallback={null}>
-              <CollectFlow
-                collectionSlug={slug}
-                price={`$${(collection.priceCents / 100).toFixed(2)}`}
-              />
-            </Suspense>
+            <>
+              <Suspense fallback={null}>
+                <CollectFlow
+                  collectionSlug={slug}
+                  price={`$${(collection.priceCents / 100).toFixed(2)}`}
+                />
+              </Suspense>
+              <Suspense fallback={null}>
+                <EthMintFlow disabled={dropStatus !== "live"} />
+              </Suspense>
+            </>
           )}
           {dropStatus === "live" && isGenesis && (
             <p className="text-sm text-muted">
@@ -205,57 +211,72 @@ export default function CollectionDetailPage() {
             How It Works
           </h2>
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Card className="flex flex-col gap-3">
-              <p className="text-sm font-bold text-foreground">No Gas Fees</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {/* Protocol option */}
+            <Card className="flex flex-col gap-3 border-l-2 border-l-accent-red">
+              <p className="text-sm font-bold text-foreground">Hoodlrz Protocol — $9.99</p>
               <p className="text-sm leading-relaxed text-muted">
-                Zero hidden costs. The price you see is the price you pay. No
-                gas fees, no wallet needed.
+                Collect via our platform. No wallet needed, no gas fees.
+                Pay with credit card through Stripe. Instant ownership and PFP download.
               </p>
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
+                <span className="bg-accent-red/10 text-accent-red px-2 py-0.5">No Gas</span>
+                <span className="bg-accent-red/10 text-accent-red px-2 py-0.5">No Wallet</span>
+                <span className="bg-accent-red/10 text-accent-red px-2 py-0.5">Instant</span>
+              </div>
             </Card>
 
-            <Card className="flex flex-col gap-3">
-              <p className="text-sm font-bold text-foreground">New Protocol</p>
+            {/* Ethereum option */}
+            <Card className="flex flex-col gap-3 border-l-2 border-l-[#627eea]">
+              <p className="text-sm font-bold text-foreground">Ethereum On-Chain — ETH</p>
               <p className="text-sm leading-relaxed text-muted">
-                Collected through our revolutionary digital art protocol. No
-                blockchain complexity. Just art.
+                Mint as a full on-chain ERC-721 NFT on Ethereum. Same 7 hand-drawn layers,
+                same generation algorithm, stored forever on the blockchain.
               </p>
-            </Card>
-
-            <Card className="flex flex-col gap-3">
-              <p className="text-sm font-bold text-foreground">Fixed Price</p>
-              <p className="text-sm leading-relaxed text-muted">
-                $9.99 per collectible. Each piece is unique, generated from 7
-                hand-drawn SVG layers.
-              </p>
+              <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
+                <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">On-Chain</span>
+                <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">ERC-721</span>
+                <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">SVG</span>
+              </div>
             </Card>
           </div>
 
-          {/* Pricing breakdown */}
-          <div className="mt-8 border border-[var(--border)] p-6 flex flex-col gap-3">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted mb-2">
-              Pricing Breakdown
-            </p>
-            {[
-              ["Collection", "Hoodlrz \u2014 10,000 unique pieces"],
-              ["Price", "$9.99 per piece"],
-              ["Gas fees", "None"],
-              ["Wallet required", "No"],
-              ["Ownership", "Instant"],
-              ["PFP download", "Immediate"],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0"
-              >
-                <span className="text-xs font-bold uppercase tracking-widest text-muted">
-                  {label}
-                </span>
-                <span className="text-sm font-bold text-foreground">
-                  {value}
-                </span>
-              </div>
-            ))}
+          {/* Pricing comparison */}
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div className="border border-[var(--border)] p-6 flex flex-col gap-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-accent-red mb-2">
+                Protocol
+              </p>
+              {[
+                ["Price", "$9.99"],
+                ["Gas fees", "None"],
+                ["Wallet", "Not required"],
+                ["Payment", "Credit card (Stripe)"],
+                ["Ownership", "Hoodlrz Protocol"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted">{label}</span>
+                  <span className="text-sm font-bold text-foreground">{value}</span>
+                </div>
+              ))}
+            </div>
+            <div className="border border-[var(--border)] p-6 flex flex-col gap-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-[#627eea] mb-2">
+                Ethereum
+              </p>
+              {[
+                ["Price", "ETH (variable)"],
+                ["Gas fees", "Network gas"],
+                ["Wallet", "MetaMask / WalletConnect"],
+                ["Payment", "ETH"],
+                ["Ownership", "Ethereum blockchain"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted">{label}</span>
+                  <span className="text-sm font-bold text-foreground">{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
