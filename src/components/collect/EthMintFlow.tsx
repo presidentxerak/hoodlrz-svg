@@ -184,29 +184,28 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
 
   return (
     <>
-      {/* Mint button */}
-      {(state === "idle" || state === "error" || state === "success") && (
-        <button
-          onClick={connectWallet}
-          disabled={disabled}
-          className={[
-            "relative inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm",
-            "font-bold uppercase tracking-widest text-white select-none",
-            "border border-[#627eea] bg-[#627eea]/10 backdrop-blur-sm",
-            "hover:bg-[#627eea]/20 hover:border-[#627eea]/80",
-            "active:scale-[0.98] transition-all duration-150",
-            disabled ? "opacity-40 pointer-events-none" : "",
-          ].join(" ")}
-        >
-          <svg width="16" height="16" viewBox="0 0 784 784" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="#627eea" fillOpacity="0.8"/>
-            <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="#627eea"/>
-            <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="#627eea" fillOpacity="0.8"/>
-            <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
-          </svg>
-          Mint on Ethereum
-        </button>
-      )}
+      {/* Mint button — always visible */}
+      <button
+        onClick={connectWallet}
+        disabled={disabled || state === "connecting" || state === "minting"}
+        className={[
+          "relative inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm",
+          "font-bold uppercase tracking-widest text-white select-none",
+          "border border-[#627eea] bg-[#627eea]/10 backdrop-blur-sm",
+          "hover:bg-[#627eea]/20 hover:border-[#627eea]/80",
+          "active:scale-[0.98] transition-all duration-150",
+          disabled ? "opacity-40 pointer-events-none" : "",
+          state === "connecting" || state === "minting" ? "opacity-60 pointer-events-none" : "",
+        ].join(" ")}
+      >
+        <svg width="16" height="16" viewBox="0 0 784 784" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="#627eea" fillOpacity="0.8"/>
+          <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="#627eea"/>
+          <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="#627eea" fillOpacity="0.8"/>
+          <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
+        </svg>
+        {state === "connecting" ? "Connecting..." : state === "minting" ? "Minting..." : "Mint on Ethereum"}
+      </button>
 
       {/* Quantity Modal */}
       <Modal isOpen={state === "quantity"} onClose={() => setState("idle")}>

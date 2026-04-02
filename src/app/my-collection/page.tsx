@@ -6,6 +6,8 @@ import Button from "@/components/ui/Button";
 import PFPViewer from "@/components/ui/PFPViewer";
 import { createClient } from "@/lib/supabase/client";
 import { getVinylImageSrc, getVinylById } from "@/lib/genesis/vinyls";
+import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN } from "@/lib/web3/config";
+import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
 
 interface Token {
   id: string;
@@ -23,12 +25,18 @@ interface AccountInfo {
   rewardsBalance: number;
 }
 
+interface EthNft {
+  tokenId: number;
+}
+
 export default function MyCollectionPage() {
   const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [tokens, setTokens] = useState<Token[]>([]);
+  const [ethNfts, setEthNfts] = useState<EthNft[]>([]);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ethWallet, setEthWallet] = useState("");
 
   /* ── Auth check ── */
   useEffect(() => {
@@ -61,6 +69,52 @@ export default function MyCollectionPage() {
       .finally(() => setLoading(false));
   }, [authed]);
 
+  /* ── Fetch ETH NFTs from on-chain ── */
+  useEffect(() => {
+    if (!HOODLRZ_NFT_ADDRESS) return;
+    (async () => {
+      try {
+        const eth = (window as { ethereum?: unknown }).ethereum;
+        if (!eth) return;
+        const { BrowserProvider, Contract } = await import("ethers");
+        const provider = new BrowserProvider(eth as import("ethers").Eip1193Provider);
+        const accounts = await provider.listAccounts();
+        if (accounts.length === 0) return;
+        const addr = accounts[0].address;
+        setEthWallet(addr);
+
+        const network = await provider.getNetwork();
+        if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) return;
+
+        const contract = new Contract(HOODLRZ_NFT_ADDRESS, HOODLRZ_NFT_ABI, provider);
+        const balance = Number(await contract.balanceOf(addr));
+        if (balance === 0) return;
+
+        // Scan Transfer events to find owned token IDs
+        const filter = contract.filters.Transfer(null, addr);
+        const events = await contract.queryFilter(filter, 0, "latest");
+        const ownedIds: number[] = [];
+        for (const evt of events) {
+          const parsed = contract.interface.parseLog({ topics: [...evt.topics], data: evt.data });
+          if (parsed) ownedIds.push(Number(parsed.args.tokenId));
+        }
+        // Verify still owned (could have been transferred out)
+        const verified: EthNft[] = [];
+        for (const tokenId of [...new Set(ownedIds)]) {
+          try {
+            const owner = await contract.ownerOf(tokenId);
+            if (owner.toLowerCase() === addr.toLowerCase()) {
+              verified.push({ tokenId });
+            }
+          } catch { /* token may not exist */ }
+        }
+        setEthNfts(verified);
+      } catch {
+        // No wallet or wrong chain — skip silently
+      }
+    })();
+  }, []);
+
   /* Loading / redirect */
   if (authed === null || loading) {
     return (
@@ -90,11 +144,11 @@ export default function MyCollectionPage() {
       </div>
 
       {/* ── Stats ── */}
-      {tokens.length > 0 && (
+      {(tokens.length > 0 || ethNfts.length > 0) && (
         <div className="mt-6 flex flex-wrap gap-8">
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Collected
+              Protocol
             </span>
             <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
               {tokens.length}
@@ -102,16 +156,66 @@ export default function MyCollectionPage() {
           </div>
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Listed
+              On-Chain (ETH)
             </span>
             <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
-              {tokens.filter((t) => t.is_listed).length}
+              {ethNfts.length}
             </span>
           </div>
+          {tokens.filter((t) => t.is_listed).length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                Listed
+              </span>
+              <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
+                {tokens.filter((t) => t.is_listed).length}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
       {/* ── Token Grid ── */}
+      {/* ── ETH On-Chain NFTs ── */}
+      {ethNfts.length > 0 && (
+        <>
+          <h2 className="mt-10 font-hoodlrz text-xl font-bold tracking-wider text-foreground flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 784 784" fill="none">
+              <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="#627eea" fillOpacity="0.8"/>
+              <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="#627eea"/>
+              <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="#627eea" fillOpacity="0.8"/>
+              <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
+            </svg>
+            On-Chain (Ethereum)
+          </h2>
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 sm:gap-6">
+            {ethNfts.map((nft) => (
+              <a
+                key={nft.tokenId}
+                href={`${CURRENT_CHAIN.explorerUrl}/token/${HOODLRZ_NFT_ADDRESS}?a=${nft.tokenId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]"
+              >
+                <div className="relative aspect-square bg-[var(--surface)] flex items-center justify-center border border-[#627eea]/20">
+                  <div className="text-center">
+                    <span className="font-hoodlrz text-3xl font-bold text-[#627eea]">#{nft.tokenId}</span>
+                    <p className="text-[10px] text-muted mt-1">On-Chain SVG</p>
+                  </div>
+                  <span className="absolute top-1.5 left-1.5 bg-[#627eea] text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
+                    ETH
+                  </span>
+                </div>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted">
+                  Hoodlrz #{String(nft.tokenId).padStart(4, "0")}
+                </span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ── Protocol Tokens ── */}
       {tokens.length > 0 ? (
         <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 sm:gap-6">
           {tokens.map((token) => {
@@ -164,7 +268,7 @@ export default function MyCollectionPage() {
             );
           })}
         </div>
-      ) : (
+      ) : ethNfts.length === 0 ? (
         /* ── Empty state ── */
         <div className="mt-20 flex flex-col items-center gap-6 text-center">
           <div className="w-20 h-20 border border-[var(--border)] flex items-center justify-center">
@@ -196,7 +300,7 @@ export default function MyCollectionPage() {
             Start Collecting
           </Button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

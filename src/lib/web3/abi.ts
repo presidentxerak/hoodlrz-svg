@@ -52,6 +52,13 @@ export const HOODLRZ_NFT_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "ownerOf",
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
   // Write functions
   {
     inputs: [{ name: "quantity", type: "uint256" }],
