@@ -98,7 +98,8 @@ export default function MyCollectionPage() {
         }
         // Verify still owned (could have been transferred out)
         const verified: EthNft[] = [];
-        for (const tokenId of [...new Set(ownedIds)]) {
+        const uniqueIds = Array.from(new Set(ownedIds));
+        for (const tokenId of uniqueIds) {
           try {
             const owner = await contract.ownerOf(tokenId);
             if (owner.toLowerCase() === addr.toLowerCase()) {
