@@ -118,7 +118,7 @@ export default function CollectionDetailPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
       {/* ── Hero ── */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col items-center gap-2 text-center">
         <div className="flex items-center gap-3">
           <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[56px]">
             {collection.name}
@@ -131,7 +131,7 @@ export default function CollectionDetailPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div className="mt-10 flex flex-wrap gap-8">
+      <div className="mt-10 flex flex-wrap justify-center gap-8">
         <Stat label="Supply" value={String(collection.supply)} />
         {isGenesis ? (
           <>
@@ -153,12 +153,12 @@ export default function CollectionDetailPage() {
       </div>
 
       {/* ── Countdown + CTA ── */}
-      <div className="mt-12 flex flex-col items-start gap-6">
+      <div className="mt-12 flex flex-col items-center gap-6">
         {dropStatus !== "live" && countdownLabel && (
           <Countdown targetDate={countdownTarget} label={countdownLabel} />
         )}
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap justify-center gap-3">
           {dropStatus === "pre-whitelist" && (
             <Button variant="primary" size="lg" href="/access">
               Join Whitelist
