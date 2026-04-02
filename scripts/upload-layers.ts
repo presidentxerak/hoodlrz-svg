@@ -1,24 +1,19 @@
-import hre from "hardhat";
+import { readFileSync, existsSync } from "fs";
+import { resolve, join } from "path";
 import { ethers } from "ethers";
-import * as fs from "fs";
-import * as path from "path";
-import { readFileSync } from "fs";
-import { resolve } from "path";
+import dotenv from "dotenv";
 
-/**
- * Upload all SVG layer data to the HoodlrzLayerStore contract.
- *
- * Category mapping (matches contract):
- *   0 = wall       (07-walls)
- *   1 = graffiti    (06-graffitis)
- *   2 = hoodie      (05-hoodies)
- *   3 = eyes        (02-eyes)
- *   4 = mouth       (04-mouths)
- *   5 = accessory   (03-accessories)
- *   6 = foreground  (01-foregrounds)
- */
+dotenv.config({ path: ".env.local" });
 
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || "";
+const ALCHEMY_API_KEY = process.env.ALCHEMY_API_KEY || "";
 const LAYER_STORE_ADDRESS = process.env.LAYER_STORE_ADDRESS || "";
+const NETWORK = process.argv[2] || "sepolia";
+
+const RPC_URLS: Record<string, string> = {
+  sepolia: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+  mainnet: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+};
 
 const VARIANTS = [
   { id: 0, folder: "01-layers-light" },
@@ -41,121 +36,92 @@ function extractSvgInner(svgContent: string): string {
   return inner.trim();
 }
 
-function loadArtifact(name: string) {
-  const artifactPath = resolve(
-    __dirname,
-    `../artifacts/contracts/${name}.sol/${name}.json`
-  );
-  return JSON.parse(readFileSync(artifactPath, "utf-8"));
-}
-
 async function main() {
   if (!LAYER_STORE_ADDRESS) {
-    console.error(
-      "Set LAYER_STORE_ADDRESS env var to the deployed LayerStore address."
-    );
+    console.error("Set LAYER_STORE_ADDRESS env var.");
+    process.exit(1);
+  }
+  if (!DEPLOYER_PRIVATE_KEY || !ALCHEMY_API_KEY) {
+    console.error("Missing DEPLOYER_PRIVATE_KEY or ALCHEMY_API_KEY in .env.local");
     process.exit(1);
   }
 
-  const provider = new ethers.BrowserProvider(hre.network.provider);
-  const deployer = await provider.getSigner();
+  const provider = new ethers.JsonRpcProvider(RPC_URLS[NETWORK]);
+  const deployer = new ethers.Wallet(DEPLOYER_PRIVATE_KEY, provider);
   console.log("Uploading layers with:", deployer.address);
+  console.log("LayerStore:", LAYER_STORE_ADDRESS);
 
-  const artifact = loadArtifact("HoodlrzLayerStore");
-  const layerStore = new ethers.Contract(
-    LAYER_STORE_ADDRESS,
-    artifact.abi,
-    deployer
+  const artifact = JSON.parse(
+    readFileSync(resolve(__dirname, "../artifacts/contracts/HoodlrzLayerStore.sol/HoodlrzLayerStore.json"), "utf-8")
   );
+  const layerStore = new ethers.Contract(LAYER_STORE_ADDRESS, artifact.abi, deployer);
 
-  const layersRoot = path.resolve(__dirname, "../public/layers");
+  const layersRoot = resolve(__dirname, "../public/layers");
   let totalUploaded = 0;
   let totalSkipped = 0;
   let totalFailed = 0;
 
   for (const variant of VARIANTS) {
-    const variantPath = path.join(layersRoot, variant.folder);
+    const variantPath = join(layersRoot, variant.folder);
     console.log(`\n=== Variant: ${variant.folder} (${variant.id}) ===`);
 
     for (const cat of CATEGORIES) {
-      const catPath = path.join(variantPath, cat.folder);
-      if (!fs.existsSync(catPath)) {
-        console.log(`  [SKIP] ${cat.folder} - directory not found`);
+      const catPath = join(variantPath, cat.folder);
+      if (!existsSync(catPath)) {
+        console.log(`  [SKIP] ${cat.folder} - not found`);
         continue;
       }
 
-      const batchVariants: number[] = [];
-      const batchCategories: number[] = [];
-      const batchIndices: number[] = [];
-      const batchDatas: Uint8Array[] = [];
+      const batchV: number[] = [];
+      const batchC: number[] = [];
+      const batchI: number[] = [];
+      const batchD: Uint8Array[] = [];
 
       for (let i = 1; i <= cat.count; i++) {
-        const filename = `${cat.prefix}${i}.svg`;
-        const filePath = path.join(catPath, filename);
-
-        if (!fs.existsSync(filePath)) continue;
+        const filePath = join(catPath, `${cat.prefix}${i}.svg`);
+        if (!existsSync(filePath)) continue;
 
         try {
-          const hasLayer = await layerStore.hasLayer(variant.id, cat.id, i);
-          if (hasLayer) {
-            totalSkipped++;
-            continue;
-          }
-        } catch {
-          // hasLayer might fail if contract is new, continue
-        }
+          const has = await layerStore.hasLayer(variant.id, cat.id, i);
+          if (has) { totalSkipped++; continue; }
+        } catch { /* new contract, no layers yet */ }
 
-        const svgContent = fs.readFileSync(filePath, "utf-8");
-        const innerSvg = extractSvgInner(svgContent);
-
-        batchVariants.push(variant.id);
-        batchCategories.push(cat.id);
-        batchIndices.push(i);
-        batchDatas.push(ethers.toUtf8Bytes(innerSvg));
+        const inner = extractSvgInner(readFileSync(filePath, "utf-8"));
+        batchV.push(variant.id);
+        batchC.push(cat.id);
+        batchI.push(i);
+        batchD.push(ethers.toUtf8Bytes(inner));
       }
 
-      if (batchDatas.length === 0) {
-        console.log(`  [OK] ${cat.folder} - all layers already uploaded`);
+      if (batchD.length === 0) {
+        console.log(`  [OK] ${cat.folder} - done`);
         continue;
       }
 
-      // Upload in batches of 5 to avoid gas limit
       const BATCH_SIZE = 5;
-      for (let b = 0; b < batchDatas.length; b += BATCH_SIZE) {
-        const end = Math.min(b + BATCH_SIZE, batchDatas.length);
-        const v = batchVariants.slice(b, end);
-        const c = batchCategories.slice(b, end);
-        const idx = batchIndices.slice(b, end);
-        const d = batchDatas.slice(b, end);
-
+      for (let b = 0; b < batchD.length; b += BATCH_SIZE) {
+        const end = Math.min(b + BATCH_SIZE, batchD.length);
         try {
-          const tx = await layerStore.storeLayerBatch(v, c, idx, d, {
-            gasLimit: 30_000_000n,
-          });
+          const tx = await layerStore.storeLayerBatch(
+            batchV.slice(b, end),
+            batchC.slice(b, end),
+            batchI.slice(b, end),
+            batchD.slice(b, end),
+            { gasLimit: 30_000_000n }
+          );
           await tx.wait();
           totalUploaded += end - b;
-          console.log(
-            `  [TX] ${cat.folder} indices ${idx.join(",")} - uploaded`
-          );
+          console.log(`  [TX] ${cat.folder} [${batchI.slice(b, end).join(",")}] - uploaded`);
         } catch (err: unknown) {
           totalFailed += end - b;
           const msg = err instanceof Error ? err.message : String(err);
-          console.error(
-            `  [ERR] ${cat.folder} indices ${idx.join(",")} - ${msg.slice(0, 100)}`
-          );
+          console.error(`  [ERR] ${cat.folder} [${batchI.slice(b, end).join(",")}] - ${msg.slice(0, 120)}`);
         }
       }
     }
   }
 
-  console.log("\n======================================");
-  console.log(
-    `  Upload complete: ${totalUploaded} new, ${totalSkipped} skipped, ${totalFailed} failed`
-  );
-  console.log("======================================");
+  console.log(`\nDone: ${totalUploaded} uploaded, ${totalSkipped} skipped, ${totalFailed} failed`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main().catch((e) => { console.error(e); process.exitCode = 1; });
