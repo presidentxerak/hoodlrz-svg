@@ -15,10 +15,11 @@ async function main() {
 
   // 2. Deploy main NFT contract
   const mintPrice = ethers.parseEther("0.007");
-  console.log("\n2/3 — Deploying HoodlrzOnChain (mint price:", ethers.formatEther(mintPrice), "ETH)...");
+  const royaltyReceiver = deployer.address; // 10% royalties go to deployer
+  console.log("\n2/3 — Deploying HoodlrzOnChain (mint price:", ethers.formatEther(mintPrice), "ETH, royalties: 10% to", royaltyReceiver, ")...");
   const NFT = await ethers.getContractFactory("HoodlrzOnChain");
   // Deploy with a temporary renderer address (will update after renderer is deployed)
-  const nft = await NFT.deploy(mintPrice, ethers.ZeroAddress);
+  const nft = await NFT.deploy(mintPrice, ethers.ZeroAddress, royaltyReceiver);
   await nft.waitForDeployment();
   const nftAddr = await nft.getAddress();
   console.log("   HoodlrzOnChain:", nftAddr);

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/common/ERC2981.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
@@ -12,8 +13,9 @@ import "./interfaces/IHoodlrzRenderer.sol";
  * @notice Full on-chain ERC-721 NFT — 10,000 unique SVG PFPs generated deterministically.
  *         Uses the same FNV-1a + Mulberry32 PRNG as the off-chain Hoodlrz protocol,
  *         so identical seeds produce identical trait selections.
+ *         Implements EIP-2981 royalties (10%).
  */
-contract HoodlrzOnChain is ERC721, Ownable {
+contract HoodlrzOnChain is ERC721, ERC2981, Ownable {
     using Strings for uint256;
 
     /* ── Constants ── */
@@ -41,10 +43,26 @@ contract HoodlrzOnChain is ERC721, Ownable {
     /* ── Constructor ── */
     constructor(
         uint256 _mintPrice,
-        address _renderer
+        address _renderer,
+        address _royaltyReceiver
     ) ERC721("Hoodlrz On-Chain", "HOODLRZ") Ownable(msg.sender) {
         mintPrice = _mintPrice;
         renderer = IHoodlrzRenderer(_renderer);
+        // 10% royalties (1000 basis points) on secondary sales
+        _setDefaultRoyalty(_royaltyReceiver, 1000);
+    }
+
+    /* ════════════════════════════════════════════════════════════
+       ERC-165: support both ERC-721 and ERC-2981
+    ════════════════════════════════════════════════════════════ */
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC2981)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 
     /* ════════════════════════════════════════════════════════════
@@ -218,6 +236,10 @@ contract HoodlrzOnChain is ERC721, Ownable {
         for (uint256 i = 0; i < addresses.length; i++) {
             whitelist[addresses[i]] = false;
         }
+    }
+
+    function setRoyalty(address receiver, uint96 feeBasisPoints) external onlyOwner {
+        _setDefaultRoyalty(receiver, feeBasisPoints);
     }
 
     function withdraw() external onlyOwner {
