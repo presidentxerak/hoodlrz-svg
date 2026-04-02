@@ -36,7 +36,6 @@ export default function MyCollectionPage() {
   const [ethNfts, setEthNfts] = useState<EthNft[]>([]);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [ethWallet, setEthWallet] = useState("");
 
   /* ── Auth check ── */
   useEffect(() => {
@@ -81,7 +80,6 @@ export default function MyCollectionPage() {
         const accounts = await provider.listAccounts();
         if (accounts.length === 0) return;
         const addr = accounts[0].address;
-        setEthWallet(addr);
 
         const network = await provider.getNetwork();
         if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) return;
