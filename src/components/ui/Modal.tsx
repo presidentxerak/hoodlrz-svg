@@ -37,7 +37,7 @@ export default function Modal({ isOpen, onClose, children }: ModalProps) {
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/90 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
 

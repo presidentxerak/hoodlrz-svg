@@ -1,49 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
 import Stripe from "stripe";
 import { getStripeServer } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSeed, computeCanonicalHash } from "@/lib/pfp/hash";
 import { generatePFP } from "@/lib/pfp/generator";
 
-// Force dynamic — never cache this route
-export const dynamic = "force-dynamic";
-
-const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
-  // ── Step 1: Validate environment ──
-  if (!WEBHOOK_SECRET) {
-    console.error("[stripe/webhook] STRIPE_WEBHOOK_SECRET is not set");
-    return NextResponse.json(
-      { error: "Webhook secret not configured." },
-      { status: 500 }
-    );
-  }
-
-  // ── Step 2: Read raw body and signature ──
-  let body: string;
-  try {
-    body = await request.text();
-  } catch (err) {
-    console.error("[stripe/webhook] Failed to read request body:", err);
-    return NextResponse.json(
-      { error: "Failed to read request body." },
-      { status: 400 }
-    );
-  }
-
-  // Use request.headers directly instead of Next.js headers() — more reliable for webhooks
-  const signature = request.headers.get("stripe-signature");
+  const body = await request.text();
+  const headersList = headers();
+  const signature = headersList.get("stripe-signature");
 
   if (!signature) {
-    console.error("[stripe/webhook] Missing stripe-signature header");
     return NextResponse.json(
       { error: "Missing stripe-signature header." },
       { status: 400 }
     );
   }
 
-  // ── Step 3: Verify signature ──
   let event: Stripe.Event;
 
   try {
@@ -52,26 +28,14 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[stripe/webhook] Signature verification failed:", message);
     return NextResponse.json(
-      { error: `Webhook signature verification failed: ${message}` },
+      { error: "Webhook signature verification failed." },
       { status: 400 }
     );
   }
 
-  console.log(`[stripe/webhook] Received event: ${event.type} (${event.id})`);
+  const supabase = createAdminClient();
 
-  // ── Step 4: Initialize Supabase admin ──
-  let supabase: ReturnType<typeof createAdminClient>;
-  try {
-    supabase = createAdminClient();
-  } catch (err) {
-    console.error("[stripe/webhook] Failed to create Supabase admin client:", err);
-    return NextResponse.json(
-      { error: "Database connection failed." },
-      { status: 500 }
-    );
-  }
-
-  // ── Step 5: Idempotency check ──
+  // Idempotency check: skip if already processed
   try {
     const { data: existingEvent } = await supabase
       .from("stripe_events")
@@ -114,14 +78,10 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const metadata = session.metadata ?? {};
 
-        console.log(`[stripe/webhook] Processing checkout session: ${session.id}, type: ${metadata.type}`);
-
         if (metadata.type === "primary_sale") {
           await handlePrimarySale(supabase, session, metadata);
         } else if (metadata.type === "marketplace_purchase") {
           await handleMarketplacePurchase(supabase, session, metadata);
-        } else {
-          console.log(`[stripe/webhook] Unknown metadata type: ${metadata.type}`);
         }
         break;
       }
@@ -142,14 +102,11 @@ export async function POST(request: NextRequest) {
       .update({ processed: true })
       .eq("stripe_event_id", event.id);
 
-    console.log(`[stripe/webhook] Event ${event.id} processed successfully.`);
     return NextResponse.json({ received: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    const stack = err instanceof Error ? err.stack : "";
-    console.error(`[stripe/webhook] Processing error for event ${event.id}:`, message, stack);
+    console.error("[stripe/webhook] Processing error:", err);
     return NextResponse.json(
-      { error: `Webhook processing failed: ${message}` },
+      { error: "Webhook processing failed." },
       { status: 500 }
     );
   }
@@ -179,7 +136,7 @@ async function handlePrimarySale(
     .single();
 
   if (collError || !collection) {
-    throw new Error(`Collection ${collectionId} not found: ${collError?.message}`);
+    throw new Error(`Collection ${collectionId} not found.`);
   }
 
   // Re-check supply before minting (race condition guard)
@@ -187,15 +144,14 @@ async function handlePrimarySale(
     throw new Error(`Collection ${collectionId} is sold out.`);
   }
 
-  const amountPerToken = collection.price_cents;
+  const amountPerToken = Math.round((session.amount_total ?? collection.price_cents) / quantity);
   const tokenIds: string[] = [];
 
-  // Mint N tokens in sequence
   for (let i = 0; i < quantity; i++) {
-    // Re-fetch current minted_count for each token to avoid conflicts
+    // Re-fetch collection to get current minted_count
     const { data: currentCollection } = await supabase
       .from("collections")
-      .select("minted_count, total_supply")
+      .select("*")
       .eq("id", collectionId)
       .single();
 
@@ -301,8 +257,6 @@ async function handlePrimarySale(
       console.error("[stripe/webhook] Failed to create reward:", rewardError.message);
     }
   }
-
-  console.log(`[stripe/webhook] Primary sale complete: minted ${tokenIds.length}/${quantity} tokens`);
 }
 
 // ── Marketplace Purchase Handler ──
@@ -314,12 +268,6 @@ async function handleMarketplacePurchase(
 ) {
   const { listingId, buyerAccountId } = metadata;
 
-  console.log(`[stripe/webhook] Marketplace purchase: listing=${listingId}, buyer=${buyerAccountId}`);
-
-  if (!listingId || !buyerAccountId) {
-    throw new Error(`Missing metadata: listingId=${listingId}, buyerAccountId=${buyerAccountId}`);
-  }
-
   // Re-check listing is still active (race condition guard)
   const { data: listing, error: listingError } = await supabase
     .from("listings")
@@ -329,7 +277,7 @@ async function handleMarketplacePurchase(
     .single();
 
   if (listingError || !listing) {
-    throw new Error(`Active listing ${listingId} not found: ${listingError?.message}`);
+    throw new Error(`Active listing ${listingId} not found.`);
   }
 
   const { data: token } = await supabase
@@ -378,6 +326,11 @@ async function handleMarketplacePurchase(
     .eq("id", listingId);
 
   // Credit the seller
+  // WARNING: This read-then-write pattern has a race condition under concurrent
+  // webhook processing. In production, replace with a Supabase RPC function that
+  // performs an atomic UPDATE ... SET available_cents = available_cents + $1,
+  // total_earned_cents = total_earned_cents + $1 WHERE account_id = $2,
+  // or use a serializable transaction.
   const sellerPayoutCents = amountCents;
   const { data: existingBalance } = await supabase
     .from("seller_balances")
@@ -411,6 +364,4 @@ async function handleMarketplacePurchase(
     reason: "marketplace_purchase",
     reference_id: listing.token_id,
   });
-
-  console.log(`[stripe/webhook] Marketplace purchase complete: listing=${listingId}`);
 }

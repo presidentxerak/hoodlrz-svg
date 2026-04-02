@@ -1,7 +1,8 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { Suspense } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
@@ -47,7 +48,7 @@ const COLLECTIONS_MAP: Record<
       "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece is a unique vinyl cover drawn by hand. Reserved for top collectors.",
     supply: 25,
     minted: 0,
-    priceCents: 30000,
+    priceCents: 0,
     isGenesis: true,
     dropStatus: "upcoming" as const,
     dropDate: "2026-05-10T18:00:00Z",
@@ -191,15 +192,13 @@ export default function CollectionDetailPage() {
             </p>
           )}
           {!isGenesis && (
-            <>
-              <Button
-                variant="secondary"
-                size="lg"
-                href={`/collection/${slug}/gallery`}
-              >
-                View Gallery
-              </Button>
-            </>
+            <Button
+              variant="secondary"
+              size="lg"
+              href={`/collection/${slug}/gallery`}
+            >
+              View Gallery
+            </Button>
           )}
         </div>
       </div>
@@ -322,7 +321,7 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.black.map((vinyl) => (
-                  <a key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
                     <div className="aspect-square overflow-hidden bg-[var(--surface)]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -338,7 +337,7 @@ export default function CollectionDetailPage() {
                       </span>
                       <span className="text-[10px] font-bold text-foreground">$300</span>
                     </div>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -350,7 +349,7 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.white.map((vinyl) => (
-                  <a key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
                     <div className="aspect-square overflow-hidden bg-[var(--surface)]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -366,7 +365,7 @@ export default function CollectionDetailPage() {
                       </span>
                       <span className="text-[10px] font-bold text-foreground">$300</span>
                     </div>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>
@@ -378,7 +377,7 @@ export default function CollectionDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.craft.map((vinyl) => (
-                  <a key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
+                  <Link key={vinyl.id} href={`/genesis/${vinyl.id}`} className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]">
                     <div className="aspect-square overflow-hidden bg-[var(--surface)]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -394,7 +393,7 @@ export default function CollectionDetailPage() {
                       </span>
                       <span className="text-[10px] font-bold text-foreground">$300</span>
                     </div>
-                  </a>
+                  </Link>
                 ))}
               </div>
             </div>

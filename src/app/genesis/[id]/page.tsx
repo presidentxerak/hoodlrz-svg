@@ -1,482 +1,360 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { Suspense, useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import Link from "next/link";
+import { getVinylById } from "@/lib/genesis";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
+import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
-import Modal from "@/components/ui/Modal";
-import { createClient } from "@/lib/supabase/client";
-import { getVinylById, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
-import Countdown from "@/components/ui/Countdown";
 
-// Genesis drop dates — must match collection page
-const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
-const GENESIS_WHITELIST_DATE = "2026-05-08T18:00:00Z";
+const COUNTRIES = [
+  "United States",
+  "Canada",
+  "United Kingdom",
+  "Australia",
+  "Germany",
+  "France",
+  "Netherlands",
+  "Japan",
+  "South Korea",
+  "Brazil",
+  "Mexico",
+  "Spain",
+  "Italy",
+  "Sweden",
+  "Norway",
+  "Denmark",
+  "Switzerland",
+  "Austria",
+  "Belgium",
+  "Portugal",
+  "Ireland",
+  "New Zealand",
+  "Singapore",
+  "India",
+  "South Africa",
+  "United Arab Emirates",
+  "Saudi Arabia",
+  "Poland",
+  "Czech Republic",
+  "Argentina",
+];
 
-function getGenesisDropStatus(): "pre-whitelist" | "whitelist-live" | "live" {
-  const now = Date.now();
-  if (now < new Date(GENESIS_WHITELIST_DATE).getTime()) return "pre-whitelist";
-  if (now < new Date(GENESIS_DROP_DATE).getTime()) return "whitelist-live";
-  return "live";
+interface ShippingForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
 }
 
-const EDITION_DESCRIPTIONS: Record<string, string> = {
-  Black:
-    "The Black Edition is the boldest expression of the Hoodlrz universe. Raw, minimal, and powerful. 10 unique hand-drawn vinyl covers.",
-  White:
-    "The White Edition is pure light. Clean lines, ethereal compositions. Only 5 exist — the rarest of the Genesis collection.",
-  Craft:
-    "The Craft Edition celebrates raw texture and organic imperfection. 10 unique pieces blending street art with artisanal craft.",
+const INITIAL_FORM: ShippingForm = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  address1: "",
+  address2: "",
+  city: "",
+  state: "",
+  zip: "",
+  country: "",
 };
 
-type FlowState = "idle" | "auth" | "loading" | "error";
+const REQUIRED_FIELDS: (keyof ShippingForm)[] = [
+  "firstName",
+  "lastName",
+  "email",
+  "phone",
+  "address1",
+  "city",
+  "state",
+  "zip",
+  "country",
+];
 
-function GenesisVinylContent() {
+const FIELD_LABELS: Record<keyof ShippingForm, string> = {
+  firstName: "First Name",
+  lastName: "Last Name",
+  email: "Email",
+  phone: "Phone",
+  address1: "Address Line 1",
+  address2: "Address Line 2",
+  city: "City",
+  state: "State / Province",
+  zip: "ZIP / Postal Code",
+  country: "Country",
+};
+
+export default function GenesisVinylPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
-  const vinylId = params.id as string;
+  const router = useRouter();
+  const id = params.id as string;
+  const vinyl = getVinylById(id);
 
-  const vinyl = getVinylById(vinylId);
-  const dropStatus = getGenesisDropStatus();
-  const isDropLive = dropStatus === "live";
-
-  // Flow state
-  const [state, setState] = useState<FlowState>("idle");
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [autoTriggered, setAutoTriggered] = useState(false);
-
-  // Auth state
-  const [email, setEmail] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authSent, setAuthSent] = useState(false);
-  const [authError, setAuthError] = useState("");
-
-  // Check auth on mount
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setIsLoggedIn(!!data.user);
-    });
-  }, []);
-
-  // Auto-trigger collect flow
-  useEffect(() => {
-    if (autoTriggered || isLoggedIn === null) return;
-    if (searchParams.get("collect") === "true") {
-      setAutoTriggered(true);
-      if (isLoggedIn) {
-        handleProceedToPayment();
-      } else {
-        setState("auth");
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, isLoggedIn, autoTriggered]);
-
-  const handleCollect = useCallback(() => {
-    setError(null);
-    if (!isLoggedIn) {
-      setState("auth");
-    } else {
-      handleProceedToPayment();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn]);
-
-  const handleProceedToPayment = async () => {
-    setState("loading");
-
-    try {
-      const res = await fetch("/api/mint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          collectionSlug: "genesis",
-          quantity: 1,
-          vinylId,
-        }),
-      });
-
-      if (res.status === 401) {
-        setState("auth");
-        setIsLoggedIn(false);
-        return;
-      }
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || `Failed (${res.status})`);
-      }
-
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-    } catch (err) {
-      setState("error");
-      const msg = err instanceof Error ? err.message : "Something went wrong";
-      setError(
-        msg === "Failed to fetch"
-          ? "Connection error. Please check your connection and try again."
-          : msg
-      );
-    }
-  };
-
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    if (!email || !email.includes("@")) {
-      setAuthError("Enter a valid email address.");
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      const res = await fetch("/api/auth/magic-link", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setAuthError(data.error || "Something went wrong.");
-        setAuthLoading(false);
-        return;
-      }
-      setAuthLoading(false);
-      setAuthSent(true);
-    } catch {
-      setAuthError("Network error. Please try again.");
-      setAuthLoading(false);
-    }
-  };
-
-  const CloseButton = ({ onClick }: { onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-colors text-xl leading-none"
-      aria-label="Close"
-    >
-      &times;
-    </button>
-  );
+  const [form, setForm] = useState<ShippingForm>(INITIAL_FORM);
+  const [errors, setErrors] = useState<Partial<Record<keyof ShippingForm, string>>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   if (!vinyl) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted mb-4">Vinyl not found.</p>
-          <Button variant="secondary" size="md" href="/collection/genesis">
-            View Genesis Collection
-          </Button>
-        </div>
+        <p className="text-muted">Vinyl not found.</p>
       </div>
     );
   }
 
-  // Find adjacent vinyls for navigation
-  const currentIndex = ALL_GENESIS_VINYLS.findIndex((v) => v.id === vinylId);
-  const prevVinyl = currentIndex > 0 ? ALL_GENESIS_VINYLS[currentIndex - 1] : null;
-  const nextVinyl =
-    currentIndex < ALL_GENESIS_VINYLS.length - 1
-      ? ALL_GENESIS_VINYLS[currentIndex + 1]
-      : null;
+  const editionVariant =
+    vinyl.edition === "Black"
+      ? "default"
+      : vinyl.edition === "White"
+        ? "rare"
+        : "legendary";
+
+  function updateField(field: keyof ShippingForm, value: string) {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  }
+
+  function validate(): boolean {
+    const newErrors: Partial<Record<keyof ShippingForm, string>> = {};
+    for (const field of REQUIRED_FIELDS) {
+      if (!form[field].trim()) {
+        newErrors[field] = `${FIELD_LABELS[field]} is required`;
+      }
+    }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+      newErrors.email = "Invalid email address";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }
+
+  async function handleSubmit() {
+    if (!validate()) return;
+
+    setSubmitting(true);
+    setApiError(null);
+
+    try {
+      const res = await fetch("/api/genesis/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vinylId: vinyl!.id,
+          ...form,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setApiError(data.error || "Something went wrong.");
+        return;
+      }
+
+      if (data.url) {
+        router.push(data.url);
+      }
+    } catch {
+      setApiError("Network error. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
-      {/* Breadcrumb */}
-      <div className="mb-8">
-        <a
-          href="/collection/genesis"
-          className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
-        >
-          &larr; Genesis Collection
-        </a>
-      </div>
+      {/* Back link */}
+      <Link
+        href="/collection/genesis"
+        className="inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-muted hover:text-foreground transition-colors mb-8"
+      >
+        &larr; Back to Genesis
+      </Link>
 
-      {/* Main content: image + details side by side */}
-      <div className="grid gap-8 md:grid-cols-2 md:gap-12">
-        {/* Vinyl image */}
-        <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+      {/* Product section */}
+      <div className="grid gap-10 lg:grid-cols-2">
+        {/* Image */}
+        <div className="aspect-square overflow-hidden bg-[var(--surface)] border border-[var(--border)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={vinyl.src}
-            alt={`Genesis ${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}`}
+            src={vinyl.image}
+            alt={vinyl.name}
             className="w-full h-full object-cover"
           />
         </div>
 
         {/* Details */}
-        <div className="flex flex-col gap-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Badge variant="legendary">Genesis</Badge>
-              <span className="text-xs uppercase tracking-widest text-muted">
-                {vinyl.edition} Edition
-              </span>
-            </div>
-            <h1 className="font-hoodlrz text-[32px] font-bold leading-none tracking-wider text-foreground sm:text-[44px]">
-              {vinyl.edition} #{String(vinyl.number).padStart(2, "0")}
-            </h1>
-          </div>
+        <div className="flex flex-col gap-5">
+          <Badge variant={editionVariant}>{vinyl.edition} Edition</Badge>
 
-          <p className="text-sm leading-relaxed text-muted">
-            {EDITION_DESCRIPTIONS[vinyl.edition]}
+          <h1 className="font-hoodlrz text-[32px] font-bold leading-none tracking-wider text-foreground sm:text-[48px]">
+            {vinyl.name}
+          </h1>
+
+          <p className="font-hoodlrz text-[36px] font-bold leading-none text-foreground">
+            $300
           </p>
 
-          {/* Product details */}
-          <div className="border border-[var(--border)] p-4 space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Price</span>
-              <span className="text-foreground font-bold font-hoodlrz text-lg">
-                $300.00
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Type</span>
-              <span className="text-foreground font-semibold">
-                Physical vinyl + digital image
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Edition</span>
-              <span className="text-foreground font-semibold">
-                {vinyl.edition} ({vinyl.edition === "White" ? "5" : "10"} pieces)
-              </span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Shipping</span>
-              <span className="text-foreground font-semibold">Worldwide</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Includes</span>
-              <span className="text-foreground font-semibold">
-                Physical vinyl + digital collectible
-              </span>
-            </div>
-          </div>
+          <p className="text-sm text-muted">Free worldwide shipping</p>
 
-          {/* CTA or Countdown */}
-          {!isDropLive ? (
-            <div className="flex flex-col gap-4">
-              <Countdown
-                targetDate={dropStatus === "pre-whitelist" ? GENESIS_WHITELIST_DATE : GENESIS_DROP_DATE}
-                label={dropStatus === "pre-whitelist" ? "Whitelist Opens" : "Public Drop"}
-              />
-              <button
-                disabled
-                className="w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white opacity-40 cursor-not-allowed grayscale"
-                style={{
-                  background: "linear-gradient(135deg, #E53E3E 0%, #D53F8C 100%)",
-                }}
-              >
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                  <span>Coming Soon</span>
-                  <span className="text-white/70 text-xs font-normal">$300.00</span>
-                </span>
-              </button>
-            </div>
-          ) : (state === "idle" || state === "error") ? (
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleCollect}
-                disabled={isLoggedIn === null}
-                className={[
-                  "w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white",
-                  "transition-all duration-150 ease-out",
-                  isLoggedIn === null
-                    ? "opacity-40 cursor-not-allowed grayscale"
-                    : "cursor-pointer hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(229,62,62,0.5)]",
-                ].join(" ")}
-                style={{
-                  background:
-                    "linear-gradient(135deg, #E53E3E 0%, #D53F8C 100%)",
-                }}
-              >
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                  <span>Collect This Vinyl</span>
-                  <span className="text-white/70 text-xs font-normal">
-                    $300.00
-                  </span>
-                </span>
-              </button>
-              <p className="text-[10px] text-muted text-center">
-                Shipping address will be collected at checkout.
-              </p>
-              {error && (
-                <p className="text-accent-red text-xs text-center">{error}</p>
-              )}
-            </div>
-          ) : null}
+          <p className="text-xs font-bold uppercase tracking-widest text-muted">
+            1 of 1 &mdash; Unique piece
+          </p>
 
-          {/* Loading state */}
-          {state === "loading" && (
-            <div className="flex flex-col items-center gap-4 py-4">
-              <div
-                className="w-10 h-10 border-2 border-white/20 border-t-accent-red"
-                style={{
-                  animation: "spin 0.8s linear infinite",
-                  borderRadius: "9999px",
-                }}
-              />
-              <p className="text-white/70 text-xs uppercase tracking-widest">
-                Redirecting to payment...
-              </p>
-            </div>
-          )}
-
-          {/* What you get */}
-          <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-muted">
-              What you get
-            </p>
-            <ul className="space-y-1.5 text-sm text-muted">
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">&#10003;</span>
-                <span>
-                  Original hand-drawn vinyl artwork shipped to your address
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">&#10003;</span>
-                <span>
-                  High-resolution digital image in your Hoodlrz collection
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">&#10003;</span>
-                <span>Certificate of authenticity</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="text-emerald-500 mt-0.5">&#10003;</span>
-                <span>Genesis collector status + exclusive access</span>
-              </li>
-            </ul>
-          </div>
+          <p className="text-sm leading-relaxed text-muted max-w-md">
+            Hand-crafted vinyl artwork from the Hoodlrz Genesis collection. Each
+            piece is a unique, one-of-a-kind physical artwork shipped directly to
+            you.
+          </p>
         </div>
       </div>
 
-      {/* Navigation between vinyls */}
-      <div className="mt-12 flex justify-between border-t border-[var(--border)] pt-6">
-        {prevVinyl ? (
-          <a
-            href={`/genesis/${prevVinyl.id}`}
-            className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
-          >
-            &larr; {prevVinyl.edition} #{String(prevVinyl.number).padStart(2, "0")}
-          </a>
-        ) : (
-          <span />
-        )}
-        {nextVinyl ? (
-          <a
-            href={`/genesis/${nextVinyl.id}`}
-            className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
-          >
-            {nextVinyl.edition} #{String(nextVinyl.number).padStart(2, "0")} &rarr;
-          </a>
-        ) : (
-          <span />
-        )}
-      </div>
+      {/* Shipping form */}
+      <Card className="mt-12">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-muted mb-6">
+          Shipping Information
+        </h2>
 
-      {/* ── Auth Modal ── */}
-      <Modal isOpen={state === "auth"} onClose={() => setState("idle")}>
-        <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
-          <CloseButton onClick={() => setState("idle")} />
-          <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-            Sign Up to Collect
-          </h2>
-          <p className="text-sm text-center text-muted">
-            Enter your email to get a magic link. No passwords, no wallet, no
-            friction.
-          </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            label="First Name *"
+            name="firstName"
+            value={form.firstName}
+            onChange={(e) => updateField("firstName", e.target.value)}
+            error={errors.firstName}
+          />
+          <Input
+            label="Last Name *"
+            name="lastName"
+            value={form.lastName}
+            onChange={(e) => updateField("lastName", e.target.value)}
+            error={errors.lastName}
+          />
+          <Input
+            label="Email *"
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={(e) => updateField("email", e.target.value)}
+            error={errors.email}
+          />
+          <Input
+            label="Phone *"
+            name="phone"
+            type="tel"
+            value={form.phone}
+            onChange={(e) => updateField("phone", e.target.value)}
+            error={errors.phone}
+          />
+          <div className="sm:col-span-2">
+            <Input
+              label="Address Line 1 *"
+              name="address1"
+              value={form.address1}
+              onChange={(e) => updateField("address1", e.target.value)}
+              error={errors.address1}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Input
+              label="Address Line 2"
+              name="address2"
+              value={form.address2}
+              onChange={(e) => updateField("address2", e.target.value)}
+            />
+          </div>
+          <Input
+            label="City *"
+            name="city"
+            value={form.city}
+            onChange={(e) => updateField("city", e.target.value)}
+            error={errors.city}
+          />
+          <Input
+            label="State / Province *"
+            name="state"
+            value={form.state}
+            onChange={(e) => updateField("state", e.target.value)}
+            error={errors.state}
+          />
+          <Input
+            label="ZIP / Postal Code *"
+            name="zip"
+            value={form.zip}
+            onChange={(e) => updateField("zip", e.target.value)}
+            error={errors.zip}
+          />
 
-          {!authSent ? (
-            <form
-              onSubmit={handleAuthSubmit}
-              className="w-full flex flex-col gap-4"
+          {/* Country select */}
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="country"
+              className="text-xs uppercase tracking-widest text-muted"
             >
-              <Input
-                label="Email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                error={authError}
-              />
-              <Button variant="primary" size="lg" disabled={authLoading}>
-                {authLoading ? "Sending..." : "Get Access"}
-              </Button>
-            </form>
-          ) : (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center border border-emerald-500/40 bg-emerald-500/10">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-emerald-500"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <p className="text-sm text-center text-muted">
-                Check your inbox! We sent a magic link to{" "}
-                <strong className="text-foreground">{email}</strong>.
-              </p>
-              <p className="text-xs text-muted text-center">
-                Click the link in the email to sign in, then come back and
-                collect.
-              </p>
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => {
-                  setAuthSent(false);
-                  setEmail("");
-                  const supabase = createClient();
-                  supabase.auth.getUser().then(({ data }) => {
-                    const loggedIn = !!data.user;
-                    setIsLoggedIn(loggedIn);
-                    if (loggedIn) {
-                      handleProceedToPayment();
-                    } else {
-                      setState("idle");
-                    }
-                  });
-                }}
-              >
-                Done
-              </Button>
-            </div>
-          )}
+              Country *
+            </label>
+            <select
+              id="country"
+              name="country"
+              value={form.country}
+              onChange={(e) => updateField("country", e.target.value)}
+              className={[
+                "w-full rounded-none border bg-transparent px-4 py-2.5 text-sm text-foreground",
+                "outline-none transition-colors duration-150",
+                "focus:border-accent-red focus:ring-0",
+                errors.country
+                  ? "border-accent-red"
+                  : "border-[var(--border)]",
+              ].join(" ")}
+            >
+              <option value="">Select a country</option>
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+            {errors.country && (
+              <span className="text-xs text-accent-red">{errors.country}</span>
+            )}
+          </div>
         </div>
-      </Modal>
-    </div>
-  );
-}
 
-export default function GenesisVinylPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-[60vh] items-center justify-center">
-          <p className="text-sm text-muted">Loading...</p>
+        {/* Error display */}
+        {apiError && (
+          <div className="mt-4 border border-accent-red/40 bg-accent-red/10 p-3">
+            <p className="text-sm text-accent-red">{apiError}</p>
+          </div>
+        )}
+
+        {/* Submit */}
+        <div className="mt-8">
+          <Button
+            variant="primary"
+            size="lg"
+            onClick={handleSubmit}
+            disabled={submitting}
+          >
+            {submitting ? "Processing..." : "Purchase \u2014 $300"}
+          </Button>
         </div>
-      }
-    >
-      <GenesisVinylContent />
-    </Suspense>
+      </Card>
+    </div>
   );
 }
