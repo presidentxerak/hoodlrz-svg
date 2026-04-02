@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripeServer } from "@/lib/stripe";
+import { getVinylById } from "@/lib/genesis/vinyls";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,19 +17,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { collectionSlug, quantity: rawQuantity, vinylId, shipping } = body as {
+    const { collectionSlug, quantity: rawQuantity, vinylId } = body as {
       collectionSlug?: string;
       quantity?: number;
       vinylId?: string;
-      shipping?: {
-        fullName?: string;
-        address?: string;
-        city?: string;
-        state?: string;
-        zip?: string;
-        country?: string;
-        phone?: string;
-      };
     };
 
     if (!collectionSlug) {
@@ -38,11 +30,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate quantity (1-10)
-    const quantity = Math.min(10, Math.max(1, Math.floor(Number(rawQuantity) || 1)));
+    // ── Genesis vinyl validation ──
+    if (vinylId) {
+      // Validate vinylId exists
+      const vinyl = getVinylById(vinylId);
+      if (!vinyl) {
+        return NextResponse.json(
+          { error: "Invalid vinyl." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate quantity (1-10), force 1 for Genesis
+    const quantity = vinylId
+      ? 1
+      : Math.min(10, Math.max(1, Math.floor(Number(rawQuantity) || 1)));
 
     // Use admin client for DB operations (bypasses RLS)
     const admin = createAdminClient();
+
+    // ── Prevent double sale of Genesis vinyls ──
+    if (vinylId) {
+      const { data: existingToken } = await admin
+        .from("tokens")
+        .select("id")
+        .eq("seed", vinylId)
+        .single();
+
+      if (existingToken) {
+        return NextResponse.json(
+          { error: "This vinyl has already been collected." },
+          { status: 409 }
+        );
+      }
+    }
 
     // Look up the account from the authenticated user
     const { data: account, error: accountError } = await admin
@@ -163,16 +185,6 @@ export async function POST(request: NextRequest) {
       metadata.vinylId = vinylId;
     }
 
-    if (shipping) {
-      metadata.shippingName = shipping.fullName || "";
-      metadata.shippingAddress = shipping.address || "";
-      metadata.shippingCity = shipping.city || "";
-      metadata.shippingState = shipping.state || "";
-      metadata.shippingZip = shipping.zip || "";
-      metadata.shippingCountry = shipping.country || "";
-      metadata.shippingPhone = shipping.phone || "";
-    }
-
     // For Genesis, use the vinyl page as cancel URL
     const cancelUrl = vinylId
       ? `${origin}/genesis/${vinylId}`
@@ -189,7 +201,7 @@ export async function POST(request: NextRequest) {
             currency: "usd",
             product_data: {
               name: isGenesisCheckout
-                ? `Genesis — ${vinylId}`
+                ? `Genesis — ${getVinylById(vinylId!)?.edition} #${String(getVinylById(vinylId!)?.number).padStart(2, "0")}`
                 : collection.name,
               description: isGenesisCheckout
                 ? "Physical vinyl artwork + digital collectible. Shipped worldwide."
@@ -220,7 +232,7 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[mint] Unexpected error:", message, err);
     return NextResponse.json(
-      { error: `Internal server error: ${message}` },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

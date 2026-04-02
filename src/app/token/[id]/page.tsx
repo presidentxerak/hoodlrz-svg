@@ -15,6 +15,7 @@ import {
   type RarityTier,
 } from "@/lib/pfp/rarity";
 import type { RarityWeight } from "@/lib/pfp/traits";
+import { getVinylById } from "@/lib/genesis/vinyls";
 
 /* ── Helpers ── */
 
@@ -69,6 +70,9 @@ export default function TokenDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
+  // Check if this is a Genesis vinyl ID (e.g. "black-01", "white-03", "craft-10")
+  const genesisVinyl = useMemo(() => getVinylById(id), [id]);
+
   const { collectionSlug, tokenNumber, seed } = useMemo(
     () => parseSeedFromId(id),
     [id]
@@ -82,6 +86,69 @@ export default function TokenDetailPage() {
 
   const owner = { pseudonym: "—" };
 
+  // ── Genesis token: show vinyl page instead of PFP ──
+  if (genesisVinyl) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
+        <Link
+          href="/collection/genesis"
+          className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+        >
+          &larr; Back to Genesis Collection
+        </Link>
+
+        <div className="mt-6 grid gap-10 lg:grid-cols-2">
+          <div className="aspect-square overflow-hidden bg-[var(--surface)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={genesisVinyl.src}
+              alt={`Genesis ${genesisVinyl.edition} #${String(genesisVinyl.number).padStart(2, "0")}`}
+              className="w-full h-full object-cover"
+            />
+          </div>
+
+          <div className="flex flex-col gap-8">
+            <div>
+              <div className="flex items-center gap-3 mb-2">
+                <Badge variant="legendary">Genesis</Badge>
+                <span className="text-xs uppercase tracking-widest text-muted">
+                  {genesisVinyl.edition} Edition
+                </span>
+              </div>
+              <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider text-foreground sm:text-[40px]">
+                {genesisVinyl.edition} #{String(genesisVinyl.number).padStart(2, "0")}
+              </h1>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Type</span>
+                <span className="mt-1 block text-sm font-bold text-foreground">Physical + Digital</span>
+              </Card>
+              <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Edition</span>
+                <span className="mt-1 block text-sm font-bold text-foreground">{genesisVinyl.edition}</span>
+              </Card>
+              <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Price</span>
+                <span className="mt-1 block font-hoodlrz text-lg font-bold text-foreground">$300</span>
+              </Card>
+              <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Owner</span>
+                <span className="mt-1 block text-sm font-semibold text-foreground">{owner.pseudonym}</span>
+              </Card>
+            </div>
+
+            <Button variant="primary" size="lg" href={`/genesis/${genesisVinyl.id}`}>
+              View Full Details
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Hoodlrz PFP token ──
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
       {/* Back link */}
