@@ -88,6 +88,7 @@ async function main() {
         try {
           const has = await layerStore.hasLayer(variant.id, cat.id, i);
           if (has) { totalSkipped++; continue; }
+          await new Promise(r => setTimeout(r, 200));
         } catch { /* new contract, no layers yet */ }
 
         const inner = extractSvgInner(readFileSync(filePath, "utf-8"));
@@ -102,25 +103,40 @@ async function main() {
         continue;
       }
 
-      const BATCH_SIZE = 5;
+      const BATCH_SIZE = 3;
       for (let b = 0; b < batchD.length; b += BATCH_SIZE) {
         const end = Math.min(b + BATCH_SIZE, batchD.length);
-        try {
-          const tx = await layerStore.storeLayerBatch(
-            batchV.slice(b, end),
-            batchC.slice(b, end),
-            batchI.slice(b, end),
-            batchD.slice(b, end),
-            { gasLimit: 30_000_000n }
-          );
-          await tx.wait();
-          totalUploaded += end - b;
-          console.log(`  [TX] ${cat.folder} [${batchI.slice(b, end).join(",")}] - uploaded`);
-        } catch (err: unknown) {
-          totalFailed += end - b;
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(`  [ERR] ${cat.folder} [${batchI.slice(b, end).join(",")}] - ${msg.slice(0, 120)}`);
+        const indices = batchI.slice(b, end);
+        let retries = 0;
+        while (retries < 3) {
+          try {
+            const tx = await layerStore.storeLayerBatch(
+              batchV.slice(b, end),
+              batchC.slice(b, end),
+              indices,
+              batchD.slice(b, end),
+              { gasLimit: 5_000_000n }
+            );
+            await tx.wait();
+            totalUploaded += end - b;
+            console.log(`  [TX] ${cat.folder} [${indices.join(",")}] - uploaded`);
+            break;
+          } catch (err: unknown) {
+            retries++;
+            const msg = err instanceof Error ? err.message : String(err);
+            if (retries < 3 && (msg.includes("429") || msg.includes("exceeded") || msg.includes("per second"))) {
+              const wait = retries * 3;
+              console.log(`  [WAIT] Rate limited, waiting ${wait}s... (retry ${retries}/3)`);
+              await new Promise(r => setTimeout(r, wait * 1000));
+            } else {
+              totalFailed += end - b;
+              console.error(`  [ERR] ${cat.folder} [${indices.join(",")}] - ${msg.slice(0, 120)}`);
+              break;
+            }
+          }
         }
+        // Delay between batches to avoid rate limiting
+        await new Promise(r => setTimeout(r, 1500));
       }
     }
   }
