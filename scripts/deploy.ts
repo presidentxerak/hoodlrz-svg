@@ -44,7 +44,10 @@ async function main() {
   // 1. Deploy LayerStore
   console.log("\n1/3 - Deploying HoodlrzLayerStore...");
   const lsArt = loadArtifact("HoodlrzLayerStore");
-  const ls = await new ethers.ContractFactory(lsArt.abi, lsArt.bytecode, deployer).deploy();
+  console.log("   Bytecode size:", Math.round(lsArt.bytecode.length / 2), "bytes");
+  const lsFactory = new ethers.ContractFactory(lsArt.abi, lsArt.bytecode, deployer);
+  const ls = await lsFactory.deploy({ gasLimit: 8_000_000n });
+  console.log("   TX sent:", ls.deploymentTransaction()?.hash);
   await ls.waitForDeployment();
   const lsAddr = await ls.getAddress();
   console.log("   LayerStore:", lsAddr);
@@ -54,8 +57,10 @@ async function main() {
   const royaltyReceiver = deployer.address;
   console.log("\n2/3 - Deploying HoodlrzOnChain (0.007 ETH, 10% royalties)...");
   const nftArt = loadArtifact("HoodlrzOnChain");
-  const nft = await new ethers.ContractFactory(nftArt.abi, nftArt.bytecode, deployer)
-    .deploy(mintPrice, ethers.ZeroAddress, royaltyReceiver);
+  console.log("   Bytecode size:", Math.round(nftArt.bytecode.length / 2), "bytes");
+  const nftFactory = new ethers.ContractFactory(nftArt.abi, nftArt.bytecode, deployer);
+  const nft = await nftFactory.deploy(mintPrice, ethers.ZeroAddress, royaltyReceiver, { gasLimit: 8_000_000n });
+  console.log("   TX sent:", nft.deploymentTransaction()?.hash);
   await nft.waitForDeployment();
   const nftAddr = await nft.getAddress();
   console.log("   HoodlrzOnChain:", nftAddr);
@@ -63,8 +68,10 @@ async function main() {
   // 3. Deploy Renderer
   console.log("\n3/3 - Deploying HoodlrzRenderer...");
   const rArt = loadArtifact("HoodlrzRenderer");
-  const renderer = await new ethers.ContractFactory(rArt.abi, rArt.bytecode, deployer)
-    .deploy(nftAddr, lsAddr);
+  console.log("   Bytecode size:", Math.round(rArt.bytecode.length / 2), "bytes");
+  const rendererFactory = new ethers.ContractFactory(rArt.abi, rArt.bytecode, deployer);
+  const renderer = await rendererFactory.deploy(nftAddr, lsAddr, { gasLimit: 8_000_000n });
+  console.log("   TX sent:", renderer.deploymentTransaction()?.hash);
   await renderer.waitForDeployment();
   const rendererAddr = await renderer.getAddress();
   console.log("   HoodlrzRenderer:", rendererAddr);
