@@ -36,12 +36,32 @@ contract HoodlrzLayerStore is IHoodlrzLayerStore, Ownable {
     ════════════════════════════════════════════════════════════ */
 
     function _sstore2Write(bytes memory data) internal returns (address pointer) {
-        bytes memory code = abi.encodePacked(
-            hex"00",  // STOP opcode (prevents execution)
-            data
+        // Deploy a contract whose runtime code is: 0x00 (STOP) + data
+        // Init code (12 bytes) copies runtime code to memory and returns it.
+        //
+        // 61 XXXX  PUSH2 runtimeLen       [runtimeLen]
+        // 80       DUP1                   [runtimeLen, runtimeLen]
+        // 60 0c    PUSH1 12 (initCodeLen) [12, runtimeLen, runtimeLen]
+        // 60 00    PUSH1 0                [0, 12, runtimeLen, runtimeLen]
+        // 39       CODECOPY               [runtimeLen]  — copies runtime to memory[0..]
+        // 60 00    PUSH1 0                [0, runtimeLen]
+        // f3       RETURN                 — returns memory[0..runtimeLen]
+
+        bytes memory creationCode = abi.encodePacked(
+            hex"61",                        // PUSH2
+            bytes2(uint16(data.length + 1)),// runtime length (STOP + data)
+            hex"80",                        // DUP1
+            hex"600c",                      // PUSH1 12
+            hex"6000",                      // PUSH1 0
+            hex"39",                        // CODECOPY
+            hex"6000",                      // PUSH1 0
+            hex"f3",                        // RETURN
+            hex"00",                        // STOP (first byte of runtime)
+            data                            // SVG content
         );
+
         assembly {
-            pointer := create(0, add(code, 0x20), mload(code))
+            pointer := create(0, add(creationCode, 0x20), mload(creationCode))
         }
         require(pointer != address(0), "SSTORE2: deployment failed");
     }
