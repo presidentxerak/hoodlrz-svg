@@ -13,6 +13,7 @@ async function main() {
     [
       "function getTraits(uint256) view returns (uint8[8])",
       "function tokenSeed(uint256) view returns (uint256)",
+      "function tokenURI(uint256) view returns (string)",
     ],
     wallet
   );
@@ -28,9 +29,10 @@ async function main() {
 
   const categoryNames = ["wall", "graffiti", "hoodie", "eyes", "mouth", "accessory", "foreground"];
 
-  // Get token 1 seed and traits
-  const seed = await nft.tokenSeed(1);
-  console.log("Token 1 seed:", seed.toString());
+  const tokenId = Number(process.argv[2]) || 1;
+  console.log(`\n=== Token #${tokenId} ===`);
+  const seed = await nft.tokenSeed(tokenId);
+  console.log("Seed:", seed.toString());
 
   const traits = await nft.getTraits(seed);
   const variant = Number(traits[0]);
@@ -57,6 +59,15 @@ async function main() {
     }
     console.log(`  [${i}] ${catName} #${traitIndex} → ${status}`);
     await new Promise(r => setTimeout(r, 300));
+  }
+
+  // Test tokenURI
+  console.log(`\nTesting tokenURI(${tokenId})...`);
+  try {
+    const uri: string = await nft.tokenURI(tokenId);
+    console.log(`  OK - length: ${uri.length}`);
+  } catch (e: any) {
+    console.log(`  FAILED: ${e.message?.slice(0, 200)}`);
   }
 }
 
