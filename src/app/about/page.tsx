@@ -22,8 +22,8 @@ export default function AboutPage() {
           truly yours.
         </p>
         <p className="text-base leading-relaxed text-muted">
-          No wallets. No gas fees. No complexity. Just collect, own, and
-          showcase rare digital art.
+          Two ways to collect: through our frictionless Protocol (no wallet, no gas)
+          or as full on-chain ERC-721 NFTs on Ethereum. Same art, your choice.
         </p>
       </section>
 
@@ -217,21 +217,29 @@ export default function AboutPage() {
             The Hoodlrz economy is designed for simplicity and fairness:
           </p>
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <div className="border border-[var(--border)] p-5 space-y-2">
-            <p className="text-xs font-bold uppercase tracking-widest text-foreground">Primary Market</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-accent-red">Protocol</p>
             <p className="font-hoodlrz text-2xl font-bold text-foreground">$9.99</p>
             <p className="text-[12px] text-muted">
               Fixed price per collectible. No auctions, no gas fees, no hidden costs.
-              The price you see is the price you pay. Period.
+              Pay with credit card via Stripe.
+            </p>
+          </div>
+          <div className="border border-[var(--border)] border-l-2 border-l-[#627eea] p-5 space-y-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#627eea]">Ethereum On-Chain</p>
+            <p className="font-hoodlrz text-2xl font-bold text-foreground">0.007 ETH</p>
+            <p className="text-[12px] text-muted">
+              Mint with ETH via MetaMask. Gas fees apply.
+              Full on-chain ERC-721 NFT stored on Ethereum forever.
             </p>
           </div>
           <div className="border border-[var(--border)] p-5 space-y-2">
             <p className="text-xs font-bold uppercase tracking-widest text-foreground">Secondary Market</p>
             <p className="font-hoodlrz text-2xl font-bold text-foreground">Seller sets price</p>
             <p className="text-[12px] text-muted">
-              Fixed price listings only. No auctions, no bids, no offers.
-              Buy now or move on. Clean, simple, liquid.
+              Fixed price listings only. No auctions, no bids.
+              Protocol tokens on our marketplace. ETH tokens on OpenSea.
             </p>
           </div>
           <div className="border border-[var(--border)] p-5 space-y-2">
@@ -288,6 +296,26 @@ export default function AboutPage() {
               <span><strong className="text-foreground">2</strong> variants</span>
               <span><strong className="text-foreground">$9.99</strong> per piece</span>
               <span><strong className="text-foreground">0</strong> gas fees</span>
+            </div>
+          </div>
+
+          <div className="border border-[var(--border)] border-l-2 border-l-[#627eea] p-6 space-y-3">
+            <h4 className="font-hoodlrz text-2xl font-bold text-foreground">
+              Hoodlrz On-Chain (Ethereum)
+            </h4>
+            <p className="text-sm leading-relaxed text-muted">
+              The same 10,000 unique identities, minted as full on-chain ERC-721 NFTs
+              on Ethereum. Every SVG layer is stored directly on the blockchain using
+              SSTORE2 — no IPFS, no external hosting. The smart contract uses the same
+              FNV-1a hashing and Mulberry32 PRNG as the Protocol version, guaranteeing
+              identical trait generation. Your Hoodlrz lives on Ethereum forever.
+            </p>
+            <div className="flex flex-wrap gap-6 text-xs text-muted">
+              <span><strong className="text-foreground">10,000</strong> supply</span>
+              <span><strong className="text-foreground">ERC-721</strong> standard</span>
+              <span><strong className="text-foreground">Full on-chain</strong> SVG</span>
+              <span><strong className="text-foreground">0.007 ETH</strong> per mint</span>
+              <span><strong className="text-foreground">+ gas</strong> fees</span>
             </div>
           </div>
 
@@ -408,28 +436,32 @@ export default function AboutPage() {
       {/* Comparison */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          10 — Hoodlrz vs Traditional NFTs
+          10 — Protocol vs Ethereum vs Traditional NFTs
         </h3>
-        <div className="mt-6 border border-[var(--border)] divide-y divide-[var(--border)]">
-          <div className="grid grid-cols-3 gap-0">
+        <div className="mt-6 border border-[var(--border)] divide-y divide-[var(--border)] overflow-x-auto">
+          <div className="grid grid-cols-4 gap-0 min-w-[600px]">
             <div className="p-3 text-[10px] font-bold uppercase tracking-widest text-muted">Feature</div>
             <div className="p-3 text-[10px] font-bold uppercase tracking-widest text-muted border-l border-[var(--border)]">Traditional NFT</div>
-            <div className="p-3 text-[10px] font-bold uppercase tracking-widest text-foreground border-l border-[var(--border)]">Hoodlrz Protocol</div>
+            <div className="p-3 text-[10px] font-bold uppercase tracking-widest text-accent-red border-l border-[var(--border)]">Hoodlrz Protocol</div>
+            <div className="p-3 text-[10px] font-bold uppercase tracking-widest text-[#627eea] border-l border-[var(--border)]">Hoodlrz On-Chain</div>
           </div>
           {[
-            { feature: "Wallet required", trad: "Yes (MetaMask, etc.)", hoodlrz: "No — email only" },
-            { feature: "Gas fees", trad: "$2 - $50+", hoodlrz: "$0 — always" },
-            { feature: "Payment", trad: "Cryptocurrency", hoodlrz: "Credit card (USD)" },
-            { feature: "Transaction time", trad: "30s - 5min", hoodlrz: "Instant" },
-            { feature: "Failed transactions", trad: "Common", hoodlrz: "Impossible" },
-            { feature: "Art storage", trad: "IPFS / Arweave", hoodlrz: "Deterministic SVG" },
-            { feature: "Transfer cost", trad: "Gas fee", hoodlrz: "Free" },
-            { feature: "Verification", trad: "Blockchain explorer", hoodlrz: "SHA-256 hash" },
+            { feature: "Wallet required", trad: "Yes (MetaMask)", protocol: "No — email only", eth: "Yes (MetaMask)" },
+            { feature: "Gas fees", trad: "$2 - $50+", protocol: "$0 — always", eth: "Network gas" },
+            { feature: "Mint price", trad: "Variable", protocol: "$9.99 (fixed)", eth: "0.007 ETH" },
+            { feature: "Payment", trad: "Cryptocurrency", protocol: "Credit card (USD)", eth: "ETH" },
+            { feature: "Transaction time", trad: "30s - 5min", protocol: "Instant", eth: "~15s (1 block)" },
+            { feature: "Art storage", trad: "IPFS / Arweave", protocol: "Deterministic SVG", eth: "Full on-chain SVG" },
+            { feature: "Standard", trad: "ERC-721", protocol: "Hoodlrz Protocol", eth: "ERC-721" },
+            { feature: "Secondary market", trad: "OpenSea, etc.", protocol: "Built-in marketplace", eth: "OpenSea, Blur, etc." },
+            { feature: "Transfer cost", trad: "Gas fee", protocol: "Free", eth: "Gas fee" },
+            { feature: "Verification", trad: "Blockchain explorer", protocol: "SHA-256 hash", eth: "Etherscan" },
           ].map((row) => (
-            <div key={row.feature} className="grid grid-cols-3 gap-0 border-t border-[var(--border)]">
+            <div key={row.feature} className="grid grid-cols-4 gap-0 border-t border-[var(--border)] min-w-[600px]">
               <div className="p-3 text-xs font-semibold text-foreground">{row.feature}</div>
               <div className="p-3 text-xs text-muted border-l border-[var(--border)]">{row.trad}</div>
-              <div className="p-3 text-xs font-semibold text-foreground border-l border-[var(--border)]">{row.hoodlrz}</div>
+              <div className="p-3 text-xs font-semibold text-foreground border-l border-[var(--border)]">{row.protocol}</div>
+              <div className="p-3 text-xs font-semibold text-[#627eea] border-l border-[var(--border)]">{row.eth}</div>
             </div>
           ))}
         </div>
@@ -451,8 +483,8 @@ export default function AboutPage() {
             technology.
           </p>
           <p className="text-foreground font-semibold">
-            The future of digital art ownership is not on a blockchain. It&apos;s in
-            a better experience.
+            The future of digital art ownership is choice — collect through our
+            Protocol for simplicity, or mint on Ethereum for sovereignty. Same art. Your rules.
           </p>
         </div>
       </section>

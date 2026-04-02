@@ -265,7 +265,7 @@ export default function CollectionDetailPage() {
                 Ethereum
               </p>
               {[
-                ["Price", "ETH (variable)"],
+                ["Price", "0.007 ETH"],
                 ["Gas fees", "Network gas"],
                 ["Wallet", "MetaMask / WalletConnect"],
                 ["Payment", "ETH"],

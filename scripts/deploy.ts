@@ -14,7 +14,7 @@ async function main() {
   console.log("   LayerStore:", layerStoreAddr);
 
   // 2. Deploy main NFT contract
-  const mintPrice = ethers.parseEther("0.005"); // ~$9.99 at current ETH prices — adjust before mainnet
+  const mintPrice = ethers.parseEther("0.007");
   console.log("\n2/3 — Deploying HoodlrzOnChain (mint price:", ethers.formatEther(mintPrice), "ETH)...");
   const NFT = await ethers.getContractFactory("HoodlrzOnChain");
   // Deploy with a temporary renderer address (will update after renderer is deployed)

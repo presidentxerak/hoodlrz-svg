@@ -110,10 +110,10 @@ export default function HomePage() {
             How It Works
           </h2>
           <p className="mt-3 mx-auto max-w-lg text-center text-sm leading-relaxed text-muted">
-            Two collections. Two experiences. One universe.
+            Three collections. Two experiences. One universe.
           </p>
 
-          <div className="mt-14 grid gap-10 sm:grid-cols-2">
+          <div className="mt-14 grid gap-10 sm:grid-cols-3">
             {/* Hoodlrz Card */}
             <div className="flex flex-col gap-6 border border-[var(--border)] bg-[var(--background)] p-6 sm:p-8">
               <div className="flex items-center gap-3">
@@ -162,6 +162,60 @@ export default function HomePage() {
                 <Link
                   href="/collection/hoodlrz"
                   className="text-xs font-bold uppercase tracking-widest text-accent-red hover:underline"
+                >
+                  View Collection &rarr;
+                </Link>
+              </div>
+            </div>
+
+            {/* Hoodlrz Ethereum Card */}
+            <div className="flex flex-col gap-6 border border-[var(--border)] bg-[var(--background)] p-6 sm:p-8">
+              <div className="flex items-center gap-3">
+                <h3 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
+                  Hoodlrz ETH
+                </h3>
+                <span className="text-[10px] uppercase tracking-widest bg-[#627eea]/10 text-[#627eea] border border-[#627eea]/30 px-2 py-0.5">
+                  On-Chain
+                </span>
+              </div>
+
+              {/* Preview PFPs */}
+              <div className="grid grid-cols-4 gap-2">
+                {FEATURED.map(({ seed }) => (
+                  <PFPViewer key={`eth-${seed}`} seed={`eth-${seed}`} className="aspect-square w-full" />
+                ))}
+              </div>
+
+              <p className="text-sm leading-relaxed text-muted">
+                The same 10,000 unique identities, the same 7 hand-drawn layers — but
+                minted as <strong className="text-foreground">full on-chain ERC-721 NFTs</strong> on
+                Ethereum. Every layer is stored directly on the blockchain. Your Hoodlrz lives on-chain forever.
+              </p>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">1</span>
+                  <span className="text-muted"><strong className="text-foreground">Connect Wallet</strong> — MetaMask or any Ethereum wallet</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">2</span>
+                  <span className="text-muted"><strong className="text-foreground">Choose quantity</strong> — Pick how many you want (1-10 per tx)</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">3</span>
+                  <span className="text-muted"><strong className="text-foreground">Mint</strong> — Confirm the transaction. Pay in ETH + gas</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">4</span>
+                  <span className="text-muted"><strong className="text-foreground">On-Chain</strong> — Your SVG is generated and stored on Ethereum</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
+                <span className="font-hoodlrz text-xl font-bold text-foreground">0.007 ETH</span>
+                <Link
+                  href="/collection/hoodlrz"
+                  className="text-xs font-bold uppercase tracking-widest text-[#627eea] hover:underline"
                 >
                   View Collection &rarr;
                 </Link>
