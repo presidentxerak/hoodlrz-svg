@@ -103,7 +103,7 @@ async function main() {
         continue;
       }
 
-      const BATCH_SIZE = 3;
+      const BATCH_SIZE = 1;
       for (let b = 0; b < batchD.length; b += BATCH_SIZE) {
         const end = Math.min(b + BATCH_SIZE, batchD.length);
         const indices = batchI.slice(b, end);
@@ -115,7 +115,7 @@ async function main() {
               batchC.slice(b, end),
               indices,
               batchD.slice(b, end),
-              { gasLimit: 5_000_000n }
+              { gasLimit: 8_000_000n }
             );
             await tx.wait();
             totalUploaded += end - b;
