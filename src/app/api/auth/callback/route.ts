@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Redirect to the page they came from, or home
-  const redirect = requestUrl.searchParams.get("redirect") || "/";
+  // Redirect to the page they came from, or home (validate path to prevent open redirect)
+  const rawRedirect = requestUrl.searchParams.get("redirect") || "/";
+  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/";
   return NextResponse.redirect(new URL(redirect, requestUrl.origin));
 }

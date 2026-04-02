@@ -84,8 +84,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true, already_processed: true });
     }
   } catch (err) {
-    // If the stripe_events table doesn't exist or query fails, log but continue
-    console.warn("[stripe/webhook] Idempotency check failed (non-fatal):", err);
+    // If idempotency check fails, return 500 so Stripe retries later
+    console.error("[stripe/webhook] Idempotency check failed:", err);
+    return NextResponse.json(
+      { error: "Idempotency check failed. Will retry." },
+      { status: 500 }
+    );
   }
 
   // ── Step 6: Log event ──

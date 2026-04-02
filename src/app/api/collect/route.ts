@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("[collect] Unexpected error:", message, err);
     return NextResponse.json(
-      { error: `Internal server error: ${message}` },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }
