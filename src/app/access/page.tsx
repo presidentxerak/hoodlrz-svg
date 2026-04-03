@@ -12,7 +12,7 @@ function getAvailableWallets(): { name: string; icon: string; provider: unknown 
   if (typeof window === "undefined") return [];
 
   const wallets: { name: string; icon: string; provider: unknown }[] = [];
-  const eth = (window as Record<string, unknown>).ethereum as Record<string, unknown> | undefined;
+  const eth = (window as unknown as Record<string, unknown>).ethereum as Record<string, unknown> | undefined;
 
   if (!eth) return wallets;
 
@@ -26,7 +26,7 @@ function getAvailableWallets(): { name: string; icon: string; provider: unknown 
   }
 
   // Phantom EVM
-  const phantom = (window as Record<string, unknown>).phantom as Record<string, unknown> | undefined;
+  const phantom = (window as unknown as Record<string, unknown>).phantom as Record<string, unknown> | undefined;
   if (phantom?.ethereum) {
     wallets.push({ name: "Phantom", icon: "👻", provider: phantom.ethereum });
   }
