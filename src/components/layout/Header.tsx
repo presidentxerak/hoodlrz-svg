@@ -17,11 +17,22 @@ const navLinks = [
 export default function Header() {
   const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [authLabel, setAuthLabel] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
-      setIsLoggedIn(!!data.user);
+      if (data.user) {
+        setIsLoggedIn(true);
+        const email = data.user.email || "";
+        if (email.endsWith("@wallet.hoodlrz.com")) {
+          // Wallet user — show short address
+          const addr = email.replace("@wallet.hoodlrz.com", "");
+          setAuthLabel(`${addr.slice(0, 6)}...${addr.slice(-4)}`);
+        } else if (email) {
+          setAuthLabel(email);
+        }
+      }
     });
   }, []);
 
@@ -89,14 +100,21 @@ export default function Header() {
             <ThemeToggle />
 
             {isLoggedIn ? (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted hover:text-foreground transition-colors"
-                title="Log out"
-              >
-                <LogOut size={14} />
-                <span className="hidden sm:inline">Log out</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {authLabel && (
+                  <span className="hidden sm:inline text-[10px] text-muted font-mono truncate max-w-[120px]">
+                    {authLabel}
+                  </span>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted hover:text-foreground transition-colors"
+                  title="Log out"
+                >
+                  <LogOut size={14} />
+                  <span className="hidden sm:inline">Log out</span>
+                </button>
+              </div>
             ) : (
               <Link
                 href="/access"
