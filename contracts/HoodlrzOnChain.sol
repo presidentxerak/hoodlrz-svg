@@ -160,7 +160,7 @@ contract HoodlrzOnChain is ERC721, ERC2981, Ownable {
 
         // Layer counts per variant
         // [walls, graffitis, hoodies, eyes, mouths, accessories, foregrounds]
-        uint8[7] memory lightCounts = [uint8(10), 23, 12, 21, 19, 17, 11];
+        uint8[7] memory lightCounts = [uint8(10), 23, 12, 21, 20, 17, 11];
         uint8[7] memory darkCounts  = [uint8(10), 24, 12, 21, 20, 17, 11];
         uint8[7] memory counts = variant == 0 ? lightCounts : darkCounts;
 
