@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN } from "@/lib/web3/config";
@@ -8,6 +8,11 @@ import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
 
 /* ── Types ── */
 type FlowState = "idle" | "connecting" | "ready" | "quantity" | "minting" | "success" | "error";
+
+interface MintedNft {
+  tokenId: number;
+  image?: string;
+}
 
 interface EthMintFlowProps {
   disabled?: boolean;
@@ -33,7 +38,9 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
   const [totalSupply, setTotalSupply] = useState(0);
   const [walletAddress, setWalletAddress] = useState("");
   const [txHash, setTxHash] = useState("");
-  const [mintedIds, setMintedIds] = useState<number[]>([]);
+  const [mintedNfts, setMintedNfts] = useState<MintedNft[]>([]);
+  const [activeNftIndex, setActiveNftIndex] = useState(0);
+  const confettiRef = useRef<HTMLCanvasElement>(null);
 
   // Check if wallet is already connected
   useEffect(() => {
@@ -136,9 +143,24 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
           // skip non-matching logs
         }
       }
-      setMintedIds(ids);
       setTotalSupply((s) => s + quantity);
+      setActiveNftIndex(0);
+
+      // Show success immediately with placeholders
+      const nfts: MintedNft[] = ids.map((id) => ({ tokenId: id }));
+      setMintedNfts(nfts);
       setState("success");
+
+      // Fetch images progressively
+      for (let i = 0; i < ids.length; i++) {
+        try {
+          const uri: string = await contract.tokenURI(ids[i]);
+          const jsonStr = atob(uri.split(",")[1]);
+          const meta = JSON.parse(jsonStr);
+          nfts[i] = { ...nfts[i], image: meta.image };
+          setMintedNfts([...nfts]);
+        } catch { /* skip */ }
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Mint failed";
       if (msg.includes("user rejected") || msg.includes("ACTION_REJECTED")) {
@@ -168,6 +190,61 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
     },
     [mintPrice]
   );
+
+  /* ── Confetti animation ── */
+  useEffect(() => {
+    if (state !== "success") return;
+    const canvas = confettiRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const colors = ["#627eea", "#22c55e", "#f472b6", "#facc15", "#818cf8", "#fb923c", "#ffffff"];
+    const particles: { x: number; y: number; w: number; h: number; color: string; vx: number; vy: number; rot: number; vr: number; life: number }[] = [];
+
+    for (let i = 0; i < 150; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: -20 - Math.random() * 200,
+        w: 4 + Math.random() * 8,
+        h: 4 + Math.random() * 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        vx: (Math.random() - 0.5) * 4,
+        vy: 2 + Math.random() * 4,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.2,
+        life: 1,
+      });
+    }
+
+    let frame: number;
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      let alive = false;
+      for (const p of particles) {
+        if (p.life <= 0) continue;
+        alive = true;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.05;
+        p.rot += p.vr;
+        p.life -= 0.003;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      if (alive) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [state]);
 
   const CloseBtn = ({ onClick }: { onClick: () => void }) => (
     <button
@@ -311,34 +388,85 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
 
       {/* Success Modal */}
       <Modal isOpen={state === "success"} onClose={() => setState("idle")}>
-        <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
+        <canvas
+          ref={confettiRef}
+          className="fixed inset-0 pointer-events-none z-[9999]"
+          style={{ width: "100vw", height: "100vh" }}
+        />
+        <div className="relative flex flex-col items-center gap-5 p-6 max-w-md mx-auto bg-[var(--background)] border border-[var(--border)]">
           <CloseBtn onClick={() => setState("idle")} />
-          <div className="w-16 h-16 flex items-center justify-center bg-green-500/10 rounded-full">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
+
+          {/* NFT Image reveal */}
+          {mintedNfts.length > 0 && (
+            <div className="w-full">
+              <div className="relative aspect-square w-full max-w-[280px] mx-auto overflow-hidden border-2 border-[#627eea]/40 animate-[fadeScale_0.6s_ease-out]">
+                {mintedNfts[activeNftIndex]?.image ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={mintedNfts[activeNftIndex].image}
+                    alt={`Hoodlrz #${mintedNfts[activeNftIndex].tokenId}`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--surface)]">
+                    <div className="w-8 h-8 border-2 border-[#627eea]/30 border-t-[#627eea] rounded-full animate-spin" />
+                    <span className="text-xs text-muted mt-2">Revealing...</span>
+                  </div>
+                )}
+                <span className="absolute top-2 left-2 bg-[#627eea] text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
+                  #{mintedNfts[activeNftIndex]?.tokenId}
+                </span>
+              </div>
+
+              {/* Multi-NFT navigation */}
+              {mintedNfts.length > 1 && (
+                <div className="flex justify-center gap-2 mt-3">
+                  {mintedNfts.map((nft, i) => (
+                    <button
+                      key={nft.tokenId}
+                      onClick={() => setActiveNftIndex(i)}
+                      className={[
+                        "w-8 h-8 text-xs font-bold border transition-all",
+                        i === activeNftIndex
+                          ? "border-[#627eea] bg-[#627eea]/20 text-white"
+                          : "border-[var(--border)] text-muted hover:border-[#627eea]/50",
+                      ].join(" ")}
+                    >
+                      {nft.tokenId}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
             Minted!
           </h2>
           <p className="text-sm text-center text-muted">
-            {mintedIds.length > 0
-              ? `Token${mintedIds.length > 1 ? "s" : ""} #${mintedIds.join(", #")} minted successfully on Ethereum.`
+            {mintedNfts.length > 0
+              ? `Hoodlrz #${mintedNfts.map((n) => n.tokenId).join(", #")} — now on Ethereum forever.`
               : "Your Hoodlrz are now on the blockchain forever."}
           </p>
-          {txHash && (
-            <a
-              href={`${CURRENT_CHAIN.explorerUrl}/tx/${txHash}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-[#627eea] hover:underline"
-            >
-              View transaction &rarr;
-            </a>
-          )}
-          <Button variant="secondary" onClick={() => setState("idle")}>
-            Close
-          </Button>
+
+          <div className="flex flex-col w-full gap-2">
+            {txHash && (
+              <a
+                href={`${CURRENT_CHAIN.explorerUrl}/tx/${txHash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-[#627eea] hover:underline text-center"
+              >
+                View transaction &rarr;
+              </a>
+            )}
+            <Button variant="primary" size="lg" href="/my-collection" className="w-full text-center">
+              View My Collection
+            </Button>
+            <Button variant="secondary" onClick={() => setState("idle")} className="w-full">
+              Mint More
+            </Button>
+          </div>
         </div>
       </Modal>
 
