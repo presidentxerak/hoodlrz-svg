@@ -64,27 +64,22 @@ export default function MyCollectionPage() {
     if (isRefresh) setRefreshing(true);
 
     try {
-      // Security: only show on-chain NFTs for wallet-authenticated accounts
-      // Wallet accounts have email like "0xabc...@wallet.hoodlrz.com"
-      if (!account?.email?.endsWith("@wallet.hoodlrz.com")) {
-        setEthLoading(false);
-        return;
-      }
-
-      const walletAddr = account.email.replace("@wallet.hoodlrz.com", "");
       if (!isRefresh) setEthLoading(true);
 
       const eth = (window as { ethereum?: { request: (args: { method: string }) => Promise<string[]> } }).ethereum;
-      if (!eth) return;
+      if (!eth) { setEthLoading(false); return; }
 
       const accounts: string[] = await eth.request({ method: "eth_accounts" });
-      if (!accounts || accounts.length === 0) return;
+      if (!accounts || accounts.length === 0) { setEthLoading(false); return; }
       const addr = accounts[0];
 
-      // Security: verify browser wallet matches the authenticated wallet account
-      if (addr.toLowerCase() !== walletAddr.toLowerCase()) {
-        setEthLoading(false);
-        return;
+      // For wallet accounts, verify the browser wallet matches the account
+      if (account?.email?.endsWith("@wallet.hoodlrz.com")) {
+        const walletAddr = account.email.replace("@wallet.hoodlrz.com", "");
+        if (addr.toLowerCase() !== walletAddr.toLowerCase()) {
+          setEthLoading(false);
+          return;
+        }
       }
 
       setEthAddress(addr);
