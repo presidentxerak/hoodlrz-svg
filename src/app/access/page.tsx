@@ -96,24 +96,42 @@ export default function AccessPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/magic-link", {
-        method: "POST",
-        body: JSON.stringify({
-          email,
-          ...(emailMode === "signup" ? { pseudonym: pseudo.trim() } : {}),
-        }),
-        headers: { "Content-Type": "application/json" },
-      });
+      if (emailMode === "signup") {
+        // Sign up: create account and sign in immediately (no magic link)
+        const res = await fetch("/api/auth/signup", {
+          method: "POST",
+          body: JSON.stringify({ email, pseudonym: pseudo.trim() }),
+          headers: { "Content-Type": "application/json" },
+        });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || "Something went wrong. Please try again.");
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || "Something went wrong. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        // Account created + signed in — redirect to profile
         setLoading(false);
-        return;
-      }
+        window.location.href = "/my-collection";
+      } else {
+        // Sign in: send magic link
+        const res = await fetch("/api/auth/magic-link", {
+          method: "POST",
+          body: JSON.stringify({ email }),
+          headers: { "Content-Type": "application/json" },
+        });
 
-      setLoading(false);
-      setSubmitted(true);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || "Something went wrong. Please try again.");
+          setLoading(false);
+          return;
+        }
+
+        setLoading(false);
+        setSubmitted(true);
+      }
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
@@ -363,7 +381,7 @@ export default function AccessPage() {
 
               <Button variant="primary" size="lg" disabled={loading}>
                 {loading
-                  ? "Sending..."
+                  ? emailMode === "signup" ? "Creating..." : "Sending..."
                   : emailMode === "signup"
                     ? "Create Account"
                     : "Send Magic Link"}
@@ -372,7 +390,7 @@ export default function AccessPage() {
 
             <p className="text-[10px] text-center text-muted">
               {emailMode === "signup"
-                ? "We'll send a magic link to confirm your email. No password needed."
+                ? "Your account will be created instantly. No password needed."
                 : "We'll send a magic link to your inbox. No password needed."}
             </p>
           </div>
