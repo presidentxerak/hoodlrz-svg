@@ -37,6 +37,7 @@ export default function MyCollectionPage() {
   const [ethNfts, setEthNfts] = useState<EthNft[]>([]);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [ethLoading, setEthLoading] = useState(!!HOODLRZ_NFT_ADDRESS);
 
   /* ── Auth check ── */
   useEffect(() => {
@@ -131,6 +132,8 @@ export default function MyCollectionPage() {
         }
       } catch {
         // No wallet or wrong chain — skip silently
+      } finally {
+        setEthLoading(false);
       }
     };
 
@@ -140,7 +143,7 @@ export default function MyCollectionPage() {
   }, []);
 
   /* Loading / redirect */
-  if (authed === null || loading) {
+  if (authed === null || loading || ethLoading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <p className="text-sm text-muted animate-pulse">Loading...</p>
