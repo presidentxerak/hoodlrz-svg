@@ -208,6 +208,29 @@ contract HoodlrzOnChain is ERC721, ERC2981, Ownable {
        OWNER FUNCTIONS
     ════════════════════════════════════════════════════════════ */
 
+    /**
+     * @notice Reserve mint for airdrops/promo — owner only, no payment required.
+     * @param to Recipient address
+     * @param quantity Number of NFTs to mint (no per-tx limit for owner)
+     */
+    function reserveMint(address to, uint256 quantity) external onlyOwner {
+        require(totalSupply + quantity <= MAX_SUPPLY, "Exceeds max supply");
+        require(to != address(0), "Invalid address");
+
+        for (uint256 i = 0; i < quantity; i++) {
+            uint256 tokenId = totalSupply + 1;
+            totalSupply = tokenId;
+
+            tokenSeed[tokenId] = uint256(
+                keccak256(
+                    abi.encodePacked(tokenId, block.prevrandao, to, block.timestamp)
+                )
+            );
+
+            _safeMint(to, tokenId);
+        }
+    }
+
     function setMintPrice(uint256 _price) external onlyOwner {
         mintPrice = _price;
         emit MintPriceUpdated(_price);
