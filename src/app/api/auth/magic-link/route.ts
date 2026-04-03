@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email } = body as { email?: string };
+    const { email, pseudonym } = body as { email?: string; pseudonym?: string };
 
     if (!email || typeof email !== "string") {
       return NextResponse.json(
@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
       email,
       options: {
         emailRedirectTo: `${new URL(request.url).origin}/api/auth/callback`,
+        data: pseudonym ? { pseudonym } : undefined,
       },
     });
 

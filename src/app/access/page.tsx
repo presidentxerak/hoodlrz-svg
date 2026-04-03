@@ -3,16 +3,49 @@
 import { useState, type FormEvent } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { useRouter } from "next/navigation";
 
-type AuthTab = "email" | "wallet";
+type AuthTab = "wallet" | "email";
+type EmailMode = "signin" | "signup";
+
+// EVM wallet detection
+function getAvailableWallets(): { name: string; icon: string; provider: unknown }[] {
+  if (typeof window === "undefined") return [];
+
+  const wallets: { name: string; icon: string; provider: unknown }[] = [];
+  const eth = (window as Record<string, unknown>).ethereum as Record<string, unknown> | undefined;
+
+  if (!eth) return wallets;
+
+  // Rabby injects isRabby
+  if (eth.isRabby) {
+    wallets.push({ name: "Rabby", icon: "🦊", provider: eth });
+  }
+  // MetaMask
+  else if (eth.isMetaMask) {
+    wallets.push({ name: "MetaMask", icon: "🦊", provider: eth });
+  }
+
+  // Phantom EVM
+  const phantom = (window as Record<string, unknown>).phantom as Record<string, unknown> | undefined;
+  if (phantom?.ethereum) {
+    wallets.push({ name: "Phantom", icon: "👻", provider: phantom.ethereum });
+  }
+
+  // If we found nothing specific but ethereum exists, show generic
+  if (wallets.length === 0 && eth) {
+    wallets.push({ name: "Browser Wallet", icon: "💎", provider: eth });
+  }
+
+  return wallets;
+}
 
 export default function AccessPage() {
-  const router = useRouter();
   const [tab, setTab] = useState<AuthTab>("wallet");
+  const [emailMode, setEmailMode] = useState<EmailMode>("signin");
 
   // Email state
   const [email, setEmail] = useState("");
+  const [pseudo, setPseudo] = useState("");
   const [error, setError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,12 +63,20 @@ export default function AccessPage() {
       return;
     }
 
+    if (emailMode === "signup" && (!pseudo || pseudo.trim().length < 2)) {
+      setError("Choose a pseudo (at least 2 characters).");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch("/api/auth/magic-link", {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({
+          email,
+          ...(emailMode === "signup" ? { pseudonym: pseudo.trim() } : {}),
+        }),
         headers: { "Content-Type": "application/json" },
       });
 
@@ -54,22 +95,15 @@ export default function AccessPage() {
     }
   }
 
-  async function handleWalletConnect() {
+  async function connectWallet(provider: unknown) {
     setWalletError("");
     setWalletLoading(true);
 
     try {
-      const eth = (window as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<string[]> } }).ethereum;
-
-      if (!eth) {
-        // Try deep link on mobile
-        window.location.href = `https://metamask.app.link/dapp/${window.location.host}/access`;
-        setWalletLoading(false);
-        return;
-      }
+      const eth = provider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
 
       // Request account
-      const accounts = await eth.request({ method: "eth_requestAccounts" });
+      const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
       if (!accounts || accounts.length === 0) {
         setWalletError("No account selected.");
         setWalletLoading(false);
@@ -100,7 +134,7 @@ export default function AccessPage() {
       // Verify signature on server
       const verifyRes = await fetch("/api/auth/wallet/verify", {
         method: "POST",
-        body: JSON.stringify({ address, signature: (signature as unknown as string), nonce }),
+        body: JSON.stringify({ address, signature, nonce }),
         headers: { "Content-Type": "application/json" },
       });
 
@@ -111,10 +145,9 @@ export default function AccessPage() {
         return;
       }
 
-      // Success — redirect
+      // Success — full page reload to pick up session cookies
       setWalletLoading(false);
-      router.push("/my-collection");
-      router.refresh();
+      window.location.href = "/my-collection";
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Wallet connection failed.";
       if (msg.includes("user rejected") || msg.includes("User denied")) {
@@ -125,6 +158,8 @@ export default function AccessPage() {
       setWalletLoading(false);
     }
   }
+
+  const wallets = getAvailableWallets();
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4">
@@ -179,33 +214,70 @@ export default function AccessPage() {
           </button>
         </div>
 
-        {/* Wallet Tab */}
+        {/* ═══ Wallet Tab ═══ */}
         {tab === "wallet" && (
-          <div className="w-full flex flex-col items-center gap-5 animate-fade-in">
+          <div className="w-full flex flex-col items-center gap-4 animate-fade-in">
             <p className="text-xs text-center text-muted leading-relaxed">
-              Sign a message with MetaMask to prove ownership of your wallet.
+              Sign a message to prove ownership of your wallet.
               No gas fees, no transaction — just a signature.
             </p>
 
-            <button
-              onClick={handleWalletConnect}
-              disabled={walletLoading}
-              className={[
-                "w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm",
-                "font-bold uppercase tracking-widest text-white",
-                "bg-[#627eea] hover:bg-[#4c6ce0] active:scale-[0.98]",
-                "transition-all duration-150",
-                walletLoading ? "opacity-60 pointer-events-none" : "",
-              ].join(" ")}
-            >
-              <svg width="18" height="18" viewBox="0 0 784 784" fill="none">
-                <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="white" fillOpacity="0.8"/>
-                <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="white"/>
-                <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="white" fillOpacity="0.8"/>
-                <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="white"/>
-              </svg>
-              {walletLoading ? "Connecting..." : "Connect with MetaMask"}
-            </button>
+            {wallets.length > 0 ? (
+              <div className="w-full flex flex-col gap-2">
+                {wallets.map((w) => (
+                  <button
+                    key={w.name}
+                    onClick={() => connectWallet(w.provider)}
+                    disabled={walletLoading}
+                    className={[
+                      "w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm",
+                      "font-bold uppercase tracking-widest text-white",
+                      "bg-[#627eea] hover:bg-[#4c6ce0] active:scale-[0.98]",
+                      "transition-all duration-150",
+                      walletLoading ? "opacity-60 pointer-events-none" : "",
+                    ].join(" ")}
+                  >
+                    <span className="text-base">{w.icon}</span>
+                    {walletLoading ? "Connecting..." : `Connect ${w.name}`}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="w-full flex flex-col gap-3">
+                {/* No wallet detected — show install links */}
+                <p className="text-xs text-center text-muted">
+                  No wallet detected. Install one to continue:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { name: "MetaMask", url: "https://metamask.io/download/" },
+                    { name: "Phantom", url: "https://phantom.app/download" },
+                    { name: "Rainbow", url: "https://rainbow.me/download" },
+                    { name: "Rabby", url: "https://rabby.io/" },
+                  ].map((w) => (
+                    <a
+                      key={w.name}
+                      href={w.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold uppercase tracking-widest border border-[var(--border)] text-muted hover:text-foreground hover:border-[#627eea] transition-colors"
+                    >
+                      {w.name}
+                    </a>
+                  ))}
+                </div>
+
+                {/* Mobile deep link */}
+                <button
+                  onClick={() => {
+                    window.location.href = `https://metamask.app.link/dapp/${window.location.host}/access`;
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest border border-[#627eea] text-[#627eea] hover:bg-[#627eea]/10 transition-colors"
+                >
+                  Open in MetaMask (Mobile)
+                </button>
+              </div>
+            )}
 
             {walletError && (
               <p className="text-xs text-red-500 text-center">{walletError}</p>
@@ -213,34 +285,72 @@ export default function AccessPage() {
           </div>
         )}
 
-        {/* Email Tab */}
+        {/* ═══ Email Tab ═══ */}
         {tab === "email" && !submitted && (
-          <form
-            onSubmit={handleEmailSubmit}
-            className="flex w-full flex-col gap-5 animate-fade-in"
-          >
-            <Input
-              label="Email"
-              name="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              error={error}
-            />
+          <div className="w-full flex flex-col gap-5 animate-fade-in">
+            {/* Sign In / Sign Up toggle */}
+            <div className="flex border border-[var(--border)]">
+              <button
+                onClick={() => { setEmailMode("signin"); setError(""); }}
+                className={[
+                  "flex-1 py-2 text-xs font-bold uppercase tracking-widest transition-colors",
+                  emailMode === "signin"
+                    ? "bg-accent-red/10 text-accent-red"
+                    : "text-muted hover:text-foreground",
+                ].join(" ")}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => { setEmailMode("signup"); setError(""); }}
+                className={[
+                  "flex-1 py-2 text-xs font-bold uppercase tracking-widest transition-colors",
+                  emailMode === "signup"
+                    ? "bg-accent-red/10 text-accent-red"
+                    : "text-muted hover:text-foreground",
+                ].join(" ")}
+              >
+                Sign Up
+              </button>
+            </div>
 
-            <Button
-              variant="primary"
-              size="lg"
-              disabled={loading}
-            >
-              {loading ? "Sending..." : "Get Magic Link"}
-            </Button>
+            <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
+              {emailMode === "signup" && (
+                <Input
+                  label="Pseudo"
+                  name="pseudo"
+                  type="text"
+                  placeholder="Your collector name"
+                  value={pseudo}
+                  onChange={(e) => setPseudo(e.target.value)}
+                />
+              )}
+
+              <Input
+                label="Email"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                error={error}
+              />
+
+              <Button variant="primary" size="lg" disabled={loading}>
+                {loading
+                  ? "Sending..."
+                  : emailMode === "signup"
+                    ? "Create Account"
+                    : "Send Magic Link"}
+              </Button>
+            </form>
 
             <p className="text-[10px] text-center text-muted">
-              No passwords. We&apos;ll send a magic link to your inbox.
+              {emailMode === "signup"
+                ? "We'll send a magic link to confirm your email. No password needed."
+                : "We'll send a magic link to your inbox. No password needed."}
             </p>
-          </form>
+          </div>
         )}
 
         {/* Email success state */}

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
@@ -15,32 +14,46 @@ const navLinks = [
 ];
 
 export default function Header() {
-  const router = useRouter();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [authLabel, setAuthLabel] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
+
+    function handleUser(user: { email?: string | null } | null) {
+      if (user) {
         setIsLoggedIn(true);
-        const email = data.user.email || "";
+        const email = user.email || "";
         if (email.endsWith("@wallet.hoodlrz.com")) {
-          // Wallet user — show short address
           const addr = email.replace("@wallet.hoodlrz.com", "");
           setAuthLabel(`${addr.slice(0, 6)}...${addr.slice(-4)}`);
         } else if (email) {
           setAuthLabel(email);
         }
+      } else {
+        setIsLoggedIn(false);
+        setAuthLabel("");
       }
+    }
+
+    // Check current session
+    supabase.auth.getSession().then(({ data }) => {
+      handleUser(data.session?.user ?? null);
     });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      handleUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
     setIsLoggedIn(false);
-    router.push("/");
-    router.refresh();
+    setAuthLabel("");
+    window.location.href = "/";
   };
 
   return (
