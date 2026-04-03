@@ -67,6 +67,14 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
 
     const provider = await getProvider();
     if (!provider) {
+      // On mobile without MetaMask browser — deep link to MetaMask app
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (isMobile) {
+        const dappUrl = window.location.href.replace(/^https?:\/\//, "");
+        window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
+        setState("idle");
+        return;
+      }
       setError("No Ethereum wallet detected. Install MetaMask.");
       setState("error");
       return;
