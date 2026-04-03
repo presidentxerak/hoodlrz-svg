@@ -384,6 +384,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      wallet_nonces: {
+        Row: {
+          nonce: string;
+          address: string;
+          expires_at: string;
+          used_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          nonce: string;
+          address: string;
+          expires_at: string;
+          used_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          nonce?: string;
+          address?: string;
+          expires_at?: string;
+          used_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -425,3 +449,4 @@ export type SellerBalance = Tables<"seller_balances">;
 export type GenesisAccess = Tables<"genesis_access">;
 export type AccessLink = Tables<"access_links">;
 export type StripeEvent = Tables<"stripe_events">;
+export type WalletNonce = Tables<"wallet_nonces">;
