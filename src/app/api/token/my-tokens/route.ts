@@ -16,7 +16,7 @@ export async function GET() {
   // Get account
   const { data: account } = await admin
     .from("accounts")
-    .select("id, pseudonym, rewards_balance")
+    .select("id, pseudonym, rewards_balance, email")
     .eq("auth_id", user.id)
     .single();
 
@@ -55,6 +55,7 @@ export async function GET() {
       id: account.id,
       pseudonym: account.pseudonym,
       rewardsBalance: account.rewards_balance,
+      email: account.email,
     },
   });
 }

@@ -12,6 +12,7 @@ interface AccountInfo {
   id: string;
   pseudonym: string;
   rewardsBalance: number;
+  email: string;
 }
 
 interface EthNft {
@@ -25,7 +26,7 @@ export default function MyCollectionPage() {
   const [ethNfts, setEthNfts] = useState<EthNft[]>([]);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [ethLoading, setEthLoading] = useState(!!HOODLRZ_NFT_ADDRESS);
+  const [ethLoading, setEthLoading] = useState(false);
   const [ethAddress, setEthAddress] = useState<string>("");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -63,12 +64,29 @@ export default function MyCollectionPage() {
     if (isRefresh) setRefreshing(true);
 
     try {
+      // Security: only show on-chain NFTs for wallet-authenticated accounts
+      // Wallet accounts have email like "0xabc...@wallet.hoodlrz.com"
+      if (!account?.email?.endsWith("@wallet.hoodlrz.com")) {
+        setEthLoading(false);
+        return;
+      }
+
+      const walletAddr = account.email.replace("@wallet.hoodlrz.com", "");
+      if (!isRefresh) setEthLoading(true);
+
       const eth = (window as { ethereum?: { request: (args: { method: string }) => Promise<string[]> } }).ethereum;
       if (!eth) return;
 
       const accounts: string[] = await eth.request({ method: "eth_accounts" });
       if (!accounts || accounts.length === 0) return;
       const addr = accounts[0];
+
+      // Security: verify browser wallet matches the authenticated wallet account
+      if (addr.toLowerCase() !== walletAddr.toLowerCase()) {
+        setEthLoading(false);
+        return;
+      }
+
       setEthAddress(addr);
 
       const { BrowserProvider, Contract } = await import("ethers");
@@ -120,13 +138,13 @@ export default function MyCollectionPage() {
       setEthLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [account]);
 
   useEffect(() => {
-    if (!HOODLRZ_NFT_ADDRESS) return;
+    if (!HOODLRZ_NFT_ADDRESS || !account) return;
     const timer = setTimeout(() => fetchEthNfts(false), 300);
     return () => clearTimeout(timer);
-  }, [fetchEthNfts]);
+  }, [fetchEthNfts, account]);
 
   /* Loading / redirect */
   if (authed === null || loading || ethLoading) {
@@ -183,22 +201,35 @@ export default function MyCollectionPage() {
             </p>
           </div>
 
-          {/* ETH Address */}
+          {/* ETH Address or Email */}
           <div className="space-y-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Ethereum Address
-            </span>
-            {ethAddress ? (
-              <a
-                href={`${CURRENT_CHAIN.explorerUrl}/address/${ethAddress}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-[#627eea] hover:underline font-mono block truncate"
-              >
-                {ethAddress}
-              </a>
+            {account?.email?.endsWith("@wallet.hoodlrz.com") ? (
+              <>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                  Ethereum Address
+                </span>
+                {ethAddress ? (
+                  <a
+                    href={`${CURRENT_CHAIN.explorerUrl}/address/${ethAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-[#627eea] hover:underline font-mono block truncate"
+                  >
+                    {ethAddress}
+                  </a>
+                ) : (
+                  <p className="text-sm text-muted">Connect your wallet to view</p>
+                )}
+              </>
             ) : (
-              <p className="text-sm text-muted">Not connected</p>
+              <>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                  Email
+                </span>
+                <p className="text-sm text-foreground">
+                  {account?.email || "—"}
+                </p>
+              </>
             )}
           </div>
         </div>
