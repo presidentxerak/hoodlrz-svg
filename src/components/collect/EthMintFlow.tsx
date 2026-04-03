@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import PFPViewer from "@/components/ui/PFPViewer";
 import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN } from "@/lib/web3/config";
 import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
 
@@ -11,6 +12,7 @@ type FlowState = "idle" | "connecting" | "ready" | "quantity" | "minting" | "suc
 
 interface MintedNft {
   tokenId: number;
+  seed?: string;
   image?: string;
 }
 
@@ -146,21 +148,19 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
       setTotalSupply((s) => s + quantity);
       setActiveNftIndex(0);
 
-      // Show success immediately with placeholders
-      const nfts: MintedNft[] = ids.map((id) => ({ tokenId: id }));
-      setMintedNfts(nfts);
-      setState("success");
-
-      // Fetch images progressively
-      for (let i = 0; i < ids.length; i++) {
+      // Fetch seeds (fast, single read per token) then show success
+      const nfts: MintedNft[] = [];
+      for (const id of ids) {
         try {
-          const uri: string = await contract.tokenURI(ids[i]);
-          const jsonStr = atob(uri.split(",")[1]);
-          const meta = JSON.parse(jsonStr);
-          nfts[i] = { ...nfts[i], image: meta.image };
-          setMintedNfts([...nfts]);
-        } catch { /* skip */ }
+          const seed: bigint = await contract.tokenSeed(id);
+          nfts.push({ tokenId: id, seed: seed.toString() });
+        } catch {
+          nfts.push({ tokenId: id });
+        }
       }
+      setMintedNfts(nfts);
+      setActiveNftIndex(0);
+      setState("success");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Mint failed";
       if (msg.includes("user rejected") || msg.includes("ACTION_REJECTED")) {
@@ -400,12 +400,11 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
           {mintedNfts.length > 0 && (
             <div className="w-full">
               <div className="relative aspect-square w-full max-w-[280px] mx-auto overflow-hidden border-2 border-[#627eea]/40 animate-[fadeScale_0.6s_ease-out]">
-                {mintedNfts[activeNftIndex]?.image ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={mintedNfts[activeNftIndex].image}
-                    alt={`Hoodlrz #${mintedNfts[activeNftIndex].tokenId}`}
-                    className="w-full h-full object-cover"
+                {mintedNfts[activeNftIndex]?.seed ? (
+                  <PFPViewer
+                    seed={mintedNfts[activeNftIndex].seed!}
+                    size={280}
+                    className="w-full h-full"
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--surface)]">
