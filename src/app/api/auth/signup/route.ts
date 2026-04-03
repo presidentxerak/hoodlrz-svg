@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,68 +34,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user with random password (no magic link needed)
-    const password = crypto.randomBytes(32).toString("hex");
+    // Send magic link to confirm email — account will be created on confirmation
+    const supabase = createClient();
 
-    const { data: newUser, error: createError } = await admin.auth.admin.createUser({
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      password,
-      email_confirm: true,
-      user_metadata: { pseudonym: trimmedPseudo, auth_method: "email" },
-    });
-
-    if (createError || !newUser?.user) {
-      console.error("[auth/signup] Create user error:", createError);
-      // Handle "user already registered" from Supabase auth
-      if (createError?.message?.includes("already")) {
-        return NextResponse.json(
-          { error: "An account with this email already exists. Please sign in instead." },
-          { status: 409 }
-        );
-      }
-      return NextResponse.json({ error: "Failed to create account." }, { status: 500 });
-    }
-
-    // Create account record
-    await admin.from("accounts").upsert(
-      {
-        auth_id: newUser.user.id,
-        email: email.toLowerCase(),
-        pseudonym: trimmedPseudo,
-      },
-      { onConflict: "auth_id" }
-    );
-
-    // Create session immediately
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const cookieStore = cookies();
-
-    const supabase = createServerClient(supabaseUrl, supabaseKey, {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // May fail in certain contexts
-          }
-        },
+      options: {
+        emailRedirectTo: `${new URL(request.url).origin}/api/auth/callback?redirect=/my-collection`,
+        data: { pseudonym: trimmedPseudo, auth_method: "email" },
       },
     });
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      console.error("[auth/signup] Sign in error:", signInError.message);
-      return NextResponse.json({ error: "Account created but sign-in failed. Please sign in." }, { status: 500 });
+    if (error) {
+      console.error("[auth/signup] OTP error:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ success: true });

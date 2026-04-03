@@ -96,11 +96,11 @@ export default function AccessPage() {
     setLoading(true);
 
     try {
-      if (emailMode === "signup") {
-        // Sign up: create account and sign in immediately (no magic link)
-        const res = await fetch("/api/auth/signup", {
+      if (emailMode === "signin") {
+        // Sign in: existing user — connect directly and go to My Collection
+        const res = await fetch("/api/auth/signin", {
           method: "POST",
-          body: JSON.stringify({ email, pseudonym: pseudo.trim() }),
+          body: JSON.stringify({ email }),
           headers: { "Content-Type": "application/json" },
         });
 
@@ -111,14 +111,13 @@ export default function AccessPage() {
           return;
         }
 
-        // Account created + signed in — redirect to profile
         setLoading(false);
         window.location.href = "/my-collection";
       } else {
-        // Sign in: send magic link
-        const res = await fetch("/api/auth/magic-link", {
+        // Sign up: send magic link to confirm email
+        const res = await fetch("/api/auth/signup", {
           method: "POST",
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, pseudonym: pseudo.trim() }),
           headers: { "Content-Type": "application/json" },
         });
 
@@ -381,17 +380,17 @@ export default function AccessPage() {
 
               <Button variant="primary" size="lg" disabled={loading}>
                 {loading
-                  ? emailMode === "signup" ? "Creating..." : "Sending..."
-                  : emailMode === "signup"
-                    ? "Create Account"
+                  ? emailMode === "signin" ? "Connecting..." : "Sending..."
+                  : emailMode === "signin"
+                    ? "My Collection"
                     : "Send Magic Link"}
               </Button>
             </form>
 
             <p className="text-[10px] text-center text-muted">
-              {emailMode === "signup"
-                ? "Your account will be created instantly. No password needed."
-                : "We'll send a magic link to your inbox. No password needed."}
+              {emailMode === "signin"
+                ? "Access your collection directly. No password needed."
+                : "We'll send a confirmation link to your inbox to verify your email."}
             </p>
           </div>
         )}
