@@ -37,17 +37,34 @@ function Segment({ value, label }: { value: number; label: string }) {
 }
 
 export default function CountdownTimer({ targetDate }: CountdownTimerProps) {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() =>
-    calcTimeLeft(new Date(targetDate))
-  );
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>({
+    days: 0, hours: 0, minutes: 0, seconds: 0,
+  });
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const target = new Date(targetDate);
+    setTimeLeft(calcTimeLeft(target));
     const id = setInterval(() => {
       setTimeLeft(calcTimeLeft(target));
     }, 1000);
     return () => clearInterval(id);
   }, [targetDate]);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center gap-3 sm:gap-4">
+        <Segment value={0} label="Days" />
+        <span className="text-muted text-lg font-light">:</span>
+        <Segment value={0} label="Hrs" />
+        <span className="text-muted text-lg font-light">:</span>
+        <Segment value={0} label="Min" />
+        <span className="text-muted text-lg font-light">:</span>
+        <Segment value={0} label="Sec" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-3 sm:gap-4">
