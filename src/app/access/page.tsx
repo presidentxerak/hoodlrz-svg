@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { createClient } from "@/lib/supabase/client";
 
 type AuthTab = "wallet" | "email";
 type EmailMode = "signin" | "signup";
@@ -67,6 +68,16 @@ function getAvailableWallets(): { name: string; icon: string; provider: unknown 
 export default function AccessPage() {
   const [tab, setTab] = useState<AuthTab>("wallet");
   const [emailMode, setEmailMode] = useState<EmailMode>("signin");
+
+  // If already logged in, redirect to My Collection
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.user) {
+        window.location.href = "/my-collection";
+      }
+    });
+  }, []);
 
   // Email state
   const [email, setEmail] = useState("");
