@@ -43,13 +43,13 @@ export default function HomePage() {
             HOODLRZ
           </h1>
           <p className="max-w-md text-center text-sm leading-relaxed text-white/70 sm:text-base">
-            Own the identity. Collect the culture.
+            Own the identity. Collect the culture. On-chain forever.
           </p>
 
           {/* Collection info */}
           <div className="flex flex-col items-center gap-2 mt-2">
             <p className="text-white/90 font-hoodlrz text-lg tracking-wider sm:text-xl">
-              Hoodlrz Collection — 10,000 Pieces
+              10,000 On-Chain NFTs on Ethereum
             </p>
             <p className="text-white/90 font-hoodlrz text-lg tracking-wider sm:text-xl">
               25 Genesis Vinyls Collection
@@ -110,69 +110,21 @@ export default function HomePage() {
             How It Works
           </h2>
           <p className="mt-3 mx-auto max-w-lg text-center text-sm leading-relaxed text-muted">
-            Three collections. Two experiences. One universe.
+            Two collections. Full on-chain ownership. One universe.
           </p>
 
-          <div className="mt-14 grid gap-10 sm:grid-cols-3">
-            {/* Hoodlrz Card */}
-            <div className="flex flex-col gap-6 border border-[var(--border)] bg-[var(--background)] p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <h3 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-                  Hoodlrz
-                </h3>
-                <span className="text-[10px] uppercase tracking-widest text-muted border border-[var(--border)] px-2 py-0.5">
-                  10,000 pieces
-                </span>
-              </div>
-
-              {/* Preview PFPs */}
-              <div className="grid grid-cols-4 gap-2">
-                {FEATURED.map(({ seed }) => (
-                  <PFPViewer key={seed} seed={seed} className="aspect-square w-full" example />
-                ))}
-              </div>
-
-              <p className="text-sm leading-relaxed text-muted">
-                10,000 unique digital identities generated from 7 hand-drawn layers.
-                Each Hoodlrz is a one-of-a-kind SVG composition — your hood, your background,
-                your accessories — all randomly assembled at the moment of collection.
-              </p>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-accent-red/10 text-accent-red text-xs font-bold">1</span>
-                  <span className="text-muted"><strong className="text-foreground">Connect</strong> — Sign in with your email via magic link</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-accent-red/10 text-accent-red text-xs font-bold">2</span>
-                  <span className="text-muted"><strong className="text-foreground">Choose quantity</strong> — Pick how many you want (1-10 per transaction)</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-accent-red/10 text-accent-red text-xs font-bold">3</span>
-                  <span className="text-muted"><strong className="text-foreground">Pay</strong> — Secure checkout via Stripe. No crypto, no gas fees</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-accent-red/10 text-accent-red text-xs font-bold">4</span>
-                  <span className="text-muted"><strong className="text-foreground">Reveal</strong> — Your unique identity is generated instantly</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
-                <span className="font-hoodlrz text-xl font-bold text-foreground">$9.99</span>
-                <Link
-                  href="/collection/hoodlrz"
-                  className="text-xs font-bold uppercase tracking-widest text-accent-red hover:underline"
-                >
-                  View Collection &rarr;
-                </Link>
-              </div>
-            </div>
-
+          <div className="mt-14 grid gap-10 sm:grid-cols-2">
             {/* Hoodlrz Ethereum Card */}
             <div className="flex flex-col gap-6 border border-[var(--border)] bg-[var(--background)] p-6 sm:p-8">
               <div className="flex items-center gap-3">
+                <svg width="20" height="20" viewBox="0 0 784 784" fill="none">
+                  <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="#627eea" fillOpacity="0.8"/>
+                  <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="#627eea"/>
+                  <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="#627eea" fillOpacity="0.8"/>
+                  <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
+                </svg>
                 <h3 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-                  Hoodlrz ETH
+                  Hoodlrz
                 </h3>
                 <span className="text-[10px] uppercase tracking-widest bg-[#627eea]/10 text-[#627eea] border border-[#627eea]/30 px-2 py-0.5">
                   On-Chain
@@ -187,9 +139,10 @@ export default function HomePage() {
               </div>
 
               <p className="text-sm leading-relaxed text-muted">
-                The same 10,000 unique identities, the same 7 hand-drawn layers — but
-                minted as <strong className="text-foreground">full on-chain ERC-721 NFTs</strong> on
-                Ethereum. Every layer is stored directly on the blockchain. Your Hoodlrz lives on-chain forever.
+                10,000 unique digital identities minted as{" "}
+                <strong className="text-foreground">full on-chain ERC-721 NFTs</strong> on
+                Ethereum. Every SVG layer is stored directly on the blockchain using SSTORE2.
+                Your Hoodlrz lives on-chain forever.
               </p>
 
               <div className="space-y-3 text-sm">
@@ -203,7 +156,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">3</span>
-                  <span className="text-muted"><strong className="text-foreground">Mint</strong> — Confirm the transaction. Pay in ETH + gas</span>
+                  <span className="text-muted"><strong className="text-foreground">Collect</strong> — Confirm the transaction. Pay in ETH + gas</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">4</span>
@@ -212,7 +165,7 @@ export default function HomePage() {
               </div>
 
               <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
-                <span className="font-hoodlrz text-xl font-bold text-foreground">0.007 ETH</span>
+                <span className="font-hoodlrz text-xl font-bold text-[#627eea]">0.007 ETH</span>
                 <Link
                   href="/collection/hoodlrz"
                   className="text-xs font-bold uppercase tracking-widest text-[#627eea] hover:underline"
@@ -261,7 +214,7 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">2</span>
-                  <span className="text-muted"><strong className="text-foreground">Collect</strong> — Sign in and pay securely via Stripe</span>
+                  <span className="text-muted"><strong className="text-foreground">Collect</strong> — Sign in and reserve your vinyl</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">3</span>

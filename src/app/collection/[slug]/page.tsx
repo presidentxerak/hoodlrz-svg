@@ -8,7 +8,6 @@ import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import Countdown from "@/components/ui/Countdown";
 import PFPViewer from "@/components/ui/PFPViewer";
-import CollectFlow from "@/components/collect/CollectFlow";
 import EthMintFlow from "@/components/collect/EthMintFlow";
 import { GENESIS_VINYLS, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
 
@@ -21,7 +20,7 @@ const COLLECTIONS_MAP: Record<
     description: string;
     supply: number;
     minted: number;
-    priceCents: number;
+    priceEth: string;
     isGenesis: boolean;
     dropStatus: string;
     dropDate: string;
@@ -32,10 +31,10 @@ const COLLECTIONS_MAP: Record<
     name: "Hoodlrz",
     slug: "hoodlrz",
     description:
-      "The flagship collection. 10,000 unique hooded identities generated as layered SVGs. Each one composed of 7 hand-drawn layers. Own the identity. Collect the culture.",
+      "The flagship collection. 10,000 unique hooded identities generated as layered SVGs, stored fully on-chain on Ethereum. Each one composed of 7 hand-drawn layers. Own the identity. Collect the culture.",
     supply: 10_000,
     minted: 0,
-    priceCents: 999,
+    priceEth: "0.007 ETH",
     isGenesis: false,
     dropStatus: "public" as const,
     dropDate: "2026-05-15T18:00:00Z",
@@ -48,7 +47,7 @@ const COLLECTIONS_MAP: Record<
       "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece is a unique vinyl cover drawn by hand. Reserved for top collectors.",
     supply: 25,
     minted: 0,
-    priceCents: 0,
+    priceEth: "",
     isGenesis: true,
     dropStatus: "public" as const,
     dropDate: "2026-05-10T18:00:00Z",
@@ -70,7 +69,6 @@ const GALLERY_SEEDS = [
 type DropStatus = "pre-whitelist" | "whitelist-live" | "live";
 
 function getDropStatus(whitelistDate: string, dropDate: string, dbStatus?: string): DropStatus {
-  // If the DB says public, the drop is live regardless of dates
   if (dbStatus === "public") return "live";
 
   const now = Date.now();
@@ -125,6 +123,11 @@ export default function CollectionDetailPage() {
             {collection.name}
           </h1>
           {isGenesis && <Badge variant="legendary">Genesis</Badge>}
+          {!isGenesis && (
+            <span className="text-[10px] uppercase tracking-widest bg-[#627eea]/10 text-[#627eea] border border-[#627eea]/30 px-2 py-0.5">
+              On-Chain
+            </span>
+          )}
         </div>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
           {collection.description}
@@ -148,7 +151,7 @@ export default function CollectionDetailPage() {
               label="Available"
               value={(collection.supply - collection.minted).toLocaleString()}
             />
-            <Stat label="Price" value={`$${(collection.priceCents / 100).toFixed(2)}`} />
+            <Stat label="Price" value={collection.priceEth} />
           </>
         )}
       </div>
@@ -174,17 +177,9 @@ export default function CollectionDetailPage() {
             </>
           )}
           {dropStatus === "live" && !isGenesis && (
-            <>
-              <Suspense fallback={null}>
-                <CollectFlow
-                  collectionSlug={slug}
-                  price={`$${(collection.priceCents / 100).toFixed(2)}`}
-                />
-              </Suspense>
-              <Suspense fallback={null}>
-                <EthMintFlow disabled={dropStatus !== "live"} />
-              </Suspense>
-            </>
+            <Suspense fallback={null}>
+              <EthMintFlow disabled={dropStatus !== "live"} />
+            </Suspense>
           )}
           {dropStatus === "live" && isGenesis && (
             <p className="text-sm text-muted">
@@ -210,86 +205,41 @@ export default function CollectionDetailPage() {
             How It Works
           </h2>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* Protocol option */}
-            <Card className="flex flex-col gap-3 border-l-2 border-l-accent-red">
-              <p className="text-sm font-bold text-foreground">Hoodlrz Protocol — $9.99</p>
-              <p className="text-sm leading-relaxed text-muted">
-                Collect via our platform. No wallet needed, no gas fees.
-                Pay with credit card through Stripe. Instant ownership and PFP download.
-              </p>
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
-                <span className="bg-accent-red/10 text-accent-red px-2 py-0.5">No Gas</span>
-                <span className="bg-accent-red/10 text-accent-red px-2 py-0.5">No Wallet</span>
-                <span className="bg-accent-red/10 text-accent-red px-2 py-0.5">Instant</span>
-              </div>
-            </Card>
-
-            {/* Ethereum option */}
-            <Card className="flex flex-col gap-3 border-l-2 border-l-[#627eea]">
-              <p className="text-sm font-bold text-foreground">Ethereum On-Chain — ETH</p>
-              <p className="text-sm leading-relaxed text-muted">
-                Mint as a full on-chain ERC-721 NFT on Ethereum. Same 7 hand-drawn layers,
-                same generation algorithm, stored forever on the blockchain.
-              </p>
-              <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
-                <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">On-Chain</span>
-                <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">ERC-721</span>
-                <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">SVG</span>
-              </div>
-            </Card>
-          </div>
-
-          {/* Pricing comparison */}
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <div className="border border-[var(--border)] p-6 flex flex-col gap-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-accent-red mb-2">
-                Protocol
-              </p>
-              {[
-                ["Price", "$9.99"],
-                ["Gas fees", "None"],
-                ["Wallet", "Not required"],
-                ["Payment", "Credit card (Stripe)"],
-                ["Ownership", "Hoodlrz Protocol"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted">{label}</span>
-                  <span className="text-sm font-bold text-foreground">{value}</span>
-                </div>
-              ))}
-            </div>
-            <div className="border border-[var(--border)] p-6 flex flex-col gap-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-[#627eea] mb-2">
-                Ethereum
-              </p>
-              {[
-                ["Price", "0.007 ETH"],
-                ["Gas fees", "Network gas"],
-                ["Wallet", "MetaMask / WalletConnect"],
-                ["Payment", "ETH"],
-                ["Ownership", "Ethereum blockchain"],
-              ].map(([label, value]) => (
-                <div key={label} className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted">{label}</span>
-                  <span className="text-sm font-bold text-foreground">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Price Activity (Hoodlrz only) ── */}
-      {!isGenesis && (
-        <section className="mt-16">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-muted mb-6">
-            Price Activity
-          </h2>
-          <div className="border border-[var(--border)] p-8 flex items-center justify-center">
-            <p className="text-sm text-muted text-center">
-              Price history and market activity will be available after the drop.
+          <Card className="flex flex-col gap-3 border-l-2 border-l-[#627eea]">
+            <p className="text-sm font-bold text-foreground">Full On-Chain ERC-721 NFT on Ethereum</p>
+            <p className="text-sm leading-relaxed text-muted">
+              Each Hoodlrz is a unique SVG artwork stored entirely on-chain. 7 hand-drawn layers
+              composed using the same deterministic algorithm on the smart contract. No IPFS, no
+              external hosting — your NFT lives on Ethereum forever.
             </p>
+            <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
+              <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">On-Chain</span>
+              <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">ERC-721</span>
+              <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">Full SVG</span>
+              <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">SSTORE2</span>
+            </div>
+          </Card>
+
+          {/* Details */}
+          <div className="mt-8 border border-[var(--border)] p-6 flex flex-col gap-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-[#627eea] mb-2">
+              Ethereum Details
+            </p>
+            {[
+              ["Price", "0.007 ETH"],
+              ["Gas fees", "Network gas (Ethereum)"],
+              ["Wallet", "MetaMask / WalletConnect"],
+              ["Payment", "ETH"],
+              ["Standard", "ERC-721"],
+              ["Storage", "Full on-chain (SSTORE2)"],
+              ["Royalties", "10% (ERC-2981)"],
+              ["Secondary", "OpenSea, Blur, any marketplace"],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between border-b border-[var(--border)] pb-2 last:border-0 last:pb-0">
+                <span className="text-xs font-bold uppercase tracking-widest text-muted">{label}</span>
+                <span className="text-sm font-bold text-foreground">{value}</span>
+              </div>
+            ))}
           </div>
         </section>
       )}

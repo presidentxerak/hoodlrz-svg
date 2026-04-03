@@ -3,21 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
-import PFPViewer from "@/components/ui/PFPViewer";
 import { createClient } from "@/lib/supabase/client";
-import { getVinylImageSrc, getVinylById } from "@/lib/genesis/vinyls";
 import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN } from "@/lib/web3/config";
 import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
-
-interface Token {
-  id: string;
-  seed: string;
-  serial_number: number;
-  collection_id: string;
-  collection_slug: string | null;
-  is_listed: boolean;
-  created_at: string;
-}
 
 interface AccountInfo {
   id: string;
@@ -33,11 +21,12 @@ interface EthNft {
 export default function MyCollectionPage() {
   const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [tokens, setTokens] = useState<Token[]>([]);
+  const [userEmail, setUserEmail] = useState<string>("");
   const [ethNfts, setEthNfts] = useState<EthNft[]>([]);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [ethLoading, setEthLoading] = useState(!!HOODLRZ_NFT_ADDRESS);
+  const [ethAddress, setEthAddress] = useState<string>("");
 
   /* ── Auth check ── */
   useEffect(() => {
@@ -47,11 +36,12 @@ export default function MyCollectionPage() {
         router.replace("/access");
       } else {
         setAuthed(true);
+        setUserEmail(data.user.email ?? "");
       }
     });
   }, [router]);
 
-  /* ── Fetch tokens ── */
+  /* ── Fetch account info ── */
   useEffect(() => {
     if (!authed) return;
 
@@ -61,11 +51,10 @@ export default function MyCollectionPage() {
         throw new Error("Failed to fetch");
       })
       .then((data) => {
-        setTokens(data.tokens || []);
         setAccount(data.account || null);
       })
       .catch(() => {
-        // silently fail, show empty state
+        // silently fail
       })
       .finally(() => setLoading(false));
   }, [authed]);
@@ -83,6 +72,7 @@ export default function MyCollectionPage() {
         const accounts: string[] = await eth.request({ method: "eth_accounts" });
         if (!accounts || accounts.length === 0) return;
         const addr = accounts[0];
+        setEthAddress(addr);
 
         const { BrowserProvider, Contract } = await import("ethers");
         const provider = new BrowserProvider(eth as import("ethers").Eip1193Provider);
@@ -154,55 +144,69 @@ export default function MyCollectionPage() {
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
       {/* ── Header ── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[48px]">
-          My Collection
-        </h1>
-        {account && (
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted">
-              {account.pseudonym}
-            </span>
-            <span className="text-xs text-muted border border-[var(--border)] px-2 py-1">
-              {account.rewardsBalance ?? 0} Hoodz
-            </span>
-          </div>
-        )}
-      </div>
+      <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[48px]">
+        My Collection
+      </h1>
 
-      {/* ── Stats ── */}
-      {(tokens.length > 0 || ethNfts.length > 0) && (
-        <div className="mt-6 flex flex-wrap gap-8">
-          <div className="flex flex-col gap-1">
+      {/* ── Profile Card ── */}
+      <div className="mt-8 border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
+          Profile
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Pseudonym */}
+          <div className="space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Protocol
+              Pseudo
             </span>
-            <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
-              {tokens.length}
-            </span>
+            <p className="text-sm font-bold text-foreground">
+              {account?.pseudonym || "—"}
+            </p>
           </div>
+
+          {/* Email */}
+          <div className="space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+              Email
+            </span>
+            <p className="text-sm text-foreground truncate">
+              {userEmail || "—"}
+            </p>
+          </div>
+
+          {/* ETH Address */}
+          <div className="space-y-1 sm:col-span-2">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+              Ethereum Address
+            </span>
+            {ethAddress ? (
+              <a
+                href={`${CURRENT_CHAIN.explorerUrl}/address/${ethAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-[#627eea] hover:underline font-mono block truncate"
+              >
+                {ethAddress}
+              </a>
+            ) : (
+              <p className="text-sm text-muted">Not connected</p>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="flex gap-8 border-t border-[var(--border)] pt-4 mt-4">
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              On-Chain (ETH)
+              On-Chain NFTs
             </span>
             <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
               {ethNfts.length}
             </span>
           </div>
-          {tokens.filter((t) => t.is_listed).length > 0 && (
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                Listed
-              </span>
-              <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
-                {tokens.filter((t) => t.is_listed).length}
-              </span>
-            </div>
-          )}
         </div>
-      )}
+      </div>
 
-      {/* ── Token Grid ── */}
       {/* ── ETH On-Chain NFTs ── */}
       {ethNfts.length > 0 && (
         <>
@@ -246,61 +250,8 @@ export default function MyCollectionPage() {
         </>
       )}
 
-      {/* ── Protocol Tokens ── */}
-      {tokens.length > 0 ? (
-        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 sm:gap-6">
-          {tokens.map((token) => {
-            const isGenesis = token.collection_slug === "genesis";
-            const vinylSrc = isGenesis ? getVinylImageSrc(token.seed) : null;
-            const vinyl = isGenesis ? getVinylById(token.seed) : null;
-
-            return (
-              <a
-                key={token.id}
-                href={isGenesis ? `/genesis/${token.seed}` : `/token/${token.id}`}
-                className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]"
-              >
-                <div className="relative">
-                  {isGenesis && vinylSrc ? (
-                    <div className="aspect-square overflow-hidden bg-[var(--surface)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={vinylSrc}
-                        alt={vinyl ? `Genesis ${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}` : "Genesis Vinyl"}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ) : (
-                    <PFPViewer
-                      seed={token.seed}
-                      size={400}
-                      className="aspect-square w-full"
-                    />
-                  )}
-                  {token.is_listed && (
-                    <span className="absolute bottom-1.5 left-1.5 bg-emerald-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
-                      Listed
-                    </span>
-                  )}
-                  {isGenesis && (
-                    <span className="absolute top-1.5 left-1.5 bg-amber-500 text-black text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
-                      Genesis
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted">
-                    {isGenesis && vinyl
-                      ? `${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}`
-                      : `#${String(token.serial_number).padStart(4, "0")}`}
-                  </span>
-                </div>
-              </a>
-            );
-          })}
-        </div>
-      ) : ethNfts.length === 0 ? (
-        /* ── Empty state ── */
+      {/* ── Empty state ── */}
+      {ethNfts.length === 0 && (
         <div className="mt-20 flex flex-col items-center gap-6 text-center">
           <div className="w-20 h-20 border border-[var(--border)] flex items-center justify-center">
             <svg
@@ -324,14 +275,14 @@ export default function MyCollectionPage() {
 
           <p className="max-w-md text-sm leading-relaxed text-muted">
             Start collecting to build your Hoodlrz identity. Each piece is
-            unique, generated from 7 hand-drawn layers.
+            unique, generated from 7 hand-drawn layers, stored on-chain forever.
           </p>
 
           <Button variant="primary" size="lg" href="/collection/hoodlrz">
             Start Collecting
           </Button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

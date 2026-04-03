@@ -19,7 +19,7 @@ export default function CollectionsPage() {
 
       {/* Grid */}
       <div className="mt-12 grid gap-8 sm:grid-cols-2">
-        {/* Hoodlrz Collection */}
+        {/* Hoodlrz On-Chain Collection */}
         <Link href="/collection/hoodlrz">
           <Card className="group flex flex-col gap-0 p-0 overflow-hidden">
             <div className="relative w-full aspect-square overflow-hidden bg-[var(--surface)]">
@@ -29,23 +29,34 @@ export default function CollectionsPage() {
                 className="aspect-square w-full"
                 example
               />
+              <div className="absolute top-3 right-3">
+                <Badge variant="success">On-Chain</Badge>
+              </div>
             </div>
             <div className="flex flex-col gap-3 p-5">
-              <h2 className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
-                Hoodlrz
-              </h2>
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 784 784" fill="none">
+                  <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="#627eea" fillOpacity="0.8"/>
+                  <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="#627eea"/>
+                  <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="#627eea" fillOpacity="0.8"/>
+                  <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
+                </svg>
+                <h2 className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
+                  Hoodlrz
+                </h2>
+              </div>
               <p className="text-sm leading-relaxed text-muted line-clamp-2">
-                The flagship collection. 10,000 unique hooded identities
-                generated as layered SVGs. Own the culture.
+                The flagship collection. 10,000 unique hooded identities stored
+                fully on-chain on Ethereum as ERC-721 NFTs.
               </p>
               <div className="mt-2 flex items-center gap-4 text-xs text-muted">
                 <span>
                   <span className="font-bold text-foreground">10,000</span> supply
                 </span>
                 <span>
-                  <span className="font-bold text-foreground">7</span> layer categories
+                  <span className="font-bold text-foreground">7</span> layers
                 </span>
-                <span className="font-bold text-foreground">$9.99</span>
+                <span className="font-bold text-[#627eea]">0.007 ETH</span>
               </div>
             </div>
           </Card>
