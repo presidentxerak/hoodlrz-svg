@@ -1,7 +1,7 @@
 export const SITE_NAME = "Hoodlrz";
 
 export const SITE_DESCRIPTION =
-  "Collect, trade, and own unique SVG-based digital collectibles powered by Stripe.";
+  "Collect, trade, and own unique on-chain SVG NFTs on Ethereum.";
 
 export const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.hoodlrz.com";
@@ -17,9 +17,10 @@ export const SOCIAL_LINKS = {
 } as const;
 
 export const NAV_LINKS = [
-  { label: "Explore", href: "/explore" },
-  { label: "Drops", href: "/drops" },
-  { label: "Rewards", href: "/rewards" },
+  { label: "Collections", href: "/collections" },
+  { label: "Gallery", href: "/gallery" },
+  { label: "About", href: "/about" },
+  { label: "My Collection", href: "/my-collection" },
 ] as const;
 
 export const GENESIS_COLLECTION_SLUG = "genesis";

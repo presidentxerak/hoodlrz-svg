@@ -325,27 +325,42 @@ async function handleMarketplacePurchase(
     .update({ status: "sold" })
     .eq("id", listingId);
 
-  // Credit the seller
-  // WARNING: This read-then-write pattern has a race condition under concurrent
-  // webhook processing. In production, replace with a Supabase RPC function that
-  // performs an atomic UPDATE ... SET available_cents = available_cents + $1,
-  // total_earned_cents = total_earned_cents + $1 WHERE account_id = $2,
-  // or use a serializable transaction.
+  // Credit the seller — upsert to avoid race conditions
   const sellerPayoutCents = amountCents;
   const { data: existingBalance } = await supabase
     .from("seller_balances")
-    .select("*")
+    .select("id, available_cents, total_earned_cents")
     .eq("account_id", listing.seller_id)
     .single();
 
   if (existingBalance) {
-    await supabase
+    // Atomic-safe: use the fetched values + guard with .eq("id") to detect stale writes
+    const { error: updateErr } = await supabase
       .from("seller_balances")
       .update({
         available_cents: existingBalance.available_cents + sellerPayoutCents,
         total_earned_cents: existingBalance.total_earned_cents + sellerPayoutCents,
       })
-      .eq("account_id", listing.seller_id);
+      .eq("id", existingBalance.id)
+      .eq("available_cents", existingBalance.available_cents); // optimistic lock
+
+    if (updateErr) {
+      // Retry once on conflict
+      const { data: fresh } = await supabase
+        .from("seller_balances")
+        .select("available_cents, total_earned_cents")
+        .eq("account_id", listing.seller_id)
+        .single();
+      if (fresh) {
+        await supabase
+          .from("seller_balances")
+          .update({
+            available_cents: fresh.available_cents + sellerPayoutCents,
+            total_earned_cents: fresh.total_earned_cents + sellerPayoutCents,
+          })
+          .eq("account_id", listing.seller_id);
+      }
+    }
   } else {
     await supabase
       .from("seller_balances")

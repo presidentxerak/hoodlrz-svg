@@ -48,13 +48,13 @@ export async function middleware(request: NextRequest) {
 
   // For admin routes, check if user is admin
   if (pathname.startsWith("/admin")) {
-    const { data: account } = await supabase
+    const { data: account, error: accountError } = await supabase
       .from("accounts")
       .select("is_admin")
       .eq("auth_id", user.id)
       .single();
 
-    if (!account?.is_admin) {
+    if (accountError || !account?.is_admin) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
