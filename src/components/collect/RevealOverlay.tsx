@@ -71,10 +71,12 @@ export default function RevealOverlay({
 
   const handleShare = useCallback(() => {
     const url = `${window.location.origin}/${collectionSlug}/${serialNumber}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {});
+    }
   }, [collectionSlug, serialNumber]);
 
   const handleDownload = useCallback(() => {
