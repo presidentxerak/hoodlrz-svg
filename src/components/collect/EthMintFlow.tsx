@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import PFPViewer from "@/components/ui/PFPViewer";
-import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN } from "@/lib/web3/config";
+import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN, isMainnet } from "@/lib/web3/config";
 import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
 
 /* ── Types ── */
@@ -449,6 +449,11 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
                 <span className="absolute top-2 left-2 bg-[#627eea] text-white text-[10px] font-bold uppercase tracking-wider px-2 py-0.5">
                   #{mintedNfts[activeNftIndex]?.tokenId}
                 </span>
+                {!isMainnet && (
+                  <span className="absolute bottom-0 left-0 right-0 bg-amber-500 text-black text-[9px] font-bold uppercase tracking-wider text-center py-0.5">
+                    Testnet
+                  </span>
+                )}
               </div>
 
               {/* Multi-NFT navigation */}

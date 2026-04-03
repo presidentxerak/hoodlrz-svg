@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import PFPViewer from "@/components/ui/PFPViewer";
 import { createClient } from "@/lib/supabase/client";
-import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN } from "@/lib/web3/config";
+import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN, isMainnet } from "@/lib/web3/config";
 import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
 
 interface AccountInfo {
@@ -288,6 +288,11 @@ export default function MyCollectionPage() {
                   <span className="absolute top-1.5 left-1.5 bg-[#627eea] text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
                     ETH
                   </span>
+                  {!isMainnet && (
+                    <span className="absolute bottom-0 left-0 right-0 bg-amber-500 text-black text-[9px] font-bold uppercase tracking-wider text-center py-0.5">
+                      Testnet
+                    </span>
+                  )}
                 </div>
                 <span className="text-xs font-bold uppercase tracking-widest text-muted">
                   Hoodlrz #{String(nft.tokenId).padStart(4, "0")}

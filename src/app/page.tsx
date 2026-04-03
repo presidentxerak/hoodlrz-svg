@@ -56,8 +56,11 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Countdown */}
-          <div className="mt-4 flex flex-col items-center gap-2">
+          {/* Drop date */}
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <p className="font-hoodlrz text-2xl font-bold tracking-wider text-white sm:text-3xl">
+              MAY 15, 2026
+            </p>
             <span className="text-[10px] uppercase tracking-widest text-white/50">
               Drop in
             </span>
@@ -164,7 +167,15 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
+              {/* Drop date */}
+              <div className="flex items-center justify-center border-t border-[var(--border)] pt-4">
+                <div className="text-center">
+                  <span className="text-[10px] uppercase tracking-widest text-muted">Drop</span>
+                  <p className="font-hoodlrz text-lg font-bold tracking-wider text-[#627eea]">MAY 15, 2026</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
                 <span className="font-hoodlrz text-xl font-bold text-[#627eea]">0.007 ETH</span>
                 <Link
                   href="/collection/hoodlrz"
@@ -226,7 +237,15 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
+              {/* Drop date */}
+              <div className="flex items-center justify-center border-t border-[var(--border)] pt-4">
+                <div className="text-center">
+                  <span className="text-[10px] uppercase tracking-widest text-muted">Drop</span>
+                  <p className="font-hoodlrz text-lg font-bold tracking-wider text-amber-500">MAY 10, 2026</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
                 <span className="font-hoodlrz text-xl font-bold text-foreground">$300.00</span>
                 <Link
                   href="/collection/genesis"

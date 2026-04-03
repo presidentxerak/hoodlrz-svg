@@ -132,6 +132,16 @@ export default function CollectionDetailPage() {
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
           {collection.description}
         </p>
+
+        {/* Drop date */}
+        <div className="mt-6 flex flex-col items-center gap-1">
+          <span className="text-[10px] uppercase tracking-widest text-muted">
+            {dropStatus === "live" ? "Dropped" : "Drop Date"}
+          </span>
+          <p className={`font-hoodlrz text-2xl font-bold tracking-wider sm:text-3xl ${isGenesis ? "text-amber-500" : "text-[#627eea]"}`}>
+            {new Date(collection.dropDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
+          </p>
+        </div>
       </div>
 
       {/* ── Stats ── */}
