@@ -315,7 +315,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
           <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="#627eea" fillOpacity="0.8"/>
           <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
         </svg>
-        {state === "connecting" ? "Connecting..." : state === "minting" ? "Minting..." : "Mint on Ethereum"}
+        {state === "connecting" ? "Connecting..." : state === "minting" ? "Collecting..." : `Collect on Ethereum${mintPrice > BigInt(0) ? ` · ${formatPrice(1)} ETH` : ""}`}
       </button>
 
       {/* Quantity Modal */}
@@ -331,7 +331,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
               <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
             </svg>
             <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-              Mint On-Chain
+              Collect On-Chain
             </h2>
           </div>
 
@@ -388,7 +388,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
             onClick={handleMint}
             className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 text-base font-bold uppercase tracking-widest text-white bg-[#627eea] hover:bg-[#4c6ce0] active:scale-[0.98] transition-all duration-150"
           >
-            Mint {quantity} for {formatPrice(quantity)} ETH
+            Collect {quantity} for {formatPrice(quantity)} ETH
           </button>
 
           <p className="text-[10px] text-muted text-center">
@@ -402,7 +402,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
         <div className="flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
           <div className="w-12 h-12 border-4 border-[#627eea]/30 border-t-[#627eea] rounded-full animate-spin" />
           <h2 className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
-            Minting...
+            Collecting...
           </h2>
           <p className="text-sm text-center text-muted">
             Confirm the transaction in your wallet and wait for blockchain confirmation.
@@ -474,7 +474,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
           )}
 
           <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-            Minted!
+            Collected!
           </h2>
           <p className="text-sm text-center text-muted">
             {mintedNfts.length > 0
@@ -497,7 +497,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
               View My Collection
             </Button>
             <Button variant="secondary" onClick={() => setState("idle")} className="w-full">
-              Mint More
+              Collect More
             </Button>
           </div>
         </div>
