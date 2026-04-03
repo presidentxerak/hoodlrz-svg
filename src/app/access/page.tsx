@@ -7,31 +7,56 @@ import Input from "@/components/ui/Input";
 type AuthTab = "wallet" | "email";
 type EmailMode = "signin" | "signup";
 
-// EVM wallet detection
+// EVM wallet detection — supports multiple coexisting wallets
 function getAvailableWallets(): { name: string; icon: string; provider: unknown }[] {
   if (typeof window === "undefined") return [];
 
   const wallets: { name: string; icon: string; provider: unknown }[] = [];
-  const eth = (window as unknown as Record<string, unknown>).ethereum as Record<string, unknown> | undefined;
+  const seen = new Set<string>();
 
-  if (!eth) return wallets;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const win = window as any;
+  const eth = win.ethereum;
 
-  // Rabby injects isRabby
-  if (eth.isRabby) {
-    wallets.push({ name: "Rabby", icon: "🦊", provider: eth });
+  // Some wallets register in window.ethereum.providers (EIP-5749 style)
+  const providers: unknown[] = eth?.providers || (eth ? [eth] : []);
+
+  for (const p of providers) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const prov = p as any;
+    if (prov.isRabby && !seen.has("rabby")) {
+      wallets.push({ name: "Rabby", icon: "🐰", provider: prov });
+      seen.add("rabby");
+    }
+    if (prov.isMetaMask && !prov.isRabby && !seen.has("metamask")) {
+      wallets.push({ name: "MetaMask", icon: "🦊", provider: prov });
+      seen.add("metamask");
+    }
+    if (prov.isRainbow && !seen.has("rainbow")) {
+      wallets.push({ name: "Rainbow", icon: "🌈", provider: prov });
+      seen.add("rainbow");
+    }
+    if (prov.isCoinbaseWallet && !seen.has("coinbase")) {
+      wallets.push({ name: "Coinbase Wallet", icon: "🔵", provider: prov });
+      seen.add("coinbase");
+    }
+    if (prov.isBraveWallet && !seen.has("brave")) {
+      wallets.push({ name: "Brave Wallet", icon: "🦁", provider: prov });
+      seen.add("brave");
+    }
+    if (prov.isZerion && !seen.has("zerion")) {
+      wallets.push({ name: "Zerion", icon: "⚡", provider: prov });
+      seen.add("zerion");
+    }
   }
-  // MetaMask
-  else if (eth.isMetaMask) {
-    wallets.push({ name: "MetaMask", icon: "🦊", provider: eth });
+
+  // Phantom injects on window.phantom.ethereum separately
+  if (win.phantom?.ethereum && !seen.has("phantom")) {
+    wallets.push({ name: "Phantom", icon: "👻", provider: win.phantom.ethereum });
+    seen.add("phantom");
   }
 
-  // Phantom EVM
-  const phantom = (window as unknown as Record<string, unknown>).phantom as Record<string, unknown> | undefined;
-  if (phantom?.ethereum) {
-    wallets.push({ name: "Phantom", icon: "👻", provider: phantom.ethereum });
-  }
-
-  // If we found nothing specific but ethereum exists, show generic
+  // Fallback: if no known wallet detected but ethereum exists
   if (wallets.length === 0 && eth) {
     wallets.push({ name: "Browser Wallet", icon: "💎", provider: eth });
   }
