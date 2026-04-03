@@ -85,15 +85,41 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
       const accounts = await provider.send("eth_requestAccounts", []);
       if (!accounts.length) throw new Error("No accounts");
 
-      // Check chain
+      // Check chain & switch if needed
+      const chainIdHex = "0x" + HOODLRZ_CHAIN_ID.toString(16);
       const network = await provider.getNetwork();
       if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) {
         try {
           await provider.send("wallet_switchEthereumChain", [
-            { chainId: "0x" + HOODLRZ_CHAIN_ID.toString(16) },
+            { chainId: chainIdHex },
           ]);
-        } catch {
-          setError(`Please switch to ${CURRENT_CHAIN.name} in your wallet.`);
+        } catch (switchErr: unknown) {
+          // Chain not added yet (error code 4902) — add it
+          const code = (switchErr as { code?: number })?.code;
+          if (code === 4902) {
+            try {
+              await provider.send("wallet_addEthereumChain", [{
+                chainId: chainIdHex,
+                chainName: CURRENT_CHAIN.name,
+                rpcUrls: [CURRENT_CHAIN.rpcUrl],
+                blockExplorerUrls: [CURRENT_CHAIN.explorerUrl],
+                nativeCurrency: { name: CURRENT_CHAIN.currency, symbol: CURRENT_CHAIN.currency, decimals: 18 },
+              }]);
+            } catch {
+              setError(`Please switch to ${CURRENT_CHAIN.name} in your wallet.`);
+              setState("error");
+              return;
+            }
+          } else {
+            setError(`Please switch to ${CURRENT_CHAIN.name} in your wallet.`);
+            setState("error");
+            return;
+          }
+        }
+        // Re-verify chain after switch (MetaMask mobile can silently fail)
+        const updated = await provider.getNetwork();
+        if (Number(updated.chainId) !== HOODLRZ_CHAIN_ID) {
+          setError(`Please switch to ${CURRENT_CHAIN.name} manually in MetaMask and try again.`);
           setState("error");
           return;
         }
