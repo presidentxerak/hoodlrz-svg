@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${new URL(request.url).origin}/api/auth/callback`,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin}/api/auth/callback`,
         data: pseudonym ? { pseudonym } : undefined,
       },
     });
