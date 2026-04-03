@@ -63,7 +63,6 @@ export default function AccessPage() {
 
       if (!eth) {
         // Try deep link on mobile
-        const currentUrl = encodeURIComponent(window.location.href);
         window.location.href = `https://metamask.app.link/dapp/${window.location.host}/access`;
         setWalletLoading(false);
         return;
