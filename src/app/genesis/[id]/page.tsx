@@ -1,13 +1,9 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Suspense, useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useState, useCallback } from "react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
-import Input from "@/components/ui/Input";
-import Modal from "@/components/ui/Modal";
-import { createClient } from "@/lib/supabase/client";
 import { getVinylById, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
 import Countdown from "@/components/ui/Countdown";
 import TrackSelector, { type TrackSelection } from "@/components/genesis/TrackSelector";
@@ -32,11 +28,10 @@ const EDITION_DESCRIPTIONS: Record<string, string> = {
     "The Craft Edition celebrates raw texture and organic imperfection. 10 unique pieces blending street art with artisanal craft.",
 };
 
-type FlowState = "idle" | "auth" | "loading" | "error";
+type FlowState = "idle" | "loading" | "error";
 
 function GenesisVinylContent() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const vinylId = params.id as string;
 
   const vinyl = getVinylById(vinylId);
@@ -45,40 +40,10 @@ function GenesisVinylContent() {
 
   // Flow state
   const [state, setState] = useState<FlowState>("idle");
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [autoTriggered, setAutoTriggered] = useState(false);
 
   // Track selection
   const [trackSelection, setTrackSelection] = useState<TrackSelection | null>(null);
-
-  // Auth state
-  const [email, setEmail] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authSent, setAuthSent] = useState(false);
-  const [authError, setAuthError] = useState("");
-
-  // Check auth on mount
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setIsLoggedIn(!!data.user);
-    });
-  }, []);
-
-  // Auto-trigger collect flow
-  useEffect(() => {
-    if (autoTriggered || isLoggedIn === null) return;
-    if (searchParams.get("collect") === "true") {
-      setAutoTriggered(true);
-      if (isLoggedIn && trackSelection) {
-        handleProceedToPayment();
-      } else if (!isLoggedIn) {
-        setState("auth");
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, isLoggedIn, autoTriggered]);
 
   const handleCollect = useCallback(() => {
     setError(null);
@@ -86,13 +51,9 @@ function GenesisVinylContent() {
       setError("Please select your 4 tracks before collecting.");
       return;
     }
-    if (!isLoggedIn) {
-      setState("auth");
-    } else {
-      handleProceedToPayment();
-    }
+    handleProceedToPayment();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, trackSelection]);
+  }, [trackSelection]);
 
   const handleProceedToPayment = async () => {
     if (!trackSelection) return;
@@ -114,8 +75,8 @@ function GenesisVinylContent() {
       });
 
       if (res.status === 401) {
-        setState("auth");
-        setIsLoggedIn(false);
+        setState("error");
+        setError("Authentication error. Please try again.");
         return;
       }
 
@@ -139,44 +100,6 @@ function GenesisVinylContent() {
       );
     }
   };
-
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    if (!email || !email.includes("@")) {
-      setAuthError("Enter a valid email address.");
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      const res = await fetch("/api/auth/magic-link", {
-        method: "POST",
-        body: JSON.stringify({ email }),
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setAuthError(data.error || "Something went wrong.");
-        setAuthLoading(false);
-        return;
-      }
-      setAuthLoading(false);
-      setAuthSent(true);
-    } catch {
-      setAuthError("Network error. Please try again.");
-      setAuthLoading(false);
-    }
-  };
-
-  const CloseButton = ({ onClick }: { onClick: () => void }) => (
-    <button
-      onClick={onClick}
-      className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center text-white/40 hover:text-white transition-colors text-xl leading-none"
-      aria-label="Close"
-    >
-      &times;
-    </button>
-  );
 
   if (!vinyl) {
     return (
@@ -305,11 +228,11 @@ function GenesisVinylContent() {
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleCollect}
-                disabled={isLoggedIn === null || !trackSelection}
+                disabled={!trackSelection}
                 className={[
                   "w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white",
                   "transition-all duration-150 ease-out",
-                  isLoggedIn === null || !trackSelection
+                  !trackSelection
                     ? "opacity-40 cursor-not-allowed grayscale"
                     : "cursor-pointer hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(229,62,62,0.5)]",
                 ].join(" ")}
@@ -470,85 +393,6 @@ function GenesisVinylContent() {
         )}
       </div>
 
-      {/* ── Auth Modal ── */}
-      <Modal isOpen={state === "auth"} onClose={() => setState("idle")}>
-        <div className="relative flex flex-col items-center gap-6 p-6 max-w-sm mx-auto bg-[var(--background)] border border-[var(--border)]">
-          <CloseButton onClick={() => setState("idle")} />
-          <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-            Sign Up to Collect
-          </h2>
-          <p className="text-sm text-center text-muted">
-            Enter your email to get a magic link. No passwords, no wallet, no
-            friction.
-          </p>
-
-          {!authSent ? (
-            <form
-              onSubmit={handleAuthSubmit}
-              className="w-full flex flex-col gap-4"
-            >
-              <Input
-                label="Email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                error={authError}
-              />
-              <Button variant="primary" size="lg" disabled={authLoading}>
-                {authLoading ? "Sending..." : "Get Access"}
-              </Button>
-            </form>
-          ) : (
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center border border-emerald-500/40 bg-emerald-500/10">
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="text-emerald-500"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <p className="text-sm text-center text-muted">
-                Check your inbox! We sent a magic link to{" "}
-                <strong className="text-foreground">{email}</strong>.
-              </p>
-              <p className="text-xs text-muted text-center">
-                Click the link in the email to sign in, then come back and
-                collect.
-              </p>
-              <Button
-                variant="secondary"
-                size="md"
-                onClick={() => {
-                  setAuthSent(false);
-                  setEmail("");
-                  const supabase = createClient();
-                  supabase.auth.getUser().then(({ data }) => {
-                    const loggedIn = !!data.user;
-                    setIsLoggedIn(loggedIn);
-                    if (loggedIn && trackSelection) {
-                      handleProceedToPayment();
-                    } else {
-                      setState("idle");
-                    }
-                  });
-                }}
-              >
-                Done
-              </Button>
-            </div>
-          )}
-        </div>
-      </Modal>
     </div>
   );
 }
