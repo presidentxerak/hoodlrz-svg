@@ -115,34 +115,51 @@ export default function CollectionDetailPage() {
         : undefined;
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
-      {/* ── Hero ── */}
-      <div className="flex flex-col items-center gap-2 text-center">
-        <div className="flex items-center gap-3">
-          <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[56px]">
-            {collection.name}
-          </h1>
-          {isGenesis && <Badge variant="legendary">Genesis</Badge>}
-          {!isGenesis && (
-            <span className="text-[10px] uppercase tracking-widest bg-[#627eea]/10 text-[#627eea] border border-[#627eea]/30 px-2 py-0.5">
-              On-Chain
-            </span>
-          )}
-        </div>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
+    <div className="flex flex-col items-center">
+      {/* ── Video Hero ── */}
+      <section className="relative flex w-full flex-col items-center justify-center px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden min-h-[50vh]">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        >
+          <source src={isGenesis ? "/hero-vinyl.mp4" : "/hero-collection.mp4"} type="video/mp4" />
+          <source src={isGenesis ? "/hero-vinyl.mov" : "/hero-collection.mov"} type="video/quicktime" />
+        </video>
+        <div className="absolute inset-0 bg-black/70" />
+
+        <div className="relative z-10 flex flex-col items-center gap-4 text-center">
+          <div className="flex items-center gap-3">
+            <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-white sm:text-[56px]">
+              {collection.name}
+            </h1>
+            {isGenesis && <Badge variant="legendary">Genesis</Badge>}
+            {!isGenesis && (
+              <span className="text-[10px] uppercase tracking-widest bg-[#627eea]/10 text-[#627eea] border border-[#627eea]/30 px-2 py-0.5">
+                On-Chain
+              </span>
+            )}
+          </div>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
           {collection.description}
         </p>
 
         {/* Drop date */}
         <div className="mt-6 flex flex-col items-center gap-1">
-          <span className="text-[10px] uppercase tracking-widest text-muted">
+          <span className="text-[10px] uppercase tracking-widest text-white/50">
             {dropStatus === "live" ? "Dropped" : "Drop Date"}
           </span>
           <p className={`font-hoodlrz text-2xl font-bold tracking-wider sm:text-3xl ${isGenesis ? "text-amber-500" : "text-[#627eea]"}`}>
             {new Date(collection.dropDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
           </p>
         </div>
-      </div>
+        </div>
+      </section>
+
+      {/* ── Page Content ── */}
+      <div className="mx-auto w-full max-w-5xl px-4 pb-20">
 
       {/* ── Stats ── */}
       <div className="mt-10 flex flex-wrap justify-center gap-8">
@@ -379,6 +396,7 @@ export default function CollectionDetailPage() {
           </div>
         )}
       </section>
+      </div>
     </div>
   );
 }

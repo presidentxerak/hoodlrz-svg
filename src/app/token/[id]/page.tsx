@@ -91,7 +91,7 @@ export default function TokenDetailPage() {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
         <Link
-          href="/collection/genesis"
+          href="/genesis"
           className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
         >
           &larr; Back to Genesis Collection

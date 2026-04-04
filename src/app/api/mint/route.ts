@@ -6,16 +6,6 @@ import { getVinylById } from "@/lib/genesis/vinyls";
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check with server client (reads cookies)
-    const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
     const body = await request.json();
     const { collectionSlug, quantity: rawQuantity, vinylId, trackSelection } = body as {
       collectionSlug?: string;
@@ -31,9 +21,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const isGenesisCheckout = !!vinylId;
+
     // ── Genesis vinyl validation ──
     if (vinylId) {
-      // Validate vinylId exists
       const vinyl = getVinylById(vinylId);
       if (!vinyl) {
         return NextResponse.json(
@@ -42,7 +33,6 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Validate track selection (4 tracks: 2 per side)
       if (
         !trackSelection ||
         !Array.isArray(trackSelection.sideA) ||
@@ -57,13 +47,71 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── Auth: required for Hoodlrz, optional for Genesis ──
+    // Genesis buyers pay via Stripe (email collected there), account created in webhook.
+    // Hoodlrz buyers must be authenticated (wallet or email).
+    let accountId: string | null = null;
+
+    const admin = createAdminClient();
+
+    if (!isGenesisCheckout) {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+      }
+
+      const { data: account, error: accountError } = await admin
+        .from("accounts")
+        .select("id")
+        .eq("auth_id", user.id)
+        .single();
+
+      if (accountError || !account) {
+        const { data: newAccount, error: createError } = await admin
+          .from("accounts")
+          .insert({
+            auth_id: user.id,
+            email: user.email ?? "",
+            pseudonym: `Collector#${user.id.substring(0, 6)}`,
+          })
+          .select("id")
+          .single();
+
+        if (createError || !newAccount) {
+          console.error("[mint] Failed to create account:", createError);
+          return NextResponse.json(
+            { error: "Failed to create account." },
+            { status: 500 }
+          );
+        }
+        accountId = newAccount.id;
+      } else {
+        accountId = account.id;
+      }
+    } else {
+      // For Genesis, try to get auth user if logged in (optional)
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: account } = await admin
+            .from("accounts")
+            .select("id")
+            .eq("auth_id", user.id)
+            .single();
+          if (account) accountId = account.id;
+        }
+      } catch {
+        // Not logged in — that's fine for Genesis
+      }
+    }
+
     // Validate quantity (1-10), force 1 for Genesis
     const quantity = vinylId
       ? 1
       : Math.min(10, Math.max(1, Math.floor(Number(rawQuantity) || 1)));
-
-    // Use admin client for DB operations (bypasses RLS)
-    const admin = createAdminClient();
 
     // ── Prevent double sale of Genesis vinyls ──
     if (vinylId) {
@@ -79,40 +127,6 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         );
       }
-    }
-
-    // Look up the account from the authenticated user
-    const { data: account, error: accountError } = await admin
-      .from("accounts")
-      .select("id")
-      .eq("auth_id", user.id)
-      .single();
-
-    let accountId: string;
-
-    if (accountError || !account) {
-      // Auto-create account if trigger didn't fire
-      const { data: newAccount, error: createError } = await admin
-        .from("accounts")
-        .insert({
-          auth_id: user.id,
-          email: user.email ?? "",
-          pseudonym: `Collector#${user.id.substring(0, 6)}`,
-        })
-        .select("id")
-        .single();
-
-      if (createError || !newAccount) {
-        console.error("[mint] Failed to create account:", createError);
-        return NextResponse.json(
-          { error: "Failed to create account." },
-          { status: 500 }
-        );
-      }
-
-      accountId = newAccount.id;
-    } else {
-      accountId = account.id;
     }
 
     // Fetch collection by slug
@@ -154,14 +168,18 @@ export async function POST(request: NextRequest) {
     // Create Stripe checkout session
     const origin = new URL(request.url).origin;
 
-    // Build metadata — include vinylId and shipping for Genesis
+    // Build metadata
     const metadata: Record<string, string> = {
       collectionSlug,
       collectionId: collection.id,
-      accountId,
       quantity: String(quantity),
       type: "primary_sale",
     };
+
+    // Include accountId if user is authenticated
+    if (accountId) {
+      metadata.accountId = accountId;
+    }
 
     if (vinylId) {
       metadata.vinylId = vinylId;
@@ -179,9 +197,6 @@ export async function POST(request: NextRequest) {
     const cancelUrl = vinylId
       ? `${origin}/genesis/${vinylId}`
       : `${origin}/collection/${collectionSlug}`;
-
-    // For Genesis (physical vinyl), collect shipping address natively in Stripe
-    const isGenesisCheckout = !!vinylId;
 
     const checkoutSession = await getStripeServer().checkout.sessions.create({
       mode: "payment",
@@ -203,7 +218,9 @@ export async function POST(request: NextRequest) {
         },
       ],
       metadata,
+      // For Genesis: collect email + shipping + phone natively in Stripe
       ...(isGenesisCheckout && {
+        customer_email: undefined, // let Stripe ask for it
         shipping_address_collection: {
           allowed_countries: [
             "US", "CA", "GB", "FR", "DE", "ES", "IT", "NL", "BE", "CH",

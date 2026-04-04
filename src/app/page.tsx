@@ -214,8 +214,9 @@ export default function HomePage() {
                 <strong className="text-foreground"> Black</strong> (10),
                 <strong className="text-foreground"> White</strong> (5), and
                 <strong className="text-foreground"> Craft</strong> (10).
-                Each piece is a unique physical vinyl cover drawn entirely by hand,
-                shipped to you along with its digital counterpart.
+                Each piece features a <strong className="text-foreground">unique hand-drawn sleeve</strong> and
+                a <strong className="text-foreground">custom pressed disc</strong> — choose your 4 tracks from
+                the Hoodlrz catalog and arrange them on Side A &amp; Side B.
               </p>
 
               <div className="space-y-3 text-sm">
@@ -225,15 +226,15 @@ export default function HomePage() {
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">2</span>
-                  <span className="text-muted"><strong className="text-foreground">Collect</strong> — Sign in and reserve your vinyl</span>
+                  <span className="text-muted"><strong className="text-foreground">Your Tracks</strong> — Pick 4 tracks and arrange them on Side A &amp; Side B</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">3</span>
-                  <span className="text-muted"><strong className="text-foreground">Shipping</strong> — Enter your address at checkout. We ship worldwide</span>
+                  <span className="text-muted"><strong className="text-foreground">Collect</strong> — Sign in, confirm your tracklist, and pay by card</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">4</span>
-                  <span className="text-muted"><strong className="text-foreground">Receive</strong> — Physical vinyl + digital collectible in your collection</span>
+                  <span className="text-muted"><strong className="text-foreground">Shipped</strong> — Your custom pressed vinyl + unique sleeve delivered worldwide</span>
                 </div>
               </div>
 
@@ -248,10 +249,10 @@ export default function HomePage() {
               <div className="flex items-center justify-between">
                 <span className="font-hoodlrz text-xl font-bold text-foreground">$300.00</span>
                 <Link
-                  href="/collection/genesis"
+                  href="/genesis"
                   className="text-xs font-bold uppercase tracking-widest text-amber-500 hover:underline"
                 >
-                  View Collection &rarr;
+                  View Vinyls &rarr;
                 </Link>
               </div>
             </div>

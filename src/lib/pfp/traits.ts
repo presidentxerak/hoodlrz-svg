@@ -65,9 +65,8 @@ export const ACCESSORIES: TraitOption[] = makeTraits("object", 17);
 
 // ── Mouths ──
 // Light: mouth-1 to mouth-20, MISSING mouth-11
-// Dark: mouth-1 to mouth-20, all present
-// We use the intersection (skip mouth-11 to be safe across both variants)
-export const MOUTHS_LIGHT: TraitOption[] = makeTraits("mouth", 20, [11]);
+// Both variants now have mouth-1 to mouth-20 (mouth-11.svg was added)
+export const MOUTHS_LIGHT: TraitOption[] = makeTraits("mouth", 20);
 export const MOUTHS_DARK: TraitOption[] = makeTraits("mouth", 20);
 
 // Default mouths (union - used for rarity calc)
