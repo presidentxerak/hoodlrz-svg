@@ -136,8 +136,8 @@ export default function MyCollectionPage() {
           setEthNfts([...verified]);
         } catch { /* tokenSeed may fail */ }
       }
-    } catch {
-      // No wallet or wrong chain — skip silently
+    } catch (err) {
+      console.error("[my-collection] Failed to fetch ETH NFTs:", err);
     } finally {
       setEthLoading(false);
       setRefreshing(false);
