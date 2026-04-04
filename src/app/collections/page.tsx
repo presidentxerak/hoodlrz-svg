@@ -62,8 +62,8 @@ export default function CollectionsPage() {
           </Card>
         </Link>
 
-        {/* Genesis Collection */}
-        <Link href="/collection/genesis">
+        {/* Genesis Vinyl Collection */}
+        <Link href="/genesis">
           <Card className="group flex flex-col gap-0 p-0 overflow-hidden">
             <div className="relative w-full aspect-square overflow-hidden bg-[var(--surface)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -78,11 +78,11 @@ export default function CollectionsPage() {
             </div>
             <div className="flex flex-col gap-3 p-5">
               <h2 className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
-                Genesis
+                Genesis Vinyl
               </h2>
               <p className="text-sm leading-relaxed text-muted line-clamp-2">
-                25 exclusive hand-crafted vinyl artworks. Three editions: Black,
-                White, and Craft. Reserved for top collectors.
+                25 unique hand-drawn sleeves with custom pressed discs. Choose
+                your 4 tracks on Side A &amp; Side B. Three editions.
               </p>
               <div className="mt-2 flex items-center gap-4 text-xs text-muted">
                 <span>
@@ -91,7 +91,7 @@ export default function CollectionsPage() {
                 <span>
                   <span className="font-bold text-foreground">3</span> editions
                 </span>
-                <span className="font-bold text-foreground">Exclusive</span>
+                <span className="font-bold text-foreground">$300</span>
               </div>
             </div>
           </Card>

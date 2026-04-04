@@ -45,9 +45,10 @@ export default function Countdown({
 }: CountdownProps) {
   const target = new Date(targetDate);
 
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() =>
-    calcTimeLeft(target)
-  );
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>({
+    days: 0, hours: 0, minutes: 0, seconds: 0,
+  });
+  const [mounted, setMounted] = useState(false);
 
   const isComplete = useCallback(
     (tl: TimeLeft) =>
@@ -56,6 +57,8 @@ export default function Countdown({
   );
 
   useEffect(() => {
+    setMounted(true);
+    setTimeLeft(calcTimeLeft(target));
     const id = setInterval(() => {
       const next = calcTimeLeft(target);
       setTimeLeft(next);
@@ -67,6 +70,24 @@ export default function Countdown({
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetDate]);
+
+  if (!mounted) {
+    return (
+      <div className="flex flex-col items-center gap-3">
+        {label && (
+          <span className="text-xs uppercase tracking-widest text-muted">
+            {label}
+          </span>
+        )}
+        <div className="grid grid-cols-4 gap-4 sm:gap-6">
+          <Segment value={0} label="Days" />
+          <Segment value={0} label="Hrs" />
+          <Segment value={0} label="Min" />
+          <Segment value={0} label="Sec" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-3">

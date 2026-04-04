@@ -10,6 +10,7 @@ import Modal from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { getVinylById, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
 import Countdown from "@/components/ui/Countdown";
+import TrackSelector, { type TrackSelection } from "@/components/genesis/TrackSelector";
 
 // Genesis drop dates — must match collection page
 const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
@@ -48,6 +49,9 @@ function GenesisVinylContent() {
   const [error, setError] = useState<string | null>(null);
   const [autoTriggered, setAutoTriggered] = useState(false);
 
+  // Track selection
+  const [trackSelection, setTrackSelection] = useState<TrackSelection | null>(null);
+
   // Auth state
   const [email, setEmail] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -67,9 +71,9 @@ function GenesisVinylContent() {
     if (autoTriggered || isLoggedIn === null) return;
     if (searchParams.get("collect") === "true") {
       setAutoTriggered(true);
-      if (isLoggedIn) {
+      if (isLoggedIn && trackSelection) {
         handleProceedToPayment();
-      } else {
+      } else if (!isLoggedIn) {
         setState("auth");
       }
     }
@@ -78,15 +82,20 @@ function GenesisVinylContent() {
 
   const handleCollect = useCallback(() => {
     setError(null);
+    if (!trackSelection) {
+      setError("Please select your 4 tracks before collecting.");
+      return;
+    }
     if (!isLoggedIn) {
       setState("auth");
     } else {
       handleProceedToPayment();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn]);
+  }, [isLoggedIn, trackSelection]);
 
   const handleProceedToPayment = async () => {
+    if (!trackSelection) return;
     setState("loading");
 
     try {
@@ -97,6 +106,10 @@ function GenesisVinylContent() {
           collectionSlug: "genesis",
           quantity: 1,
           vinylId,
+          trackSelection: {
+            sideA: trackSelection.sideA.map((t) => t.title),
+            sideB: trackSelection.sideB.map((t) => t.title),
+          },
         }),
       });
 
@@ -255,10 +268,18 @@ function GenesisVinylContent() {
             <div className="flex justify-between text-sm">
               <span className="text-muted">Includes</span>
               <span className="text-foreground font-semibold">
-                Physical vinyl + digital collectible
+                Unique sleeve + pressed disc + digital collectible
               </span>
             </div>
           </div>
+
+          {/* ── Track Selection ── */}
+          {isDropLive && (
+            <TrackSelector
+              onSelectionComplete={setTrackSelection}
+              disabled={state === "loading"}
+            />
+          )}
 
           {/* CTA or Countdown */}
           {!isDropLive ? (
@@ -284,11 +305,11 @@ function GenesisVinylContent() {
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleCollect}
-                disabled={isLoggedIn === null}
+                disabled={isLoggedIn === null || !trackSelection}
                 className={[
                   "w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white",
                   "transition-all duration-150 ease-out",
-                  isLoggedIn === null
+                  isLoggedIn === null || !trackSelection
                     ? "opacity-40 cursor-not-allowed grayscale"
                     : "cursor-pointer hover:scale-[1.02] hover:shadow-[0_0_24px_rgba(229,62,62,0.5)]",
                 ].join(" ")}
@@ -304,6 +325,11 @@ function GenesisVinylContent() {
                   </span>
                 </span>
               </button>
+              {!trackSelection && (
+                <p className="text-[10px] text-muted text-center">
+                  Select your 4 tracks above to enable checkout.
+                </p>
+              )}
               <p className="text-[10px] text-muted text-center">
                 Shipping address will be collected at checkout.
               </p>
@@ -338,7 +364,13 @@ function GenesisVinylContent() {
               <li className="flex items-start gap-2">
                 <span className="text-emerald-500 mt-0.5">&#10003;</span>
                 <span>
-                  Original hand-drawn vinyl artwork shipped to your address
+                  Unique hand-drawn vinyl sleeve shipped to your address
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-500 mt-0.5">&#10003;</span>
+                <span>
+                  Custom pressed vinyl disc with your 4 chosen tracks
                 </span>
               </li>
               <li className="flex items-start gap-2">
@@ -356,6 +388,60 @@ function GenesisVinylContent() {
                 <span>Genesis collector status + exclusive access</span>
               </li>
             </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* ── How It Works — Tutorial ── */}
+      <div className="mt-16 border-t border-[var(--border)] pt-12">
+        <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground sm:text-3xl mb-8 text-center">
+          How It Works
+        </h2>
+
+        <div className="grid gap-6 sm:grid-cols-3">
+          {/* Step 1 */}
+          <div className="border border-[var(--border)] p-6 space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-8 h-8 border border-accent-red text-accent-red font-hoodlrz text-sm font-bold">
+                1
+              </span>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-foreground">
+                Unique Sleeve
+              </h3>
+            </div>
+            <p className="text-xs leading-relaxed text-muted">
+              Each vinyl comes with a <strong className="text-foreground">unique hand-drawn cover</strong> — your sleeve is a one-of-a-kind artwork that no one else will ever own. It&apos;s your piece of the Hoodlrz universe, designed and illustrated by XERAK.
+            </p>
+          </div>
+
+          {/* Step 2 */}
+          <div className="border border-[var(--border)] p-6 space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-8 h-8 border border-accent-red text-accent-red font-hoodlrz text-sm font-bold">
+                2
+              </span>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-foreground">
+                Your Tracks
+              </h3>
+            </div>
+            <p className="text-xs leading-relaxed text-muted">
+              Pick <strong className="text-foreground">4 tracks</strong> from the Hoodlrz catalog and arrange them across <strong className="text-foreground">Side A</strong> and <strong className="text-foreground">Side B</strong>. You choose the order — your disc is pressed to your exact specifications.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className="border border-[var(--border)] p-6 space-y-3">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-8 h-8 border border-accent-red text-accent-red font-hoodlrz text-sm font-bold">
+                3
+              </span>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-foreground">
+                Pressed & Shipped
+              </h3>
+            </div>
+            <p className="text-xs leading-relaxed text-muted">
+              Once your order is confirmed, your vinyl is <strong className="text-foreground">custom pressed</strong> with your tracklist and shipped worldwide with your unique sleeve, certificate of authenticity, and digital collectible.
+            </p>
           </div>
         </div>
       </div>
@@ -449,7 +535,7 @@ function GenesisVinylContent() {
                   supabase.auth.getUser().then(({ data }) => {
                     const loggedIn = !!data.user;
                     setIsLoggedIn(loggedIn);
-                    if (loggedIn) {
+                    if (loggedIn && trackSelection) {
                       handleProceedToPayment();
                     } else {
                       setState("idle");

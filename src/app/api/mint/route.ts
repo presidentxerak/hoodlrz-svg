@@ -17,10 +17,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { collectionSlug, quantity: rawQuantity, vinylId } = body as {
+    const { collectionSlug, quantity: rawQuantity, vinylId, trackSelection } = body as {
       collectionSlug?: string;
       quantity?: number;
       vinylId?: string;
+      trackSelection?: { sideA: string[]; sideB: string[] };
     };
 
     if (!collectionSlug) {
@@ -37,6 +38,20 @@ export async function POST(request: NextRequest) {
       if (!vinyl) {
         return NextResponse.json(
           { error: "Invalid vinyl." },
+          { status: 400 }
+        );
+      }
+
+      // Validate track selection (4 tracks: 2 per side)
+      if (
+        !trackSelection ||
+        !Array.isArray(trackSelection.sideA) ||
+        !Array.isArray(trackSelection.sideB) ||
+        trackSelection.sideA.length !== 2 ||
+        trackSelection.sideB.length !== 2
+      ) {
+        return NextResponse.json(
+          { error: "Please select 4 tracks (2 per side) for your vinyl." },
           { status: 400 }
         );
       }
@@ -152,6 +167,14 @@ export async function POST(request: NextRequest) {
       metadata.vinylId = vinylId;
     }
 
+    // Include track selection in Stripe metadata for pressing management
+    if (vinylId && trackSelection) {
+      metadata.sideA_track1 = trackSelection.sideA[0];
+      metadata.sideA_track2 = trackSelection.sideA[1];
+      metadata.sideB_track1 = trackSelection.sideB[0];
+      metadata.sideB_track2 = trackSelection.sideB[1];
+    }
+
     // For Genesis, use the vinyl page as cancel URL
     const cancelUrl = vinylId
       ? `${origin}/genesis/${vinylId}`
@@ -171,7 +194,7 @@ export async function POST(request: NextRequest) {
                 ? `Genesis — ${getVinylById(vinylId!)?.edition} #${String(getVinylById(vinylId!)?.number).padStart(2, "0")}`
                 : collection.name,
               description: isGenesisCheckout
-                ? "Physical vinyl artwork + digital collectible. Shipped worldwide."
+                ? `Physical vinyl + digital collectible. Side A: ${trackSelection?.sideA.join(" / ")}. Side B: ${trackSelection?.sideB.join(" / ")}. Shipped worldwide.`
                 : (collection.description ?? undefined),
             },
             unit_amount: collection.price_cents,

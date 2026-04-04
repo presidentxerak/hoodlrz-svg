@@ -17,7 +17,8 @@ export const SOCIAL_LINKS = {
 } as const;
 
 export const NAV_LINKS = [
-  { label: "Collections", href: "/collections" },
+  { label: "Collection", href: "/collection/hoodlrz" },
+  { label: "Vinyl", href: "/genesis" },
   { label: "Gallery", href: "/gallery" },
   { label: "About", href: "/about" },
   { label: "My Collection", href: "/my-collection" },

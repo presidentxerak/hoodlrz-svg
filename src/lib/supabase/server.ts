@@ -8,19 +8,26 @@ export function createClient() {
 
   if (!url || !key) {
     // Return a mock client that won't crash when env vars aren't set
+    const chainable = (): Record<string, unknown> =>
+      new Proxy({} as Record<string, unknown>, {
+        get(_target, prop) {
+          if (prop === "then") return undefined;
+          if (prop === "data" || prop === "error") return null;
+          return chainable;
+        },
+      });
     return {
       auth: {
         getUser: async () => ({ data: { user: null }, error: null }),
+        getSession: async () => ({ data: { session: null }, error: null }),
         signInWithOtp: async () => ({ data: null, error: null }),
+        signInWithPassword: async () => ({ data: { user: null, session: null }, error: null }),
+        signOut: async () => ({ error: null }),
         exchangeCodeForSession: async () => ({ data: null, error: null }),
         onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
       },
-      from: () => ({
-        select: () => ({ data: null, error: null, eq: () => ({ data: null, error: null, single: () => ({ data: null, error: null }) }) }),
-        insert: () => ({ data: null, error: null }),
-        update: () => ({ data: null, error: null }),
-        delete: () => ({ data: null, error: null }),
-      }),
+      from: () => chainable(),
+      rpc: async () => ({ data: null, error: null }),
     } as unknown as ReturnType<typeof createServerClient<Database>>;
   }
 

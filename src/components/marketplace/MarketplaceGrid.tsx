@@ -18,11 +18,11 @@ const SAMPLE_SELLERS = [
 function generateSampleListings() {
   return Array.from({ length: 10 }, (_, i) => ({
     tokenId: String(1000 + i),
-    seed: `marketplace-listing-${i}-${Math.floor(Math.random() * 99999)}`,
-    price: parseFloat((5 + Math.random() * 195).toFixed(2)),
+    seed: `marketplace-listing-${i}-${(i + 1) * 13579}`,
+    price: parseFloat((5 + ((i * 37 + 13) % 195)).toFixed(2)),
     seller: SAMPLE_SELLERS[i % SAMPLE_SELLERS.length],
     isOwner: i === 2, // one item is "yours" for demo
-    createdAt: Date.now() - i * 3600_000,
+    createdAt: 1700000000000 - i * 3600_000,
   }));
 }
 

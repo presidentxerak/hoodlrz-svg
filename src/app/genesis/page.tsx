@@ -18,13 +18,14 @@ export default function GenesisListingPage() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[56px]">
-            Genesis
+            Genesis Vinyl
           </h1>
           <Badge variant="legendary">Genesis</Badge>
         </div>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base">
-          25 exclusive hand-crafted vinyl artworks across three editions. Each
-          piece is a unique physical artwork shipped directly to you.
+          25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10).
+          Each piece features a unique hand-drawn sleeve and a custom pressed disc — choose your 4 tracks
+          and their order on Side A and Side B. A one-of-a-kind collectible shipped worldwide.
         </p>
       </div>
 
