@@ -13,7 +13,7 @@ const EDITION_COUNTS: Record<string, string> = {
   Craft: "10 pieces",
 };
 
-const GENESIS_DROP_DATE = "2026-04-01T18:00:00Z";
+const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
 
 export default function GenesisListingPage() {
   return (
