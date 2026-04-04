@@ -7,7 +7,8 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 
 const navLinks = [
-  { href: "/collections", label: "Collections" },
+  { href: "/collection/hoodlrz", label: "Collection" },
+  { href: "/genesis", label: "Vinyl" },
   { href: "/gallery", label: "Gallery" },
   { href: "/about", label: "About" },
   { href: "/my-collection", label: "My Collection" },
