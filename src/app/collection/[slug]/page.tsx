@@ -44,7 +44,7 @@ const COLLECTIONS_MAP: Record<
     name: "Genesis",
     slug: "genesis",
     description:
-      "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece is a unique vinyl cover drawn by hand. Reserved for top collectors.",
+      "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece features a unique hand-drawn sleeve and a custom pressed disc — you choose your 4 tracks and their order on Side A and Side B. Reserved for top collectors.",
     supply: 25,
     minted: 0,
     priceEth: "",
