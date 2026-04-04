@@ -17,9 +17,17 @@ export default function AboutPage() {
       {/* Intro */}
       <section className="mt-12 space-y-6">
         <p className="text-lg leading-relaxed text-foreground">
-          Hoodlrz is a premium digital collectible project. We create unique
-          hooded characters — each one generated from layered artwork, each one
-          stored fully on-chain on Ethereum.
+          Hoodlrz is a premium digital collectible project created entirely by{" "}
+          <a
+            href="https://xerak.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#627eea] font-bold hover:underline"
+          >
+            XERAK
+          </a>
+          , a crypto artist active in the NFT space since 2019. Every artwork,
+          every layer, every line — hand-drawn and brought to life on-chain.
         </p>
         <p className="text-base leading-relaxed text-muted">
           10,000 unique ERC-721 NFTs. 7 hand-drawn SVG layers per artwork.
@@ -226,17 +234,20 @@ export default function AboutPage() {
 
           <div className="border border-[var(--border)] p-6 space-y-3">
             <h4 className="font-hoodlrz text-2xl font-bold text-foreground">
-              Genesis Collection
+              Genesis Vinyl Collection
             </h4>
             <p className="text-sm leading-relaxed text-muted">
               25 exclusive hand-crafted vinyl artworks across three editions:
-              Black (10), White (5), and Craft (10). Reserved for top collectors.
-              Each piece is a unique physical vinyl cover drawn entirely by hand.
+              Black (10), White (5), and Craft (10). Each piece features a unique
+              hand-drawn sleeve and a custom pressed disc — you choose your 4 tracks
+              from the Hoodlrz catalog and arrange them on Side A and Side B.
+              Shipped worldwide with a certificate of authenticity.
             </p>
             <div className="flex flex-wrap gap-6 text-xs text-muted">
               <span><strong className="text-foreground">25</strong> pieces</span>
               <span><strong className="text-foreground">3</strong> editions</span>
-              <span><strong className="text-foreground">Exclusive</strong> access</span>
+              <span><strong className="text-foreground">4</strong> tracks per vinyl</span>
+              <span><strong className="text-foreground">$300</strong> per vinyl</span>
             </div>
           </div>
         </div>
@@ -339,6 +350,41 @@ export default function AboutPage() {
               <div className="p-3 text-xs font-semibold text-[#627eea] border-l border-[var(--border)]">{row.hoodlrz}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* The Artist */}
+      <section className="mt-16">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
+          09 — The Artist
+        </h3>
+        <div className="mt-6 border border-[var(--border)] border-l-2 border-l-[#627eea] p-6 space-y-4">
+          <h4 className="font-hoodlrz text-2xl font-bold text-foreground">
+            XERAK
+          </h4>
+          <p className="text-sm leading-relaxed text-muted">
+            Hoodlrz was created entirely by{" "}
+            <a
+              href="https://xerak.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#627eea] font-bold hover:underline"
+            >
+              XERAK
+            </a>
+            {" "}— a crypto artist, musician, and builder active in the NFT space
+            since 2019. From the hand-drawn SVG layers to the smart contracts, the
+            music, and the Genesis vinyl sleeves — every element of the Hoodlrz
+            universe is designed and produced by XERAK.
+          </p>
+          <a
+            href="https://xerak.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#627eea] hover:underline"
+          >
+            xerak.com &rarr;
+          </a>
         </div>
       </section>
 
