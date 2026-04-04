@@ -155,6 +155,30 @@ export default function CollectionDetailPage() {
             {new Date(collection.dropDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
           </p>
         </div>
+
+        {/* Durability Score — Hoodlrz only */}
+        {!isGenesis && (
+          <a
+            href="https://nftimeless.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 flex items-center gap-3 border border-white/10 bg-white/5 backdrop-blur-sm px-5 py-3 hover:bg-white/10 transition-colors"
+          >
+            <div className="flex items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/nftimeless-logo.svg" alt="NFTimeless" className="h-6 w-6" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/nftimeless-logo.svg" alt="" className="h-6 w-6" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/nftimeless-logo.svg" alt="" className="h-6 w-6" />
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-hoodlrz text-2xl font-bold text-emerald-400">86%</span>
+              <span className="text-[10px] uppercase tracking-widest text-white/50">Durability Score</span>
+            </div>
+            <span className="text-[10px] text-white/40 ml-1">nftimeless.com</span>
+          </a>
+        )}
         </div>
       </section>
 

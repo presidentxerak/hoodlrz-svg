@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" viewBox="0 0 110 150">
+  <!-- Generator: Adobe Illustrator 30.1.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 136)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: url(#linear-gradient2);
+      }
+
+      .st1 {
+        fill: url(#linear-gradient1);
+      }
+
+      .st2 {
+        fill: url(#linear-gradient3);
+      }
+
+      .st3 {
+        fill: url(#linear-gradient4);
+      }
+
+      .st4 {
+        fill: none;
+        stroke: url(#linear-gradient);
+        stroke-linejoin: round;
+        stroke-width: 10px;
+      }
+    </style>
+    <linearGradient id="linear-gradient" x1="-1810.36" y1="632.73" x2="-1808.79" y2="631.15" gradientTransform="translate(181022 88542) scale(100 -140)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#64748b"/>
+      <stop offset="1" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient1" x1="-1763.27" y1="613.03" x2="-1764.54" y2="614.3" gradientTransform="translate(49428 29504) scale(28 -48)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#28e"/>
+      <stop offset="1" stop-color="#e0edfa"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient2" x1="-1764.37" y1="613.03" x2="-1763.11" y2="614.3" gradientTransform="translate(49456 29504) scale(28 -48)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#066ad4"/>
+      <stop offset="1" stop-color="#67b2f9"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient3" x1="-1763.32" y1="608.42" x2="-1764.59" y2="607.16" gradientTransform="translate(49428 24408) scale(28 -40)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0852b2"/>
+      <stop offset="1" stop-color="#012963"/>
+    </linearGradient>
+    <linearGradient id="linear-gradient4" x1="-1764.32" y1="608.42" x2="-1763.05" y2="607.16" gradientTransform="translate(49456 24408) scale(28 -40)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#066ad4"/>
+      <stop offset="1" stop-color="#0e4490"/>
+    </linearGradient>
+  </defs>
+  <path class="st4" d="M55,5l50,25v55l-50,60L5,85V30L55,5Z"/>
+  <g>
+    <polygon class="st1" points="55 20.24 19.47 71 55 81.15 55 20.24"/>
+    <polygon class="st0" points="55 20.24 55 81.15 90.53 71 55 20.24"/>
+    <polygon class="st2" points="19.47 71 55 121.76 55 81.15 19.47 71"/>
+    <polygon class="st3" points="90.53 71 55 81.15 55 121.76 90.53 71"/>
+  </g>
+</svg>
