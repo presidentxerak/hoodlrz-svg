@@ -58,10 +58,14 @@ export default function MyCollectionPage() {
       .finally(() => setLoading(false));
   }, [authed]);
 
+  // Track wrong-chain state
+  const [wrongChain, setWrongChain] = useState(false);
+
   /* ── Fetch ETH NFTs from on-chain ── */
   const fetchEthNfts = useCallback(async (isRefresh = false) => {
     if (!HOODLRZ_NFT_ADDRESS) return;
     if (isRefresh) setRefreshing(true);
+    setWrongChain(false);
 
     try {
       if (!isRefresh) setEthLoading(true);
@@ -85,10 +89,15 @@ export default function MyCollectionPage() {
       setEthAddress(addr);
 
       const { BrowserProvider, Contract } = await import("ethers");
-      const provider = new BrowserProvider(eth as import("ethers").Eip1193Provider);
+      // Use "any" to prevent NETWORK_ERROR if chain was recently switched
+      const provider = new BrowserProvider(eth as import("ethers").Eip1193Provider, "any");
 
       const network = await provider.getNetwork();
-      if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) return;
+      if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) {
+        setWrongChain(true);
+        setEthNfts([]);
+        return;
+      }
 
       const contract = new Contract(HOODLRZ_NFT_ADDRESS, HOODLRZ_NFT_ABI, provider);
       const balance = Number(await contract.balanceOf(addr));
@@ -127,19 +136,20 @@ export default function MyCollectionPage() {
           setEthNfts([...verified]);
         } catch { /* tokenSeed may fail */ }
       }
-    } catch {
-      // No wallet or wrong chain — skip silently
+    } catch (err) {
+      console.error("[my-collection] Failed to fetch ETH NFTs:", err);
     } finally {
       setEthLoading(false);
       setRefreshing(false);
     }
   }, [account]);
 
+  // Load ETH NFTs when authed (don't require account — wallet-only users can see their NFTs)
   useEffect(() => {
-    if (!HOODLRZ_NFT_ADDRESS || !account) return;
+    if (!HOODLRZ_NFT_ADDRESS || !authed) return;
     const timer = setTimeout(() => fetchEthNfts(false), 300);
     return () => clearTimeout(timer);
-  }, [fetchEthNfts, account]);
+  }, [fetchEthNfts, authed]);
 
   /* Loading / redirect */
   if (authed === null || loading || ethLoading) {
@@ -329,8 +339,22 @@ export default function MyCollectionPage() {
         </>
       )}
 
+      {/* ── Wrong chain warning ── */}
+      {wrongChain && (
+        <div className="mt-10 border border-amber-500/40 bg-amber-500/10 p-4 text-center">
+          <p className="text-sm font-bold text-amber-400">
+            Wrong network detected
+          </p>
+          <p className="text-xs text-muted mt-1">
+            Your wallet is connected to a different chain. Please switch to{" "}
+            <strong className="text-foreground">{CURRENT_CHAIN.name}</strong>{" "}
+            in MetaMask to see your Hoodlrz NFTs, then click Refresh.
+          </p>
+        </div>
+      )}
+
       {/* ── Empty state ── */}
-      {ethNfts.length === 0 && (
+      {ethNfts.length === 0 && !wrongChain && (
         <div className="mt-20 flex flex-col items-center gap-6 text-center">
           <div className="w-20 h-20 border border-[var(--border)] flex items-center justify-center">
             <svg

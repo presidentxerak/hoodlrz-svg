@@ -119,14 +119,53 @@ async function handlePrimarySale(
   session: Stripe.Checkout.Session,
   metadata: Record<string, string>
 ) {
-  const { collectionId, accountId, vinylId } = metadata;
+  const { collectionId, vinylId } = metadata;
+  let accountId = metadata.accountId;
   const quantity = Math.max(1, parseInt(metadata.quantity || "1", 10));
   const isGenesis = !!vinylId;
 
-  console.log(`[stripe/webhook] Primary sale: collection=${collectionId}, account=${accountId}, quantity=${quantity}, vinylId=${vinylId || "none"}`);
+  console.log(`[stripe/webhook] Primary sale: collection=${collectionId}, account=${accountId || "none"}, quantity=${quantity}, vinylId=${vinylId || "none"}`);
 
-  if (!collectionId || !accountId) {
-    throw new Error(`Missing metadata: collectionId=${collectionId}, accountId=${accountId}`);
+  if (!collectionId) {
+    throw new Error(`Missing metadata: collectionId=${collectionId}`);
+  }
+
+  // For Genesis purchases without auth: create account from Stripe customer email
+  if (!accountId && isGenesis) {
+    const customerEmail = session.customer_details?.email;
+    if (!customerEmail) {
+      throw new Error("Genesis purchase without accountId and no customer email from Stripe");
+    }
+
+    // Check if account with this email already exists
+    const { data: existingAccount } = await supabase
+      .from("accounts")
+      .select("id")
+      .eq("email", customerEmail)
+      .single();
+
+    if (existingAccount) {
+      accountId = existingAccount.id;
+    } else {
+      const { data: newAccount, error: createErr } = await supabase
+        .from("accounts")
+        .insert({
+          email: customerEmail,
+          pseudonym: `Collector#${customerEmail.split("@")[0].substring(0, 8)}`,
+        })
+        .select("id")
+        .single();
+
+      if (createErr || !newAccount) {
+        throw new Error(`Failed to create account for ${customerEmail}: ${createErr?.message}`);
+      }
+      accountId = newAccount.id;
+      console.log(`[stripe/webhook] Created account ${accountId} for Genesis buyer ${customerEmail}`);
+    }
+  }
+
+  if (!accountId) {
+    throw new Error(`Missing accountId for non-Genesis purchase`);
   }
 
   const { data: collection, error: collError } = await supabase
