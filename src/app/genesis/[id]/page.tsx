@@ -9,8 +9,8 @@ import Countdown from "@/components/ui/Countdown";
 import TrackSelector, { type TrackSelection } from "@/components/genesis/TrackSelector";
 
 // Genesis drop dates — must match collection page
-const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
-const GENESIS_WHITELIST_DATE = "2026-05-08T18:00:00Z";
+const GENESIS_DROP_DATE = "2026-04-01T18:00:00Z";
+const GENESIS_WHITELIST_DATE = "2026-03-30T18:00:00Z";
 
 function getGenesisDropStatus(): "pre-whitelist" | "whitelist-live" | "live" {
   const now = Date.now();

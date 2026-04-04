@@ -50,8 +50,8 @@ const COLLECTIONS_MAP: Record<
     priceEth: "",
     isGenesis: true,
     dropStatus: "public" as const,
-    dropDate: "2026-05-10T18:00:00Z",
-    whitelistDate: "2026-05-08T18:00:00Z",
+    dropDate: "2026-04-01T18:00:00Z",
+    whitelistDate: "2026-03-30T18:00:00Z",
   },
 };
 

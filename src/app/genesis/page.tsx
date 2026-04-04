@@ -13,7 +13,7 @@ const EDITION_COUNTS: Record<string, string> = {
   Craft: "10 pieces",
 };
 
-const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
+const GENESIS_DROP_DATE = "2026-04-01T18:00:00Z";
 
 export default function GenesisListingPage() {
   return (
@@ -45,17 +45,25 @@ export default function GenesisListingPage() {
             and their order on Side A and Side B. A one-of-a-kind collectible shipped worldwide.
           </p>
 
-          {/* Drop date */}
+          {/* Drop status */}
           <div className="mt-4 flex flex-col items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest text-white/50">
-              Drop Date
-            </span>
-            <p className="font-hoodlrz text-3xl font-bold tracking-wider text-amber-500 sm:text-4xl">
-              MAY 10, 2026
-            </p>
-            <div className="mt-2 [&_span]:!text-white [&_.text-muted]:!text-white/50 [&_.text-foreground]:!text-white">
-              <Countdown targetDate={GENESIS_DROP_DATE} />
-            </div>
+            {new Date(GENESIS_DROP_DATE).getTime() > Date.now() ? (
+              <>
+                <span className="text-[10px] uppercase tracking-widest text-white/50">
+                  Drop Date
+                </span>
+                <p className="font-hoodlrz text-3xl font-bold tracking-wider text-amber-500 sm:text-4xl">
+                  {new Date(GENESIS_DROP_DATE).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
+                </p>
+                <div className="mt-2 [&_span]:!text-white [&_.text-muted]:!text-white/50 [&_.text-foreground]:!text-white">
+                  <Countdown targetDate={GENESIS_DROP_DATE} />
+                </div>
+              </>
+            ) : (
+              <span className="text-sm font-bold uppercase tracking-widest text-emerald-400">
+                Available Now
+              </span>
+            )}
           </div>
         </div>
       </section>
