@@ -183,7 +183,7 @@ function GenesisVinylContent() {
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-center">
           <p className="text-muted mb-4">Vinyl not found.</p>
-          <Button variant="secondary" size="md" href="/collection/genesis">
+          <Button variant="secondary" size="md" href="/genesis">
             View Genesis Collection
           </Button>
         </div>
@@ -204,7 +204,7 @@ function GenesisVinylContent() {
       {/* Breadcrumb */}
       <div className="mb-8">
         <a
-          href="/collection/genesis"
+          href="/genesis"
           className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
         >
           &larr; Genesis Collection

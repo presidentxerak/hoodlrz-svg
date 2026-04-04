@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
 // This generic checkout route is disabled for security.
-// Use /api/collect for primary sales or /api/marketplace/buy for marketplace purchases.
+// Use /api/mint for primary sales or /api/marketplace/buy for marketplace purchases.
 export async function POST() {
   return NextResponse.json(
-    { error: "This endpoint is disabled. Use /api/collect or /api/marketplace/buy." },
+    { error: "This endpoint is disabled. Use /api/mint or /api/marketplace/buy." },
     { status: 403 }
   );
 }

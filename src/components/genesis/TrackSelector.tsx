@@ -9,7 +9,7 @@ export interface TrackSelection {
 }
 
 interface TrackSelectorProps {
-  onSelectionComplete: (selection: TrackSelection) => void;
+  onSelectionComplete: (selection: TrackSelection | null) => void;
   disabled?: boolean;
 }
 
@@ -45,14 +45,13 @@ export default function TrackSelector({ onSelectionComplete, disabled }: TrackSe
   const removeTrack = useCallback(
     (side: "A" | "B", index: number) => {
       if (side === "A") {
-        const next = sideA.filter((_, i) => i !== index);
-        setSideA(next);
+        setSideA(sideA.filter((_, i) => i !== index));
       } else {
-        const next = sideB.filter((_, i) => i !== index);
-        setSideB(next);
+        setSideB(sideB.filter((_, i) => i !== index));
       }
+      onSelectionComplete(null);
     },
-    [sideA, sideB]
+    [sideA, sideB, onSelectionComplete]
   );
 
   const swapOrder = useCallback(
@@ -78,7 +77,8 @@ export default function TrackSelector({ onSelectionComplete, disabled }: TrackSe
   const reset = useCallback(() => {
     setSideA([]);
     setSideB([]);
-  }, []);
+    onSelectionComplete(null);
+  }, [onSelectionComplete]);
 
   return (
     <div className={`space-y-5 ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
