@@ -21,10 +21,12 @@ interface EthMintFlowProps {
 }
 
 /* ── Helpers to avoid bundling ethers.js at module level ── */
-async function getProvider() {
+async function getProvider(allowAnyNetwork = false) {
   if (typeof window === "undefined" || !(window as { ethereum?: unknown }).ethereum) return null;
   const { BrowserProvider } = await import("ethers");
-  return new BrowserProvider((window as { ethereum?: unknown }).ethereum as import("ethers").Eip1193Provider);
+  const eth = (window as { ethereum?: unknown }).ethereum as import("ethers").Eip1193Provider;
+  // "any" tells ethers.js to allow network changes without throwing NETWORK_ERROR
+  return new BrowserProvider(eth, allowAnyNetwork ? "any" : undefined);
 }
 
 async function getContract(signer: import("ethers").Signer) {
@@ -86,11 +88,12 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
       if (!accounts.length) throw new Error("No accounts");
 
       // Check chain & switch if needed
+      let currentProvider = provider;
       const chainIdHex = "0x" + HOODLRZ_CHAIN_ID.toString(16);
-      const network = await provider.getNetwork();
+      const network = await currentProvider.getNetwork();
       if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) {
         try {
-          await provider.send("wallet_switchEthereumChain", [
+          await currentProvider.send("wallet_switchEthereumChain", [
             { chainId: chainIdHex },
           ]);
         } catch (switchErr: unknown) {
@@ -98,7 +101,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
           const code = (switchErr as { code?: number })?.code;
           if (code === 4902) {
             try {
-              await provider.send("wallet_addEthereumChain", [{
+              await currentProvider.send("wallet_addEthereumChain", [{
                 chainId: chainIdHex,
                 chainName: CURRENT_CHAIN.name,
                 rpcUrls: [CURRENT_CHAIN.rpcUrl],
@@ -116,8 +119,11 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
             return;
           }
         }
+        // Recreate provider after chain switch to avoid ethers.js NETWORK_ERROR
+        // (ethers v6 caches the network and throws when it detects a change)
+        currentProvider = (await getProvider(true))!;
         // Re-verify chain after switch (MetaMask mobile can silently fail)
-        const updated = await provider.getNetwork();
+        const updated = await currentProvider.getNetwork();
         if (Number(updated.chainId) !== HOODLRZ_CHAIN_ID) {
           setError(`Please switch to ${CURRENT_CHAIN.name} manually in MetaMask and try again.`);
           setState("error");
@@ -126,7 +132,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
       }
 
       // Fetch contract state
-      const signer = await provider.getSigner();
+      const signer = await currentProvider.getSigner();
       const contract = await getContract(signer);
       const [price, supply] = await Promise.all([
         contract.mintPrice(),
@@ -150,7 +156,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
     setError("");
 
     try {
-      const provider = await getProvider();
+      const provider = await getProvider(true);
       if (!provider) throw new Error("Wallet not found");
 
       const signer = await provider.getSigner();
