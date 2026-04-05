@@ -13,16 +13,24 @@ export const HOODLRZ_CHAIN_ID = Number(
   process.env.NEXT_PUBLIC_HOODLRZ_CHAIN_ID ?? "11155111" // default Sepolia
 );
 
-export const CHAIN_CONFIG: Record<number, { name: string; rpcUrl: string; explorerUrl: string; currency: string }> = {
+export const CHAIN_CONFIG: Record<number, { name: string; rpcUrl: string; rpcFallbacks: string[]; explorerUrl: string; currency: string }> = {
   1: {
     name: "Ethereum Mainnet",
-    rpcUrl: "https://eth.llamarpc.com",
+    rpcUrl: "https://cloudflare-eth.com",
+    rpcFallbacks: [
+      "https://rpc.ankr.com/eth",
+      "https://eth.llamarpc.com",
+      "https://1rpc.io/eth",
+    ],
     explorerUrl: "https://etherscan.io",
     currency: "ETH",
   },
   11155111: {
     name: "Sepolia Testnet",
     rpcUrl: "https://rpc.sepolia.org",
+    rpcFallbacks: [
+      "https://rpc.ankr.com/eth_sepolia",
+    ],
     explorerUrl: "https://sepolia.etherscan.io",
     currency: "SepoliaETH",
   },
