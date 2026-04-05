@@ -1,17 +1,34 @@
 import { NextResponse } from "next/server";
 import { JsonRpcProvider, Contract } from "ethers";
 import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
-import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN } from "@/lib/web3/config";
+import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID } from "@/lib/web3/config";
 
 export const dynamic = "force-dynamic";
 
+// Mainnet fallback if env vars aren't set on preview deployments
+const CONTRACT_ADDRESS = HOODLRZ_NFT_ADDRESS || "0x3468802ffcE5Aa75793cA555eb485A4eCD67449e";
+const CHAIN_ID = HOODLRZ_NFT_ADDRESS ? HOODLRZ_CHAIN_ID : 1;
+
+const RPC_URLS: Record<number, string[]> = {
+  1: [
+    "https://cloudflare-eth.com",
+    "https://rpc.ankr.com/eth",
+    "https://eth.llamarpc.com",
+    "https://1rpc.io/eth",
+    "https://eth.drpc.org",
+  ],
+  11155111: [
+    "https://rpc.sepolia.org",
+    "https://rpc.ankr.com/eth_sepolia",
+  ],
+};
+
 async function getProvider(): Promise<JsonRpcProvider> {
-  const urls = [CURRENT_CHAIN.rpcUrl, ...CURRENT_CHAIN.rpcFallbacks];
+  const urls = RPC_URLS[CHAIN_ID] ?? RPC_URLS[1];
 
   for (const url of urls) {
     try {
       const provider = new JsonRpcProvider(url);
-      // Quick test to ensure connection works
       await provider.getBlockNumber();
       console.log(`[api/gallery] Connected to RPC: ${url}`);
       return provider;
@@ -20,22 +37,15 @@ async function getProvider(): Promise<JsonRpcProvider> {
     }
   }
 
-  throw new Error(`All RPCs failed for chain ${HOODLRZ_CHAIN_ID}`);
+  throw new Error(`All ${urls.length} RPCs failed for chain ${CHAIN_ID}. Tried: ${urls.join(", ")}`);
 }
 
 export async function GET() {
-  console.log("[api/gallery] Request received. NFT_ADDRESS:", HOODLRZ_NFT_ADDRESS, "CHAIN_ID:", HOODLRZ_CHAIN_ID);
-
-  if (!HOODLRZ_NFT_ADDRESS) {
-    console.error("[api/gallery] NEXT_PUBLIC_HOODLRZ_NFT_ADDRESS is not set");
-    return NextResponse.json(
-      { tokens: [], totalSupply: 0, debug: "Contract address not configured" }
-    );
-  }
+  console.log("[api/gallery] NFT_ADDRESS:", CONTRACT_ADDRESS, "CHAIN_ID:", CHAIN_ID, "ENV_SET:", !!HOODLRZ_NFT_ADDRESS);
 
   try {
     const provider = await getProvider();
-    const contract = new Contract(HOODLRZ_NFT_ADDRESS, HOODLRZ_NFT_ABI, provider);
+    const contract = new Contract(CONTRACT_ADDRESS, HOODLRZ_NFT_ABI, provider);
 
     const supply = Number(await contract.totalSupply());
     console.log(`[api/gallery] totalSupply: ${supply}`);
@@ -45,7 +55,7 @@ export async function GET() {
     }
 
     // Fetch all token data in parallel batches
-    const BATCH = 20;
+    const BATCH = 10;
     const tokens: Array<{ tokenId: number; seed: string; owner: string }> = [];
 
     for (let start = 1; start <= supply; start += BATCH) {
@@ -61,7 +71,7 @@ export async function GET() {
             ]);
             return { tokenId, seed: seedBig.toString(), owner };
           } catch (err) {
-            console.warn(`[api/gallery] Failed to fetch token ${tokenId}:`, (err as Error).message);
+            console.warn(`[api/gallery] Token ${tokenId} failed:`, (err as Error).message);
             return null;
           }
         })

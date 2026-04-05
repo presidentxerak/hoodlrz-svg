@@ -74,10 +74,9 @@ export default function CollectionGalleryPage() {
       setError("");
 
       const res = await fetch("/api/gallery");
-      if (!res.ok) throw new Error("API error");
-
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      if (data.debug) console.warn("[collection-gallery] debug:", data.debug);
 
       setTotalMinted(data.totalSupply);
 
@@ -91,8 +90,9 @@ export default function CollectionGalleryPage() {
 
       setTokens(enriched);
     } catch (err) {
-      console.error("[collection-gallery] Failed to fetch tokens:", err);
-      setError("Failed to load NFTs from the blockchain");
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error("[collection-gallery] Failed to fetch tokens:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }

@@ -62,10 +62,9 @@ export default function GlobalGalleryPage() {
       setError("");
 
       const res = await fetch("/api/gallery");
-      if (!res.ok) throw new Error("API error");
-
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      if (data.debug) console.warn("[gallery] debug:", data.debug);
 
       setTotalMinted(data.totalSupply);
 
@@ -79,8 +78,9 @@ export default function GlobalGalleryPage() {
 
       setTokens(enriched);
     } catch (err) {
-      console.error("[gallery] Failed to fetch tokens:", err);
-      setError("Failed to load NFTs from the blockchain");
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error("[gallery] Failed to fetch tokens:", msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
