@@ -9,7 +9,6 @@ import PFPViewer from "@/components/ui/PFPViewer";
 import { generatePFP } from "@/lib/pfp/generator";
 import { calculateRarity, type RarityTier } from "@/lib/pfp/rarity";
 import { HOODLRZ_NFT_ADDRESS, CURRENT_CHAIN } from "@/lib/web3/config";
-import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
 
 interface OnChainToken {
   tokenId: number;
@@ -30,7 +29,6 @@ const TRAIT_CATEGORIES = [
 ];
 
 const ITEMS_PER_PAGE = 12;
-const BATCH_SIZE = 20;
 
 function rarityBadgeVariant(
   tier: RarityTier
@@ -62,10 +60,9 @@ export default function CollectionGalleryPage() {
   const [sortBy, setSortBy] = useState<"number" | "rarity">("number");
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
-  // Only the hoodlrz collection has on-chain NFTs
   const isOnChain = slug === "hoodlrz";
 
-  /* ── Fetch all minted NFTs from on-chain (public RPC, no wallet needed) ── */
+  /* ── Fetch all minted NFTs via server-side API ── */
   const fetchTokens = useCallback(async () => {
     if (!isOnChain || !HOODLRZ_NFT_ADDRESS) {
       setLoading(false);
@@ -76,51 +73,27 @@ export default function CollectionGalleryPage() {
       setLoading(true);
       setError("");
 
-      const { JsonRpcProvider, Contract } = await import("ethers");
-      const provider = new JsonRpcProvider(CURRENT_CHAIN.rpcUrl);
-      const contract = new Contract(HOODLRZ_NFT_ADDRESS, HOODLRZ_NFT_ABI, provider);
+      const res = await fetch("/api/gallery");
+      if (!res.ok) throw new Error("API error");
 
-      const supply = Number(await contract.totalSupply());
-      setTotalMinted(supply);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
 
-      if (supply === 0) {
-        setTokens([]);
-        setLoading(false);
-        return;
-      }
+      setTotalMinted(data.totalSupply);
 
-      const allTokens: OnChainToken[] = [];
+      const enriched: OnChainToken[] = data.tokens.map(
+        (t: { tokenId: number; seed: string; owner: string }) => {
+          const pfp = generatePFP(t.seed);
+          const rarity = calculateRarity(pfp.traits);
+          return { ...t, traits: pfp.traits, rarity };
+        }
+      );
 
-      for (let start = 1; start <= supply; start += BATCH_SIZE) {
-        const end = Math.min(start + BATCH_SIZE - 1, supply);
-        const batch = Array.from({ length: end - start + 1 }, (_, i) => start + i);
-
-        const results = await Promise.all(
-          batch.map(async (tokenId) => {
-            try {
-              const [seedBig, owner] = await Promise.all([
-                contract.tokenSeed(tokenId) as Promise<bigint>,
-                contract.ownerOf(tokenId) as Promise<string>,
-              ]);
-              const seed = seedBig.toString();
-              const pfp = generatePFP(seed);
-              const rarity = calculateRarity(pfp.traits);
-              return { tokenId, seed, owner, traits: pfp.traits, rarity };
-            } catch {
-              return null;
-            }
-          })
-        );
-
-        const valid = results.filter((r): r is OnChainToken => r !== null);
-        allTokens.push(...valid);
-        setTokens([...allTokens]);
-      }
-
-      setLoading(false);
+      setTokens(enriched);
     } catch (err) {
       console.error("[collection-gallery] Failed to fetch tokens:", err);
       setError("Failed to load NFTs from the blockchain");
+    } finally {
       setLoading(false);
     }
   }, [isOnChain]);
@@ -166,7 +139,6 @@ export default function CollectionGalleryPage() {
     setVisibleCount((c) => c + ITEMS_PER_PAGE);
   }, []);
 
-  // Non-onchain collections (genesis) don't have a gallery yet
   if (!isOnChain) {
     return (
       <div className="mx-auto w-full max-w-6xl px-4 pt-16 pb-20 sm:pt-20">
@@ -363,16 +335,6 @@ export default function CollectionGalleryPage() {
           <Button variant="secondary" size="md" onClick={loadMore}>
             Load More
           </Button>
-        </div>
-      )}
-
-      {/* Loading more indicator */}
-      {loading && tokens.length > 0 && (
-        <div className="mt-8 flex justify-center">
-          <div className="flex items-center gap-2 text-xs text-muted">
-            <div className="w-4 h-4 border-2 border-[#627eea]/30 border-t-[#627eea] rounded-full animate-spin" />
-            Loading more tokens... ({tokens.length} loaded)
-          </div>
         </div>
       )}
 
