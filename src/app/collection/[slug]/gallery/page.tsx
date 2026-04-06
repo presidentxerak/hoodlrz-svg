@@ -1,28 +1,21 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import PFPViewer from "@/components/ui/PFPViewer";
 import { generatePFP } from "@/lib/pfp/generator";
 import { calculateRarity, type RarityTier } from "@/lib/pfp/rarity";
+import { HOODLRZ_NFT_ADDRESS, CURRENT_CHAIN } from "@/lib/web3/config";
 
-/* ── Generate sample tokens — TODO: replace with Supabase query ── */
-function generateSampleTokens(collectionSlug: string, count: number) {
-  return Array.from({ length: count }, (_, i) => {
-    const seed = `${collectionSlug}-token-${String(i + 1).padStart(4, "0")}`;
-    const pfp = generatePFP(seed);
-    const rarity = calculateRarity(pfp.traits);
-    return {
-      id: `${collectionSlug}-${i + 1}`,
-      seed,
-      tokenNumber: i + 1,
-      traits: pfp.traits,
-      rarity,
-    };
-  });
+interface OnChainToken {
+  tokenId: number;
+  seed: string;
+  owner: string;
+  traits: Record<string, string>;
+  rarity: ReturnType<typeof calculateRarity>;
 }
 
 const TRAIT_CATEGORIES = [
@@ -56,39 +49,85 @@ export default function CollectionGalleryPage() {
   const params = useParams();
   const slug = params.slug as string;
 
-  const allTokens = useMemo(
-    () => generateSampleTokens(slug, 24),
-    [slug]
-  );
+  const [tokens, setTokens] = useState<OnChainToken[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [totalMinted, setTotalMinted] = useState(0);
 
   const [filterTrait, setFilterTrait] = useState("");
   const [filterValue, setFilterValue] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "listed" | "unlisted">("all");
   const [sortBy, setSortBy] = useState<"number" | "rarity">("number");
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
-  /* Unique values for the selected trait filter */
+  const isOnChain = slug === "hoodlrz";
+
+  const fetchTokens = useCallback(async () => {
+    if (!isOnChain) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError("");
+
+      const res = await fetch("/api/gallery");
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      if (data.debug) console.warn("[collection-gallery] debug:", data.debug);
+
+      setTotalMinted(data.totalSupply);
+
+      const enriched: OnChainToken[] = data.tokens.map(
+        (t: { tokenId: number; seed: string; owner: string }) => {
+          const pfp = generatePFP(t.seed);
+          const rarity = calculateRarity(pfp.traits);
+          return { ...t, traits: pfp.traits, rarity };
+        }
+      );
+
+      setTokens(enriched);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error("[collection-gallery] Failed to fetch tokens:", msg);
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [isOnChain]);
+
+  useEffect(() => {
+    fetchTokens();
+  }, [fetchTokens]);
+
   const traitValues = useMemo(() => {
     if (!filterTrait) return [];
-    const vals = new Set(allTokens.map((t) => t.traits[filterTrait]));
+    const vals = new Set(tokens.map((t) => t.traits[filterTrait]));
     return Array.from(vals).sort();
-  }, [allTokens, filterTrait]);
+  }, [tokens, filterTrait]);
 
-  /* Filter + sort */
   const displayTokens = useMemo(() => {
-    let tokens = [...allTokens];
+    let filtered = [...tokens];
+
+    if (filterStatus === "listed") {
+      filtered = filtered.filter((t) => t.owner === "marketplace");
+    } else if (filterStatus === "unlisted") {
+      filtered = filtered.filter((t) => t.owner !== "marketplace");
+    }
 
     if (filterTrait && filterValue) {
-      tokens = tokens.filter((t) => t.traits[filterTrait] === filterValue);
+      filtered = filtered.filter((t) => t.traits[filterTrait] === filterValue);
     }
 
     if (sortBy === "rarity") {
-      tokens.sort((a, b) => b.rarity.score - a.rarity.score);
+      filtered.sort((a, b) => b.rarity.score - a.rarity.score);
     } else {
-      tokens.sort((a, b) => a.tokenNumber - b.tokenNumber);
+      filtered.sort((a, b) => a.tokenId - b.tokenId);
     }
 
-    return tokens;
-  }, [allTokens, filterTrait, filterValue, sortBy]);
+    return filtered;
+  }, [tokens, filterTrait, filterValue, filterStatus, sortBy]);
 
   const visibleTokens = displayTokens.slice(0, visibleCount);
   const hasMore = visibleCount < displayTokens.length;
@@ -97,9 +136,29 @@ export default function CollectionGalleryPage() {
     setVisibleCount((c) => c + ITEMS_PER_PAGE);
   }, []);
 
+  if (!isOnChain) {
+    return (
+      <div className="mx-auto w-full max-w-6xl px-4 pt-16 pb-20 sm:pt-20">
+        <div className="flex flex-col gap-1">
+          <Link
+            href={`/collection/${slug}`}
+            className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+          >
+            &larr; Back to collection
+          </Link>
+          <h1 className="mt-2 font-hoodlrz text-[30px] font-bold leading-none tracking-wider text-foreground sm:text-[44px]">
+            {slug.charAt(0).toUpperCase() + slug.slice(1)} Gallery
+          </h1>
+        </div>
+        <div className="mt-16 flex justify-center">
+          <p className="text-sm text-muted">Gallery coming soon for this collection.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pt-16 pb-20 sm:pt-20">
-      {/* Header */}
       <div className="flex flex-col gap-1">
         <Link
           href={`/collection/${slug}`}
@@ -108,100 +167,156 @@ export default function CollectionGalleryPage() {
           &larr; Back to collection
         </Link>
         <h1 className="mt-2 font-hoodlrz text-[30px] font-bold leading-none tracking-wider text-foreground sm:text-[44px]">
-          {slug.charAt(0).toUpperCase() + slug.slice(1)} Gallery
+          Hoodlrz Gallery
         </h1>
+        <p className="mt-2 text-sm text-muted">
+          All minted Hoodlrz on Ethereum.
+          {totalMinted > 0 && (
+            <span className="ml-1 text-foreground font-bold">
+              {totalMinted} minted
+            </span>
+          )}
+        </p>
       </div>
 
-      {/* Filters */}
-      <div className="mt-8 flex flex-wrap items-end gap-4">
-        {/* Trait filter */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
-            Filter by trait
-          </label>
-          <select
-            value={filterTrait}
-            onChange={(e) => {
-              setFilterTrait(e.target.value);
-              setFilterValue("");
-            }}
-            className="border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+      {error && (
+        <div className="mt-6 border border-red-500/30 bg-red-500/10 p-4 text-center">
+          <p className="text-sm text-red-400">{error}</p>
+          <button
+            onClick={fetchTokens}
+            className="mt-2 text-xs text-muted hover:text-foreground underline"
           >
-            <option value="">All traits</option>
-            {TRAIT_CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
-              </option>
-            ))}
-          </select>
+            Retry
+          </button>
         </div>
+      )}
 
-        {/* Trait value */}
-        {filterTrait && traitValues.length > 0 && (
+      {loading && tokens.length === 0 && !error && (
+        <div className="mt-12 flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-2 border-[#627eea]/30 border-t-[#627eea] rounded-full animate-spin" />
+          <p className="text-sm text-muted animate-pulse">
+            Loading NFTs from Ethereum...
+          </p>
+        </div>
+      )}
+
+      {tokens.length > 0 && (
+        <div className="mt-8 flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              Value
+              Status
             </label>
             <select
-              value={filterValue}
-              onChange={(e) => setFilterValue(e.target.value)}
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as "all" | "listed" | "unlisted")}
               className="border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-foreground outline-none"
             >
-              <option value="">All</option>
-              {traitValues.map((v) => (
-                <option key={v} value={v}>
-                  {v}
+              <option value="all">All</option>
+              <option value="listed">Listed</option>
+              <option value="unlisted">Unlisted</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
+              Filter by trait
+            </label>
+            <select
+              value={filterTrait}
+              onChange={(e) => {
+                setFilterTrait(e.target.value);
+                setFilterValue("");
+              }}
+              className="border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+            >
+              <option value="">All traits</option>
+              {TRAIT_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
                 </option>
               ))}
             </select>
           </div>
-        )}
 
-        {/* Sort */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
-            Sort
-          </label>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as "number" | "rarity")}
-            className="border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-foreground outline-none"
-          >
-            <option value="number">Token #</option>
-            <option value="rarity">Rarity Score</option>
-          </select>
-        </div>
-
-        <span className="ml-auto text-xs text-muted">
-          {displayTokens.length} items
-        </span>
-      </div>
-
-      {/* Grid */}
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 sm:gap-6">
-        {visibleTokens.map((token) => (
-          <Link key={token.id} href={`/token/${token.id}`}>
-            <div className="group flex flex-col border border-[var(--border)] bg-white dark:bg-[var(--surface)] transition-transform duration-200 hover:-translate-y-1">
-              <PFPViewer
-                seed={token.seed}
-                size={400}
-                className="aspect-square w-full"
-                example
-              />
-              <div className="flex items-center justify-between p-3">
-                <span className="text-xs font-bold text-foreground">
-                  #{token.tokenNumber}
-                </span>
-                <Badge variant={rarityBadgeVariant(token.rarity.tier)}>
-                  {token.rarity.tier}
-                </Badge>
-              </div>
+          {filterTrait && traitValues.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                Value
+              </label>
+              <select
+                value={filterValue}
+                onChange={(e) => setFilterValue(e.target.value)}
+                className="border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+              >
+                <option value="">All</option>
+                {traitValues.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
             </div>
-          </Link>
-        ))}
-      </div>
+          )}
 
-      {/* Load More */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-muted">
+              Sort
+            </label>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as "number" | "rarity")}
+              className="border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+            >
+              <option value="number">Token #</option>
+              <option value="rarity">Rarity Score</option>
+            </select>
+          </div>
+
+          <span className="ml-auto text-xs text-muted">
+            {displayTokens.length} items
+          </span>
+        </div>
+      )}
+
+      {visibleTokens.length > 0 && (
+        <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 sm:gap-6">
+          {visibleTokens.map((token) => (
+            <a
+              key={token.tokenId}
+              href={`${CURRENT_CHAIN.explorerUrl}/token/${HOODLRZ_NFT_ADDRESS || "0x3468802ffcE5Aa75793cA555eb485A4eCD67449e"}?a=${token.tokenId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <div className="group flex flex-col border border-[var(--border)] bg-white dark:bg-[var(--surface)] transition-transform duration-200 hover:-translate-y-1">
+                <div className="relative aspect-square w-full">
+                  <PFPViewer
+                    seed={token.seed}
+                    size={400}
+                    className="aspect-square w-full"
+                  />
+                  <span className="absolute top-1.5 left-1.5 bg-[#627eea] text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
+                    ETH
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-3">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-bold text-foreground">
+                      #{String(token.tokenId).padStart(4, "0")}
+                    </span>
+                    <span className="text-[10px] text-muted truncate max-w-[80px]">
+                      {token.owner.slice(0, 6)}...{token.owner.slice(-4)}
+                    </span>
+                  </div>
+                  <Badge variant={rarityBadgeVariant(token.rarity.tier)}>
+                    {token.rarity.tier}
+                  </Badge>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+
       {hasMore && (
         <div className="mt-12 flex justify-center">
           <Button variant="secondary" size="md" onClick={loadMore}>
@@ -210,7 +325,16 @@ export default function CollectionGalleryPage() {
         </div>
       )}
 
-      {displayTokens.length === 0 && (
+      {!loading && tokens.length === 0 && !error && (
+        <div className="mt-16 flex flex-col items-center gap-4">
+          <p className="text-sm text-muted">No NFTs minted yet.</p>
+          <Button variant="primary" size="md" href={`/collection/${slug}`}>
+            Mint Now
+          </Button>
+        </div>
+      )}
+
+      {!loading && displayTokens.length === 0 && tokens.length > 0 && (
         <div className="mt-16 flex justify-center">
           <p className="text-sm text-muted">No tokens match your filters.</p>
         </div>
