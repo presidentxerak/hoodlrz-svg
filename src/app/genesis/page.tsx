@@ -1,9 +1,23 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { GENESIS_VINYLS } from "@/lib/genesis";
 import Badge from "@/components/ui/Badge";
 import Countdown from "@/components/ui/Countdown";
+import { useAudioStore, type Track } from "@/store/audio";
+
+const DEMO_TRACKS: Track[] = [
+  { id: "1", title: "Acid Teddy Bear", artist: "XERAK", src: "/audio/Hoodlrz-Acid-Teddy-Bear-by-XERAK.mp3" },
+  { id: "2", title: "Dolphins Are Not Your Friends", artist: "XERAK", src: "/audio/Hoodlrz-Dolphins-Are-Not-Your-Friends.mp3" },
+  { id: "3", title: "Go Go Godzilla", artist: "XERAK", src: "/audio/Hoodlrz-Go-Go-Godzilla-by-XERAK.mp3" },
+  { id: "4", title: "Hello Bitcoins", artist: "XERAK", src: "/audio/Hoodlrz-Hello-Bitcoins-by-XERAK.mp3" },
+  { id: "5", title: "Kill Your Computer", artist: "XERAK", src: "/audio/Hoodlrz-Kill-Your-Computer-Internet-Kids-Assault-by-XERAK.mp3" },
+  { id: "6", title: "Make Some Noise", artist: "XERAK", src: "/audio/Hoodlrz-Make-Some-Noise-by-XERAK.mp3" },
+  { id: "7", title: "On Your Face", artist: "XERAK", src: "/audio/Hoodlrz-On-Your-Face-by-XERAK.mp3" },
+  { id: "8", title: "Rich Frog", artist: "XERAK", src: "/audio/Hoodlrz-Rich-Frog-by-XERAK.mp3" },
+  { id: "9", title: "Tetsuo Techno", artist: "XERAK", src: "/audio/Hoodlrz-Testuo-Techno-by-XERAK.mp3" },
+];
 
 const EDITIONS = ["Black", "White", "Craft"] as const;
 
@@ -16,6 +30,16 @@ const EDITION_COUNTS: Record<string, string> = {
 const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
 
 export default function GenesisListingPage() {
+  const { tracks, setTracks, setCollapsed } = useAudioStore();
+
+  // Load tracks and expand player when entering Vinyl page
+  useEffect(() => {
+    if (tracks.length === 0) {
+      setTracks(DEMO_TRACKS);
+    }
+    setCollapsed(false); // show expanded (half-open) player
+  }, [tracks.length, setTracks, setCollapsed]);
+
   return (
     <div className="flex flex-col items-center">
       {/* ── Video Hero ── */}

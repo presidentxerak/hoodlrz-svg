@@ -1,12 +1,25 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { Suspense, useState, useCallback } from "react";
+import { Suspense, useState, useCallback, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { getVinylById, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
 import Countdown from "@/components/ui/Countdown";
 import TrackSelector, { type TrackSelection } from "@/components/genesis/TrackSelector";
+import { useAudioStore, type Track } from "@/store/audio";
+
+const DEMO_TRACKS: Track[] = [
+  { id: "1", title: "Acid Teddy Bear", artist: "XERAK", src: "/audio/Hoodlrz-Acid-Teddy-Bear-by-XERAK.mp3" },
+  { id: "2", title: "Dolphins Are Not Your Friends", artist: "XERAK", src: "/audio/Hoodlrz-Dolphins-Are-Not-Your-Friends.mp3" },
+  { id: "3", title: "Go Go Godzilla", artist: "XERAK", src: "/audio/Hoodlrz-Go-Go-Godzilla-by-XERAK.mp3" },
+  { id: "4", title: "Hello Bitcoins", artist: "XERAK", src: "/audio/Hoodlrz-Hello-Bitcoins-by-XERAK.mp3" },
+  { id: "5", title: "Kill Your Computer", artist: "XERAK", src: "/audio/Hoodlrz-Kill-Your-Computer-Internet-Kids-Assault-by-XERAK.mp3" },
+  { id: "6", title: "Make Some Noise", artist: "XERAK", src: "/audio/Hoodlrz-Make-Some-Noise-by-XERAK.mp3" },
+  { id: "7", title: "On Your Face", artist: "XERAK", src: "/audio/Hoodlrz-On-Your-Face-by-XERAK.mp3" },
+  { id: "8", title: "Rich Frog", artist: "XERAK", src: "/audio/Hoodlrz-Rich-Frog-by-XERAK.mp3" },
+  { id: "9", title: "Tetsuo Techno", artist: "XERAK", src: "/audio/Hoodlrz-Testuo-Techno-by-XERAK.mp3" },
+];
 
 // Genesis drop dates — must match collection page
 const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
@@ -37,6 +50,15 @@ function GenesisVinylContent() {
   const vinyl = getVinylById(vinylId);
   const dropStatus = getGenesisDropStatus();
   const isDropLive = dropStatus === "live";
+
+  // Load audio player tracks on vinyl detail page
+  const { tracks, setTracks, setCollapsed } = useAudioStore();
+  useEffect(() => {
+    if (tracks.length === 0) {
+      setTracks(DEMO_TRACKS);
+    }
+    setCollapsed(false);
+  }, [tracks.length, setTracks, setCollapsed]);
 
   // Flow state
   const [state, setState] = useState<FlowState>("idle");

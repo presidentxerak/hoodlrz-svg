@@ -15,6 +15,7 @@ interface AudioState {
   tracks: Track[];
   volume: number;
   progress: number;
+  collapsed: boolean;
 
   play: () => void;
   pause: () => void;
@@ -25,6 +26,7 @@ interface AudioState {
   prevTrack: () => void;
   setVolume: (volume: number) => void;
   setProgress: (progress: number) => void;
+  setCollapsed: (collapsed: boolean) => void;
 }
 
 export const useAudioStore = create<AudioState>()((set, get) => ({
@@ -33,6 +35,7 @@ export const useAudioStore = create<AudioState>()((set, get) => ({
   tracks: [],
   volume: 0.8,
   progress: 0,
+  collapsed: true,
 
   play: () => set({ playing: true }),
   pause: () => set({ playing: false }),
@@ -61,4 +64,6 @@ export const useAudioStore = create<AudioState>()((set, get) => ({
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
 
   setProgress: (progress) => set({ progress }),
+
+  setCollapsed: (collapsed) => set({ collapsed }),
 }));
