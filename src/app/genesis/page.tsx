@@ -30,15 +30,14 @@ const EDITION_COUNTS: Record<string, string> = {
 const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
 
 export default function GenesisListingPage() {
-  const { tracks, setTracks, setCollapsed } = useAudioStore();
+  const { setTracks, setCollapsed } = useAudioStore();
 
-  // Load tracks and expand player when entering Vinyl page
+  // Load tracks and expand player when entering Vinyl page, clear on leave
   useEffect(() => {
-    if (tracks.length === 0) {
-      setTracks(DEMO_TRACKS);
-    }
-    setCollapsed(false); // show expanded (half-open) player
-  }, [tracks.length, setTracks, setCollapsed]);
+    setTracks(DEMO_TRACKS);
+    setCollapsed(false);
+    return () => { setTracks([]); };
+  }, [setTracks, setCollapsed]);
 
   return (
     <div className="flex flex-col items-center">

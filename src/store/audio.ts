@@ -43,7 +43,10 @@ export const useAudioStore = create<AudioState>()((set, get) => ({
 
   setTrack: (track) => set({ currentTrack: track, playing: true, progress: 0 }),
 
-  setTracks: (tracks) => set({ tracks }),
+  setTracks: (tracks) => set(tracks.length === 0
+    ? { tracks, playing: false, currentTrack: null, progress: 0 }
+    : { tracks }
+  ),
 
   nextTrack: () => {
     const { tracks, currentTrack } = get();

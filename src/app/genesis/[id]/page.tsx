@@ -51,14 +51,13 @@ function GenesisVinylContent() {
   const dropStatus = getGenesisDropStatus();
   const isDropLive = dropStatus === "live";
 
-  // Load audio player tracks on vinyl detail page
-  const { tracks, setTracks, setCollapsed } = useAudioStore();
+  // Load audio player tracks on vinyl detail page, clear on leave
+  const { setTracks, setCollapsed } = useAudioStore();
   useEffect(() => {
-    if (tracks.length === 0) {
-      setTracks(DEMO_TRACKS);
-    }
+    setTracks(DEMO_TRACKS);
     setCollapsed(false);
-  }, [tracks.length, setTracks, setCollapsed]);
+    return () => { setTracks([]); };
+  }, [setTracks, setCollapsed]);
 
   // Flow state
   const [state, setState] = useState<FlowState>("idle");
