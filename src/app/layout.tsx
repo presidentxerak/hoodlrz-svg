@@ -20,8 +20,17 @@ export const metadata: Metadata = {
   description:
     "HOODLRZ — Premium digital collectibles. Discover, collect, and showcase unique art from the HOODLRZ universe.",
   icons: {
-    icon: "/logo-hoodlrz.svg",
-    apple: "/logo-hoodlrz.svg",
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/logo-hoodlrz.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon.png",
+  },
+  openGraph: {
+    title: "HOODLRZ",
+    description: "Premium digital collectibles. Discover, collect, and showcase unique art from the HOODLRZ universe.",
+    siteName: "HOODLRZ",
+    type: "website",
   },
 };
 
