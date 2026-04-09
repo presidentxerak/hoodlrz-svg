@@ -66,7 +66,7 @@ export default function Header() {
             Don&apos;t miss! Be on the White List my Frenz!
           </span>
           <a
-            href="https://forms.gle/k7iEVoGrxrFYJWrG7"
+            href="https://forms.gle/ugVMdtzV2JMbZ745A"
             target="_blank"
             rel="noopener noreferrer"
             className="flex-shrink-0 border border-white/40 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-white/20 transition-colors"

@@ -8,7 +8,7 @@ import Countdown from "@/components/ui/Countdown";
 const HOODLRZ_DROP_DATE = "2026-05-15T18:00:00Z";
 
 const WHITELIST_URL =
-  "https://docs.google.com/forms/d/e/1FAIpQLSdex2dDqA3qZQpQaygcowVNcaV4PsQTp7K4tuHwwMM1OaQMXQ/viewform?usp=preview";
+  "https://forms.gle/ugVMdtzV2JMbZ745A";
 
 const FEATURED = [
   { seed: "hoodlrz-featured-956", label: "Legendary" },
