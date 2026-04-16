@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { GENESIS_VINYLS } from "@/lib/genesis";
 import Badge from "@/components/ui/Badge";
-import Countdown from "@/components/ui/Countdown";
 import { useAudioStore, type Track } from "@/store/audio";
 
 const DEMO_TRACKS: Track[] = [
@@ -26,8 +25,6 @@ const EDITION_COUNTS: Record<string, string> = {
   White: "5 pieces",
   Craft: "10 pieces",
 };
-
-const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
 
 export default function GenesisListingPage() {
   const { setTracks, setCollapsed } = useAudioStore();
@@ -67,27 +64,6 @@ export default function GenesisListingPage() {
             Each piece features a unique hand-drawn sleeve and a custom pressed disc — choose your 4 tracks
             and their order on Side A and Side B. A one-of-a-kind collectible shipped worldwide.
           </p>
-
-          {/* Drop status */}
-          <div className="mt-4 flex flex-col items-center gap-2">
-            {new Date(GENESIS_DROP_DATE).getTime() > Date.now() ? (
-              <>
-                <span className="text-[10px] uppercase tracking-widest text-white/50">
-                  Drop Date
-                </span>
-                <p className="font-hoodlrz text-3xl font-bold tracking-wider text-amber-500 sm:text-4xl">
-                  {new Date(GENESIS_DROP_DATE).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
-                </p>
-                <div className="mt-2 [&_span]:!text-white [&_.text-muted]:!text-white/50 [&_.text-foreground]:!text-white">
-                  <Countdown targetDate={GENESIS_DROP_DATE} />
-                </div>
-              </>
-            ) : (
-              <span className="text-sm font-bold uppercase tracking-widest text-emerald-400">
-                Available Now
-              </span>
-            )}
-          </div>
         </div>
       </section>
 

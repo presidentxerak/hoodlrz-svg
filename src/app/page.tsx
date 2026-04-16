@@ -5,7 +5,7 @@ import PFPViewer from "@/components/ui/PFPViewer";
 import Countdown from "@/components/ui/Countdown";
 
 /* ── Drop dates ── */
-const HOODLRZ_DROP_DATE = "2026-05-15T18:00:00Z";
+const HOODLRZ_DROP_DATE = "2026-06-15T18:00:00Z";
 
 const WHITELIST_URL =
   "https://forms.gle/ugVMdtzV2JMbZ745A";
@@ -49,7 +49,7 @@ export default function HomePage() {
           {/* Collection info */}
           <div className="flex flex-col items-center gap-2 mt-2">
             <p className="text-white/90 font-hoodlrz text-lg tracking-wider sm:text-xl">
-              10,000 On-Chain NFTs on Ethereum
+              2,999 On-Chain NFTs on Ethereum
             </p>
             <p className="text-white/90 font-hoodlrz text-lg tracking-wider sm:text-xl">
               25 Genesis Vinyls Collection
@@ -59,7 +59,7 @@ export default function HomePage() {
           {/* Drop date */}
           <div className="mt-6 flex flex-col items-center gap-2">
             <p className="font-hoodlrz text-2xl font-bold tracking-wider text-white sm:text-3xl">
-              MAY 15, 2026
+              JUNE 15, 2026
             </p>
             <span className="text-[10px] uppercase tracking-widest text-white/50">
               Drop in
@@ -142,7 +142,7 @@ export default function HomePage() {
               </div>
 
               <p className="text-sm leading-relaxed text-muted">
-                10,000 unique digital identities minted as{" "}
+                2,999 unique digital identities minted as{" "}
                 <strong className="text-foreground">full on-chain ERC-721 NFTs</strong> on
                 Ethereum. Every SVG layer is stored directly on the blockchain using SSTORE2.
                 Your Hoodlrz lives on-chain forever.
@@ -171,7 +171,7 @@ export default function HomePage() {
               <div className="flex items-center justify-center border-t border-[var(--border)] pt-4">
                 <div className="text-center">
                   <span className="text-[10px] uppercase tracking-widest text-muted">Drop</span>
-                  <p className="font-hoodlrz text-lg font-bold tracking-wider text-[#627eea]">MAY 15, 2026</p>
+                  <p className="font-hoodlrz text-lg font-bold tracking-wider text-[#627eea]">JUNE 15, 2026</p>
                 </div>
               </div>
 
@@ -238,15 +238,7 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* Drop date */}
-              <div className="flex items-center justify-center border-t border-[var(--border)] pt-4">
-                <div className="text-center">
-                  <span className="text-[10px] uppercase tracking-widest text-muted">Drop</span>
-                  <p className="font-hoodlrz text-lg font-bold tracking-wider text-amber-500">MAY 10, 2026</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
                 <span className="font-hoodlrz text-xl font-bold text-foreground">$300.00</span>
                 <Link
                   href="/genesis"
