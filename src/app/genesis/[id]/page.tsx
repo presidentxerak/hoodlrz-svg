@@ -5,7 +5,6 @@ import { Suspense, useState, useCallback, useEffect } from "react";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { getVinylById, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
-import Countdown from "@/components/ui/Countdown";
 import TrackSelector, { type TrackSelection } from "@/components/genesis/TrackSelector";
 import { useAudioStore, type Track } from "@/store/audio";
 
@@ -20,17 +19,6 @@ const DEMO_TRACKS: Track[] = [
   { id: "8", title: "Rich Frog", artist: "XERAK", src: "/audio/Hoodlrz-Rich-Frog-by-XERAK.mp3" },
   { id: "9", title: "Tetsuo Techno", artist: "XERAK", src: "/audio/Hoodlrz-Testuo-Techno-by-XERAK.mp3" },
 ];
-
-// Genesis drop dates — must match collection page
-const GENESIS_DROP_DATE = "2026-05-10T18:00:00Z";
-const GENESIS_WHITELIST_DATE = "2026-05-08T18:00:00Z";
-
-function getGenesisDropStatus(): "pre-whitelist" | "whitelist-live" | "live" {
-  const now = Date.now();
-  if (now < new Date(GENESIS_WHITELIST_DATE).getTime()) return "pre-whitelist";
-  if (now < new Date(GENESIS_DROP_DATE).getTime()) return "whitelist-live";
-  return "live";
-}
 
 const EDITION_DESCRIPTIONS: Record<string, string> = {
   Black:
@@ -48,8 +36,6 @@ function GenesisVinylContent() {
   const vinylId = params.id as string;
 
   const vinyl = getVinylById(vinylId);
-  const dropStatus = getGenesisDropStatus();
-  const isDropLive = dropStatus === "live";
 
   // Load audio player tracks on vinyl detail page, clear on leave
   const { setTracks, setCollapsed } = useAudioStore();
@@ -218,34 +204,13 @@ function GenesisVinylContent() {
           </div>
 
           {/* ── Track Selection ── */}
-          {isDropLive && (
-            <TrackSelector
-              onSelectionComplete={setTrackSelection}
-              disabled={state === "loading"}
-            />
-          )}
+          <TrackSelector
+            onSelectionComplete={setTrackSelection}
+            disabled={state === "loading"}
+          />
 
-          {/* CTA or Countdown */}
-          {!isDropLive ? (
-            <div className="flex flex-col gap-4">
-              <Countdown
-                targetDate={dropStatus === "pre-whitelist" ? GENESIS_WHITELIST_DATE : GENESIS_DROP_DATE}
-                label={dropStatus === "pre-whitelist" ? "Whitelist Opens" : "Public Drop"}
-              />
-              <button
-                disabled
-                className="w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-white opacity-40 cursor-not-allowed grayscale"
-                style={{
-                  background: "linear-gradient(135deg, #E53E3E 0%, #D53F8C 100%)",
-                }}
-              >
-                <span className="relative z-10 flex items-center justify-center gap-3">
-                  <span>Coming Soon</span>
-                  <span className="text-white/70 text-xs font-normal">$300.00</span>
-                </span>
-              </button>
-            </div>
-          ) : (state === "idle" || state === "error") ? (
+          {/* CTA */}
+          {(state === "idle" || state === "error") && (
             <div className="flex flex-col gap-2">
               <button
                 onClick={handleCollect}
@@ -281,7 +246,7 @@ function GenesisVinylContent() {
                 <p className="text-accent-red text-xs text-center">{error}</p>
               )}
             </div>
-          ) : null}
+          )}
 
           {/* Loading state */}
           {state === "loading" && (

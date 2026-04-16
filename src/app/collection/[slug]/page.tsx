@@ -31,14 +31,14 @@ const COLLECTIONS_MAP: Record<
     name: "Hoodlrz",
     slug: "hoodlrz",
     description:
-      "The flagship collection. 10,000 unique hooded identities generated as layered SVGs, stored fully on-chain on Ethereum. Each one composed of 7 hand-drawn layers. Own the identity. Collect the culture.",
-    supply: 10_000,
+      "The flagship collection. 2,999 unique hooded identities generated as layered SVGs, stored fully on-chain on Ethereum. Each one composed of 7 hand-drawn layers. Own the identity. Collect the culture.",
+    supply: 2_999,
     minted: 0,
     priceEth: "0.007 ETH",
     isGenesis: false,
     dropStatus: "upcoming" as const,
-    dropDate: "2026-05-15T18:00:00Z",
-    whitelistDate: "2026-05-12T18:00:00Z",
+    dropDate: "2026-06-15T18:00:00Z",
+    whitelistDate: "2026-06-12T18:00:00Z",
   },
   genesis: {
     name: "Genesis",
@@ -49,9 +49,9 @@ const COLLECTIONS_MAP: Record<
     minted: 0,
     priceEth: "",
     isGenesis: true,
-    dropStatus: "upcoming" as const,
-    dropDate: "2026-05-10T18:00:00Z",
-    whitelistDate: "2026-05-08T18:00:00Z",
+    dropStatus: "public" as const,
+    dropDate: "",
+    whitelistDate: "",
   },
 };
 
@@ -147,14 +147,16 @@ export default function CollectionDetailPage() {
         </p>
 
         {/* Drop date */}
-        <div className="mt-6 flex flex-col items-center gap-1">
-          <span className="text-[10px] uppercase tracking-widest text-white/50">
-            {dropStatus === "live" ? "Dropped" : "Drop Date"}
-          </span>
-          <p className={`font-hoodlrz text-2xl font-bold tracking-wider sm:text-3xl ${isGenesis ? "text-amber-500" : "text-[#627eea]"}`}>
-            {new Date(collection.dropDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
-          </p>
-        </div>
+        {!isGenesis && (
+          <div className="mt-6 flex flex-col items-center gap-1">
+            <span className="text-[10px] uppercase tracking-widest text-white/50">
+              {dropStatus === "live" ? "Dropped" : "Drop Date"}
+            </span>
+            <p className="font-hoodlrz text-2xl font-bold tracking-wider text-[#627eea] sm:text-3xl">
+              {new Date(collection.dropDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }).toUpperCase()}
+            </p>
+          </div>
+        )}
 
         {/* Durability Score — Hoodlrz only */}
         {!isGenesis && (

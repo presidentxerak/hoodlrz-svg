@@ -103,7 +103,7 @@ async function main() {
   console.log("======================================");
   console.log(`  LayerStore: ${LAYER_STORE_ADDRESS} (locked)`);
   console.log(`  NFT:        ${NFT_ADDRESS}`);
-  console.log(`  Supply:     ${finalSupply} / 10,000`);
+  console.log(`  Supply:     ${finalSupply} / 2,999`);
   console.log(`  Promo:      ${RESERVE_TOTAL} NFTs → ${PROMO_WALLET}`);
   console.log(`  Remaining:  ${balance} ETH`);
   console.log("======================================");

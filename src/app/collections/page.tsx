@@ -46,12 +46,12 @@ export default function CollectionsPage() {
                 </h2>
               </div>
               <p className="text-sm leading-relaxed text-muted line-clamp-2">
-                The flagship collection. 10,000 unique hooded identities stored
+                The flagship collection. 2,999 unique hooded identities stored
                 fully on-chain on Ethereum as ERC-721 NFTs.
               </p>
               <div className="mt-2 flex items-center gap-4 text-xs text-muted">
                 <span>
-                  <span className="font-bold text-foreground">10,000</span> supply
+                  <span className="font-bold text-foreground">2,999</span> supply
                 </span>
                 <span>
                   <span className="font-bold text-foreground">7</span> layers
