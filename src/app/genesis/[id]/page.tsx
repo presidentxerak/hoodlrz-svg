@@ -198,7 +198,7 @@ function GenesisVinylContent() {
             <div className="flex justify-between text-sm">
               <span className="text-muted">Includes</span>
               <span className="text-foreground font-semibold">
-                Unique sleeve + pressed disc + digital collectible
+                Unique sleeve + pressed disc
               </span>
             </div>
           </div>
@@ -349,7 +349,7 @@ function GenesisVinylContent() {
               </h3>
             </div>
             <p className="text-xs leading-relaxed text-muted">
-              Once your order is confirmed, your vinyl is <strong className="text-foreground">custom pressed</strong> with your tracklist and shipped worldwide with your unique sleeve, certificate of authenticity, and digital collectible.
+              Once your order is confirmed, your vinyl is <strong className="text-foreground">custom pressed</strong> with your tracklist and shipped worldwide with your unique sleeve and certificate of authenticity.
             </p>
           </div>
         </div>
