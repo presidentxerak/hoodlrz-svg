@@ -163,8 +163,8 @@ export async function GET() {
       }
 
       try {
-        const [seedBig] = iface.decodeFunctionResult("tokenSeed", seedRes.returnData) as [bigint];
-        const [owner] = iface.decodeFunctionResult("ownerOf", ownerRes.returnData) as [string];
+        const seedBig = iface.decodeFunctionResult("tokenSeed", seedRes.returnData)[0] as bigint;
+        const owner = iface.decodeFunctionResult("ownerOf", ownerRes.returnData)[0] as string;
         tokens.push({ tokenId: id, seed: seedBig.toString(), owner });
       } catch (err) {
         console.warn(`[api/gallery] Decode failed for token ${id}:`, (err as Error).message);
