@@ -252,10 +252,8 @@ export default function GlobalGalleryPage() {
                     seed={token.seed}
                     size={400}
                     className="aspect-square w-full"
+                    hideRarity
                   />
-                  <span className="absolute top-1.5 left-1.5 bg-[#627eea] text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
-                    ETH
-                  </span>
                 </div>
                 <div className="flex items-center justify-between p-3">
                   <div className="flex flex-col">

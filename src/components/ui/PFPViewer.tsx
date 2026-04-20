@@ -9,12 +9,14 @@ interface PFPViewerProps {
   size?: number;
   className?: string;
   example?: boolean;
+  hideRarity?: boolean;
 }
 
 export default function PFPViewer({
   seed,
   className = "",
   example = false,
+  hideRarity = false,
 }: PFPViewerProps) {
   const [showTraits, setShowTraits] = useState(false);
 
@@ -53,15 +55,17 @@ export default function PFPViewer({
       ))}
 
       {/* Rarity badge */}
-      <div
-        className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 py-0.5 text-[9px] sm:text-[11px] font-bold uppercase tracking-wider"
-        style={{
-          backgroundColor: tierColor,
-          color: rarity.tier === "Common" ? "#1a1a1a" : "#fff",
-        }}
-      >
-        {rarity.tier}
-      </div>
+      {!hideRarity && (
+        <div
+          className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 px-1.5 py-0.5 text-[9px] sm:text-[11px] font-bold uppercase tracking-wider"
+          style={{
+            backgroundColor: tierColor,
+            color: rarity.tier === "Common" ? "#1a1a1a" : "#fff",
+          }}
+        >
+          {rarity.tier}
+        </div>
+      )}
 
       {/* Example banner */}
       {example && (
