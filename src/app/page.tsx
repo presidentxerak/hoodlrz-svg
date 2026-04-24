@@ -43,7 +43,9 @@ export default function HomePage() {
             HOODLRZ
           </h1>
           <p className="max-w-md text-center text-sm leading-relaxed text-white/70 sm:text-base">
-            Own the identity. Collect the culture. On-chain forever.
+            Street Art Hooded Collection dropping soon on Ethereum.
+            <br />
+            Own the identity. Collect the culture.
           </p>
 
           {/* Collection info */}
