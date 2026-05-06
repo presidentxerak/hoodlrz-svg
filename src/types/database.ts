@@ -90,6 +90,48 @@ export interface Database {
         };
         Relationships: [];
       };
+      genesis_vinyls: {
+        Row: {
+          id: string;
+          edition: "Black" | "White" | "Craft";
+          number: number;
+          name: string;
+          image: string;
+          stripe_product_id: string | null;
+          stripe_price_id: string | null;
+          sold: boolean;
+          sold_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          edition: "Black" | "White" | "Craft";
+          number: number;
+          name: string;
+          image: string;
+          stripe_product_id?: string | null;
+          stripe_price_id?: string | null;
+          sold?: boolean;
+          sold_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          edition?: "Black" | "White" | "Craft";
+          number?: number;
+          name?: string;
+          image?: string;
+          stripe_product_id?: string | null;
+          stripe_price_id?: string | null;
+          sold?: boolean;
+          sold_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       tokens: {
         Row: {
           id: string;

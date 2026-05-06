@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripeServer } from "@/lib/stripe";
@@ -168,6 +169,31 @@ export async function POST(request: NextRequest) {
     // Create Stripe checkout session
     const origin = new URL(request.url).origin;
 
+    // For Genesis: look up the per-vinyl Stripe Price (one Product per vinyl,
+    // populated by `npm run seed:stripe`). The Hoodlrz primary sale path still
+    // uses inline price_data — switch to a Stripe Price the same way if you
+    // want the PFP drop in the catalog too.
+    let genesisPriceId: string | null = null;
+    if (isGenesisCheckout) {
+      const { data: vinylRow, error: vinylErr } = await admin
+        .from("genesis_vinyls")
+        .select("stripe_price_id")
+        .eq("id", vinylId!)
+        .single();
+
+      if (vinylErr || !vinylRow?.stripe_price_id) {
+        console.error("[mint] Missing Stripe price for vinyl", vinylId, vinylErr);
+        return NextResponse.json(
+          {
+            error:
+              "Vinyl pricing is not configured yet. Please run `npm run seed:stripe` to populate the Stripe catalog.",
+          },
+          { status: 500 },
+        );
+      }
+      genesisPriceId = vinylRow.stripe_price_id;
+    }
+
     // Build metadata
     const metadata: Record<string, string> = {
       collectionSlug,
@@ -198,25 +224,23 @@ export async function POST(request: NextRequest) {
       ? `${origin}/genesis/${vinylId}`
       : `${origin}/collection/${collectionSlug}`;
 
-    const checkoutSession = await getStripeServer().checkout.sessions.create({
-      mode: "payment",
-      line_items: [
-        {
+    const lineItem: Stripe.Checkout.SessionCreateParams.LineItem = isGenesisCheckout
+      ? { price: genesisPriceId!, quantity: 1 }
+      : {
           price_data: {
             currency: "eur",
             product_data: {
-              name: isGenesisCheckout
-                ? `Genesis — ${getVinylById(vinylId!)?.edition} #${String(getVinylById(vinylId!)?.number).padStart(2, "0")}`
-                : collection.name,
-              description: isGenesisCheckout
-                ? `Physical vinyl + digital collectible. Side A: ${trackSelection?.sideA.join(" / ")}. Side B: ${trackSelection?.sideB.join(" / ")}. Shipped worldwide.`
-                : (collection.description ?? undefined),
+              name: collection.name,
+              description: collection.description ?? undefined,
             },
             unit_amount: collection.price_cents,
           },
           quantity: 1,
-        },
-      ],
+        };
+
+    const checkoutSession = await getStripeServer().checkout.sessions.create({
+      mode: "payment",
+      line_items: [lineItem],
       metadata,
       // For Genesis: collect email + shipping + phone natively in Stripe
       ...(isGenesisCheckout && {
