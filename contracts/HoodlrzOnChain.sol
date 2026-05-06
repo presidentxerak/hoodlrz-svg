@@ -10,7 +10,7 @@ import "./interfaces/IHoodlrzRenderer.sol";
 
 /**
  * @title HoodlrzOnChain
- * @notice Full on-chain ERC-721 NFT — 2,999 unique SVG PFPs generated deterministically.
+ * @notice Full on-chain ERC-721 NFT — 1,337 unique SVG PFPs generated deterministically.
  *         Uses the same FNV-1a + Mulberry32 PRNG as the off-chain Hoodlrz protocol,
  *         so identical seeds produce identical trait selections.
  *         Implements EIP-2981 royalties (10%).
@@ -19,7 +19,7 @@ contract HoodlrzOnChain is ERC721, ERC2981, Ownable {
     using Strings for uint256;
 
     /* ── Constants ── */
-    uint256 public constant MAX_SUPPLY = 2_999;
+    uint256 public constant MAX_SUPPLY = 1_337;
     uint256 public constant MAX_PER_TX = 10;
 
     /* ── State ── */

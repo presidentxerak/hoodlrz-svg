@@ -30,7 +30,7 @@ export default function AboutPage() {
           every layer, every line — hand-drawn and brought to life on-chain.
         </p>
         <p className="text-base leading-relaxed text-muted">
-          2,999 unique ERC-721 NFTs. 7 hand-drawn SVG layers per artwork.
+          1,337 unique ERC-721 NFTs. 7 hand-drawn SVG layers per artwork.
           Every layer stored directly on the blockchain using SSTORE2.
           No IPFS, no external hosting. On-chain forever.
         </p>
@@ -120,7 +120,7 @@ export default function AboutPage() {
         <div className="mt-6 space-y-0">
           {[
             { name: "HoodlrzLayerStore", desc: "Stores all 227 SVG layers on-chain using SSTORE2. Supports chunked storage for layers exceeding the 24KB EIP-170 limit. Lockable after upload." },
-            { name: "HoodlrzOnChain", desc: "ERC-721 NFT contract with ERC-2981 royalties (10%). Handles minting, seed generation (FNV-1a + Mulberry32), and ownership. Max supply: 2,999." },
+            { name: "HoodlrzOnChain", desc: "ERC-721 NFT contract with ERC-2981 royalties (10%). Handles minting, seed generation (FNV-1a + Mulberry32), and ownership. Max supply: 1,337." },
             { name: "HoodlrzRenderer", desc: "Composes full on-chain SVG from stored layers. Generates ERC-721 compliant metadata as base64-encoded data URIs. Computes rarity scores and trait names." },
           ].map((item) => (
             <div key={item.name} className="flex gap-4 border-b border-[var(--border)] py-4">
@@ -218,13 +218,13 @@ export default function AboutPage() {
               Hoodlrz Collection
             </h4>
             <p className="text-sm leading-relaxed text-muted">
-              2,999 unique hooded identities, each composed of 7 hand-drawn
+              1,337 unique hooded identities, each composed of 7 hand-drawn
               SVG layers — walls, graffiti, hoodies, eyes, mouths, accessories,
               and foregrounds. Stored fully on-chain on Ethereum as ERC-721 NFTs.
               Available in light and dark variants.
             </p>
             <div className="flex flex-wrap gap-6 text-xs text-muted">
-              <span><strong className="text-foreground">2,999</strong> supply</span>
+              <span><strong className="text-foreground">1,337</strong> supply</span>
               <span><strong className="text-foreground">7</strong> layer categories</span>
               <span><strong className="text-foreground">2</strong> variants</span>
               <span><strong className="text-[#627eea]">0.007 ETH</strong> per mint</span>
@@ -247,7 +247,7 @@ export default function AboutPage() {
               <span><strong className="text-foreground">25</strong> pieces</span>
               <span><strong className="text-foreground">3</strong> editions</span>
               <span><strong className="text-foreground">4</strong> tracks per vinyl</span>
-              <span><strong className="text-foreground">$300</strong> per vinyl</span>
+              <span><strong className="text-foreground">€500</strong> per vinyl</span>
             </div>
           </div>
         </div>
@@ -283,7 +283,7 @@ export default function AboutPage() {
         </div>
         <p className="mt-4 text-xs text-muted">
           Total possible combinations: 10 x 23 x 12 x 21 x 20 x 17 x 11 x 2 = <strong className="text-foreground">over 200 million</strong> unique artworks.
-          Only 2,999 will ever exist.
+          Only 1,337 will ever exist.
         </p>
       </section>
 

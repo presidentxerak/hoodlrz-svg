@@ -131,7 +131,7 @@ export default function TokenDetailPage() {
               </Card>
               <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Price</span>
-                <span className="mt-1 block font-hoodlrz text-lg font-bold text-foreground">$300</span>
+                <span className="mt-1 block font-hoodlrz text-lg font-bold text-foreground">€500</span>
               </Card>
               <Card className="!p-4 hover:!translate-y-0 hover:!shadow-none">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Owner</span>

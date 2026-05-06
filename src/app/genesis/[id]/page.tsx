@@ -176,7 +176,7 @@ function GenesisVinylContent() {
             <div className="flex justify-between text-sm">
               <span className="text-muted">Price</span>
               <span className="text-foreground font-bold font-hoodlrz text-lg">
-                $300.00
+                €500.00
               </span>
             </div>
             <div className="flex justify-between text-sm">
@@ -230,7 +230,7 @@ function GenesisVinylContent() {
                 <span className="relative z-10 flex items-center justify-center gap-3">
                   <span>Collect This Vinyl</span>
                   <span className="text-white/70 text-xs font-normal">
-                    $300.00
+                    €500.00
                   </span>
                 </span>
               </button>

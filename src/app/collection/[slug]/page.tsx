@@ -31,8 +31,8 @@ const COLLECTIONS_MAP: Record<
     name: "Hoodlrz",
     slug: "hoodlrz",
     description:
-      "The flagship collection. 2,999 unique hooded identities generated as layered SVGs, stored fully on-chain on Ethereum. Each one composed of 7 hand-drawn layers. Own the identity. Collect the culture.",
-    supply: 2_999,
+      "The flagship collection. 1,337 unique hooded identities generated as layered SVGs, stored fully on-chain on Ethereum. Each one composed of 7 hand-drawn layers. Own the identity. Collect the culture.",
+    supply: 1_337,
     minted: 0,
     priceEth: "0.007 ETH",
     isGenesis: false,
@@ -338,7 +338,7 @@ export default function CollectionDetailPage() {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                         Black #{String(vinyl.number).padStart(2, "0")}
                       </span>
-                      <span className="text-[10px] font-bold text-foreground">$300</span>
+                      <span className="text-[10px] font-bold text-foreground">€500</span>
                     </div>
                   </Link>
                 ))}
@@ -366,7 +366,7 @@ export default function CollectionDetailPage() {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                         White #{String(vinyl.number).padStart(2, "0")}
                       </span>
-                      <span className="text-[10px] font-bold text-foreground">$300</span>
+                      <span className="text-[10px] font-bold text-foreground">€500</span>
                     </div>
                   </Link>
                 ))}
@@ -394,7 +394,7 @@ export default function CollectionDetailPage() {
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
                         Craft #{String(vinyl.number).padStart(2, "0")}
                       </span>
-                      <span className="text-[10px] font-bold text-foreground">$300</span>
+                      <span className="text-[10px] font-bold text-foreground">€500</span>
                     </div>
                   </Link>
                 ))}

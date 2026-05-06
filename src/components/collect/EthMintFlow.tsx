@@ -380,7 +380,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted">Supply</span>
-              <span className="text-foreground font-semibold">{totalSupply} / 2,999</span>
+              <span className="text-foreground font-semibold">{totalSupply} / 1,337</span>
             </div>
             <div className="border-t border-[var(--border)] pt-2 flex justify-between text-sm">
               <span className="text-foreground font-bold">Total</span>

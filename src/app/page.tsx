@@ -51,10 +51,7 @@ export default function HomePage() {
           {/* Collection info */}
           <div className="flex flex-col items-center gap-2 mt-2">
             <p className="text-white/90 font-hoodlrz text-lg tracking-wider sm:text-xl">
-              2,999 On-Chain NFTs on Ethereum
-            </p>
-            <p className="text-white/90 font-hoodlrz text-lg tracking-wider sm:text-xl">
-              25 Genesis Vinyls Collection
+              1,337 On-Chain NFTs on Ethereum
             </p>
           </div>
 
@@ -144,7 +141,7 @@ export default function HomePage() {
               </div>
 
               <p className="text-sm leading-relaxed text-muted">
-                2,999 unique digital identities minted as{" "}
+                1,337 unique digital identities minted as{" "}
                 <strong className="text-foreground">full on-chain ERC-721 NFTs</strong> on
                 Ethereum. Every SVG layer is stored directly on the blockchain using SSTORE2.
                 Your Hoodlrz lives on-chain forever.
@@ -241,7 +238,7 @@ export default function HomePage() {
               </div>
 
               <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
-                <span className="font-hoodlrz text-xl font-bold text-foreground">$300.00</span>
+                <span className="font-hoodlrz text-xl font-bold text-foreground">€500.00</span>
                 <Link
                   href="/genesis"
                   className="text-xs font-bold uppercase tracking-widest text-amber-500 hover:underline"

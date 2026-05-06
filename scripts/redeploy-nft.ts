@@ -99,7 +99,7 @@ async function main() {
   console.log(`  LayerStore:  ${LAYER_STORE_ADDRESS} (existing, locked)`);
   console.log(`  NFT:         ${nftAddr}`);
   console.log(`  Renderer:    ${rendererAddr}`);
-  console.log(`  Supply:      ${finalSupply} / 2,999`);
+  console.log(`  Supply:      ${finalSupply} / 1,337`);
   console.log(`  Reserved:    ${RESERVE_TOTAL} NFTs → ${PROMO_WALLET}`);
   console.log(`  Mint Price:  0.007 ETH`);
   console.log(`  Royalties:   10% to ${deployer.address}`);
