@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import PFPViewer from "@/components/ui/PFPViewer";
+import UsdToEth from "@/components/ui/UsdToEth";
 
 export default function CollectionsPage() {
   return (
@@ -19,18 +19,27 @@ export default function CollectionsPage() {
 
       {/* Grid */}
       <div className="mt-12 grid gap-8 sm:grid-cols-2">
-        {/* Hoodlrz On-Chain Collection */}
-        <Link href="/collection/hoodlrz">
+        {/* Hoodlrz Street Collection */}
+        <Link href="/">
           <Card className="group flex flex-col gap-0 p-0 overflow-hidden">
-            <div className="relative w-full aspect-square overflow-hidden bg-[var(--surface)]">
-              <PFPViewer
-                seed="hoodlrz-col-hero-001"
-                size={600}
-                className="aspect-square w-full"
-                example
-              />
+            <div className="relative w-full aspect-square overflow-hidden bg-black">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute inset-0 w-full h-full object-cover"
+              >
+                <source src="/hoodlrz-banner-1.mp4" type="video/mp4" />
+              </video>
+              <div className="absolute inset-0 bg-black/70" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="font-hoodlrz text-3xl font-bold tracking-wider text-white sm:text-4xl">
+                  HOODLRZ
+                </span>
+              </div>
               <div className="absolute top-3 right-3">
-                <Badge variant="success">On-Chain</Badge>
+                <Badge variant="success">ERC-721</Badge>
               </div>
             </div>
             <div className="flex flex-col gap-3 p-5">
@@ -42,21 +51,23 @@ export default function CollectionsPage() {
                   <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
                 </svg>
                 <h2 className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
-                  Hoodlrz
+                  Hoodlrz Street
                 </h2>
               </div>
               <p className="text-sm leading-relaxed text-muted line-clamp-2">
-                The flagship collection. 1,337 unique hooded identities stored
-                fully on-chain on Ethereum as ERC-721 NFTs.
+                1,337 unique hooded identities on Ethereum. Standard ERC-721.
+                Hand-drawn by XERAK.
               </p>
               <div className="mt-2 flex items-center gap-4 text-xs text-muted">
                 <span>
                   <span className="font-bold text-foreground">1,337</span> supply
                 </span>
                 <span>
-                  <span className="font-bold text-foreground">7</span> layers
+                  <span className="font-bold text-[#627eea]">$10</span>{" "}
+                  <span className="text-muted/70">
+                    (<UsdToEth usd={10} bare />)
+                  </span>
                 </span>
-                <span className="font-bold text-[#627eea]">0.007 ETH</span>
               </div>
             </div>
           </Card>

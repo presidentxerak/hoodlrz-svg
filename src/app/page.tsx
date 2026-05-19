@@ -1,28 +1,58 @@
 "use client";
 
-import Link from "next/link";
-import PFPViewer from "@/components/ui/PFPViewer";
+import { useState } from "react";
 import Countdown from "@/components/ui/Countdown";
+import UsdToEth from "@/components/ui/UsdToEth";
 
-/* ── Drop dates ── */
-const HOODLRZ_DROP_DATE = "2026-06-15T18:00:00Z";
+const STREET_DROP_DATE = "2026-06-15T18:00:00Z";
+const STREET_WHITELIST_DATE = "2026-06-12T18:00:00Z";
+const STREET_SUPPLY = 1337;
+const STREET_PRICE_USD = 10;
 
-const WHITELIST_URL =
-  "https://forms.gle/ugVMdtzV2JMbZ745A";
+const WHITELIST_URL = "https://forms.gle/ugVMdtzV2JMbZ745A";
 
-const FEATURED = [
-  { seed: "hoodlrz-featured-956", label: "Legendary" },
-  { seed: "hoodlrz-featured-4", label: "Rare" },
-  { seed: "hoodlrz-featured-7", label: "Uncommon" },
-  { seed: "hoodlrz-featured-1", label: "Common" },
+const FAQ: Array<{ q: string; a: string }> = [
+  {
+    q: "What is Hoodlrz Street?",
+    a: "Hoodlrz Street is the public chapter of the Hoodlrz universe — a 1,337-piece collection of hand-drawn hooded identities released as standard ERC-721 NFTs on Ethereum. Each token is a unique character; the artwork lives off-chain on decentralised storage while ownership and provenance are anchored on Ethereum.",
+  },
+  {
+    q: "What's the supply and price?",
+    a: "1,337 NFTs total. $10 per mint (paid in ETH using the live exchange rate at the moment you mint).",
+  },
+  {
+    q: "When does it drop?",
+    a: "Whitelist opens June 12, 2026 at 18:00 UTC. Public mint opens June 15, 2026 at 18:00 UTC. The countdown on this page is the source of truth.",
+  },
+  {
+    q: "How is this different from the full on-chain Hoodlrz?",
+    a: "Hoodlrz Street uses a standard ERC-721 contract — fast, cheap to mint, and supported by every wallet and marketplace. The original full on-chain Hoodlrz (where each SVG layer is stored directly on Ethereum via SSTORE2) is a separate, premium artefact for collectors who care about that level of permanence.",
+  },
+  {
+    q: "How do I mint?",
+    a: "Connect an Ethereum wallet (MetaMask, Rainbow, WalletConnect…), pick a quantity, and confirm the transaction. The button on this page will activate the moment the public mint window opens.",
+  },
+  {
+    q: "What about whitelist?",
+    a: "Join the whitelist via the button at the top of the page. Whitelisted wallets get a 3-day head start before public mint.",
+  },
+  {
+    q: "Are there royalties?",
+    a: "Yes — 10% on-chain royalties via ERC-2981, enforced by marketplaces that respect the standard. Supports the artist and continued development of the universe.",
+  },
+  {
+    q: "Where can I trade after mint?",
+    a: "OpenSea, Blur, LooksRare, or any ERC-721-compatible marketplace. Hoodlrz Street is a standard NFT — no platform lock-in.",
+  },
 ];
 
 export default function HomePage() {
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
+
   return (
     <div className="flex flex-col items-center">
-      {/* ── Hero with video background ── */}
-      <section className="relative flex w-full flex-col items-center justify-center gap-6 px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden min-h-[80vh]">
-        {/* Video background */}
+      {/* ── Hero with video background + 70% overlay ── */}
+      <section className="relative flex w-full flex-col items-center justify-center gap-6 px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden min-h-[85vh]">
         <video
           autoPlay
           loop
@@ -30,226 +60,232 @@ export default function HomePage() {
           playsInline
           className="absolute inset-0 w-full h-full object-cover"
         >
-          <source src="/hero-hoodlrz-video.mp4" type="video/mp4" />
-          <source src="/hero-hoodlrz-video.mov" type="video/quicktime" />
+          <source src="/hoodlrz-banner-1.mp4" type="video/mp4" />
         </video>
 
-        {/* Dark overlay */}
+        {/* 70% transparency overlay → 70% opacity black layer */}
         <div className="absolute inset-0 bg-black/70" />
 
-        {/* Content over video */}
         <div className="relative z-10 flex flex-col items-center gap-6 max-w-2xl text-center">
-          <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-white sm:text-[60px]">
+          <h1 className="font-hoodlrz text-[40px] font-bold leading-none tracking-wider text-white sm:text-[72px]">
             HOODLRZ
           </h1>
-          <p className="max-w-md text-center text-sm leading-relaxed text-white/70 sm:text-base">
-            Street Art Hooded Collection dropping soon on Ethereum.
-            <br />
+          <p className="max-w-md text-center text-sm leading-relaxed text-white/80 sm:text-base">
             Own the identity. Collect the culture.
           </p>
 
-          {/* Collection info */}
-          <div className="flex flex-col items-center gap-2 mt-2">
-            <p className="text-white/90 font-hoodlrz text-lg tracking-wider sm:text-xl">
-              1,337 On-Chain NFTs on Ethereum
+          {/* Collection summary */}
+          <div className="mt-2 flex flex-col items-center gap-1">
+            <p className="text-white/90 font-hoodlrz text-xl tracking-wider sm:text-2xl">
+              Hoodlrz Street
+            </p>
+            <p className="text-white/70 text-sm sm:text-base">
+              {STREET_SUPPLY.toLocaleString()} NFTs · ${STREET_PRICE_USD}{" "}
+              <span className="text-white/50">
+                (<UsdToEth usd={STREET_PRICE_USD} bare />)
+              </span>{" "}
+              · ERC-721 on Ethereum
             </p>
           </div>
 
-          {/* Drop date */}
-          <div className="mt-6 flex flex-col items-center gap-2">
+          {/* Drop date + countdown */}
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <span className="text-[10px] uppercase tracking-widest text-white/50">
+              Public Drop
+            </span>
             <p className="font-hoodlrz text-2xl font-bold tracking-wider text-white sm:text-3xl">
               JUNE 15, 2026
             </p>
-            <span className="text-[10px] uppercase tracking-widest text-white/50">
-              Drop in
-            </span>
-            <div className="[&_span]:!text-white [&_.text-muted]:!text-white/50 [&_.text-foreground]:!text-white">
-              <Countdown targetDate={HOODLRZ_DROP_DATE} />
+            <div className="mt-2 [&_span]:!text-white [&_.text-muted]:!text-white/50 [&_.text-foreground]:!text-white">
+              <Countdown targetDate={STREET_DROP_DATE} />
             </div>
           </div>
 
-          {/* CTA Buttons */}
+          {/* CTAs */}
           <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
-            <a
-              href="#featured"
-              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-150 select-none"
-            >
-              Know More
-            </a>
             <a
               href={WHITELIST_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(229,62,62,0.5),0_0_48px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
+              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-150 select-none"
             >
-              White List
+              Join Whitelist
             </a>
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white cta-gradient opacity-50 cursor-not-allowed select-none"
+            >
+              Mint · Coming Soon
+            </button>
           </div>
+          <span className="text-[10px] uppercase tracking-widest text-white/40">
+            Whitelist opens June 12, 2026 · public mint June 15
+          </span>
         </div>
       </section>
 
-      {/* ── Featured PFPs ── */}
-      <section id="featured" className="mx-auto w-full max-w-5xl px-4 py-20">
-        <h2 className="mb-8 text-center text-xs font-bold uppercase tracking-widest text-muted">
-          Featured
-        </h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
-          {FEATURED.map(({ seed, label }) => (
-            <div key={seed} className="animate-fade-in-up flex flex-col gap-2">
-              <PFPViewer seed={seed} className="aspect-square w-full" example />
-              <span className="text-center text-[10px] font-bold uppercase tracking-widest text-muted">
-                {label}
-              </span>
-            </div>
-          ))}
+      {/* ── Collection details ── */}
+      <section className="w-full bg-[var(--surface)] py-20">
+        <div className="mx-auto max-w-5xl px-4">
+          <h2 className="font-hoodlrz text-center text-[28px] font-bold tracking-wider text-foreground sm:text-[36px]">
+            The Drop
+          </h2>
+          <p className="mt-3 mx-auto max-w-lg text-center text-sm leading-relaxed text-muted">
+            A standard ERC-721 collection on Ethereum, hand-drawn by XERAK.
+          </p>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+            <Stat label="Supply" value={STREET_SUPPLY.toLocaleString()} />
+            <Stat
+              label="Price"
+              value={`$${STREET_PRICE_USD}`}
+              sub={<UsdToEth usd={STREET_PRICE_USD} />}
+            />
+            <Stat label="Royalties" value="10%" sub="ERC-2981" />
+          </div>
+
+          <div className="mt-12 grid gap-4 sm:grid-cols-2">
+            <Card title="Standard ERC-721" body="One of the most widely supported NFT standards on Ethereum. Compatible with every wallet and marketplace — OpenSea, Blur, LooksRare, Rainbow, MetaMask, Ledger." />
+            <Card title="Hand-drawn art" body="Every layer is hand-illustrated by XERAK. Walls, graffiti, hoodies, eyes, mouths, accessories, foregrounds — combined into 1,337 unique hooded identities." />
+            <Card title="Live USD pricing" body={`Each mint costs $${STREET_PRICE_USD} converted to ETH at the live exchange rate. The on-page price updates automatically.`} />
+            <Card title="On-chain ownership" body="Ownership, transfers, and royalties (10%) are enforced on Ethereum. Artwork is hosted on decentralised storage and referenced via tokenURI." />
+          </div>
         </div>
       </section>
 
       {/* ── How It Works ── */}
-      <section className="w-full bg-[var(--surface)] py-20">
+      <section className="w-full py-20">
         <div className="mx-auto max-w-5xl px-4">
           <h2 className="font-hoodlrz text-center text-[28px] font-bold tracking-wider text-foreground sm:text-[36px]">
-            How It Works
+            How to Mint
           </h2>
-          <p className="mt-3 mx-auto max-w-lg text-center text-sm leading-relaxed text-muted">
-            Two collections. Full on-chain ownership. One universe.
-          </p>
 
-          <div className="mt-14 grid gap-10 sm:grid-cols-2">
-            {/* Hoodlrz Ethereum Card */}
-            <div className="flex flex-col gap-6 border border-[var(--border)] bg-[var(--background)] p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <svg width="20" height="20" viewBox="0 0 784 784" fill="none">
-                  <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="#627eea" fillOpacity="0.8"/>
-                  <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="#627eea"/>
-                  <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="#627eea" fillOpacity="0.8"/>
-                  <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="#627eea"/>
-                </svg>
-                <h3 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-                  Hoodlrz
-                </h3>
-                <span className="text-[10px] uppercase tracking-widest bg-[#627eea]/10 text-[#627eea] border border-[#627eea]/30 px-2 py-0.5">
-                  On-Chain
-                </span>
-              </div>
-
-              {/* Preview PFPs */}
-              <div className="grid grid-cols-4 gap-2">
-                {FEATURED.map(({ seed }) => (
-                  <PFPViewer key={`eth-${seed}`} seed={`eth-${seed}`} className="aspect-square w-full" example />
-                ))}
-              </div>
-
-              <p className="text-sm leading-relaxed text-muted">
-                1,337 unique digital identities minted as{" "}
-                <strong className="text-foreground">full on-chain ERC-721 NFTs</strong> on
-                Ethereum. Every SVG layer is stored directly on the blockchain using SSTORE2.
-                Your Hoodlrz lives on-chain forever.
-              </p>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">1</span>
-                  <span className="text-muted"><strong className="text-foreground">Connect Wallet</strong> — MetaMask or any Ethereum wallet</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">2</span>
-                  <span className="text-muted"><strong className="text-foreground">Choose quantity</strong> — Pick how many you want (1-10 per tx)</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">3</span>
-                  <span className="text-muted"><strong className="text-foreground">Collect</strong> — Confirm the transaction. Pay in ETH + gas</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-[#627eea]/10 text-[#627eea] text-xs font-bold">4</span>
-                  <span className="text-muted"><strong className="text-foreground">On-Chain</strong> — Your SVG is generated and stored on Ethereum</span>
-                </div>
-              </div>
-
-              {/* Drop date */}
-              <div className="flex items-center justify-center border-t border-[var(--border)] pt-4">
-                <div className="text-center">
-                  <span className="text-[10px] uppercase tracking-widest text-muted">Drop</span>
-                  <p className="font-hoodlrz text-lg font-bold tracking-wider text-[#627eea]">JUNE 15, 2026</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="font-hoodlrz text-xl font-bold text-[#627eea]">0.007 ETH</span>
-                <Link
-                  href="/collection/hoodlrz"
-                  className="text-xs font-bold uppercase tracking-widest text-[#627eea] hover:underline"
-                >
-                  View Collection &rarr;
-                </Link>
-              </div>
-            </div>
-
-            {/* Genesis Card */}
-            <div className="flex flex-col gap-6 border border-[var(--border)] bg-[var(--background)] p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <h3 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">
-                  Genesis
-                </h3>
-                <span className="text-[10px] uppercase tracking-widest bg-amber-500/10 text-amber-500 border border-amber-500/30 px-2 py-0.5">
-                  25 vinyls
-                </span>
-              </div>
-
-              {/* Preview vinyls */}
-              <div className="grid grid-cols-4 gap-2">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/genesis/black/01-black.png" alt="Black #01" className="aspect-square w-full object-cover" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/genesis/black/03-black.png" alt="Black #03" className="aspect-square w-full object-cover" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/genesis/black/05-black.png" alt="Black #05" className="aspect-square w-full object-cover" />
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/genesis/black/07-black.png" alt="Black #07" className="aspect-square w-full object-cover" />
-              </div>
-
-              <p className="text-sm leading-relaxed text-muted">
-                25 exclusive hand-crafted vinyl artworks across three editions:
-                <strong className="text-foreground"> Black</strong> (10),
-                <strong className="text-foreground"> White</strong> (5), and
-                <strong className="text-foreground"> Craft</strong> (10).
-                Each piece features a <strong className="text-foreground">unique hand-drawn sleeve</strong> and
-                a <strong className="text-foreground">custom pressed disc</strong> — choose your 4 tracks from
-                the Hoodlrz catalog and arrange them on Side A &amp; Side B.
-              </p>
-
-              <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">1</span>
-                  <span className="text-muted"><strong className="text-foreground">Browse</strong> — Explore all 25 unique vinyls and choose yours</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">2</span>
-                  <span className="text-muted"><strong className="text-foreground">Your Tracks</strong> — Pick 4 tracks and arrange them on Side A &amp; Side B</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">3</span>
-                  <span className="text-muted"><strong className="text-foreground">Collect</strong> — Sign in, confirm your tracklist, and pay by card</span>
-                </div>
-                <div className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center bg-amber-500/10 text-amber-500 text-xs font-bold">4</span>
-                  <span className="text-muted"><strong className="text-foreground">Shipped</strong> — Your custom pressed vinyl + unique sleeve delivered worldwide</span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
-                <span className="font-hoodlrz text-xl font-bold text-foreground">€500.00</span>
-                <Link
-                  href="/genesis"
-                  className="text-xs font-bold uppercase tracking-widest text-amber-500 hover:underline"
-                >
-                  View Vinyls &rarr;
-                </Link>
-              </div>
-            </div>
+          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+            <Step
+              n={1}
+              title="Connect"
+              body="Connect any Ethereum wallet — MetaMask, Rainbow, WalletConnect-compatible."
+            />
+            <Step
+              n={2}
+              title="Pick quantity"
+              body="Choose how many you want (max 10 per transaction). Pay in ETH at the live USD rate."
+            />
+            <Step
+              n={3}
+              title="Mint"
+              body="Confirm the transaction. Your Hoodlrz Street NFT arrives in your wallet within a block."
+            />
           </div>
         </div>
       </section>
+
+      {/* ── FAQ ── */}
+      <section className="w-full bg-[var(--surface)] py-20">
+        <div className="mx-auto max-w-3xl px-4">
+          <h2 className="font-hoodlrz text-center text-[28px] font-bold tracking-wider text-foreground sm:text-[36px]">
+            FAQ
+          </h2>
+          <p className="mt-3 mx-auto max-w-lg text-center text-sm leading-relaxed text-muted">
+            Everything you need to know before minting.
+          </p>
+
+          <div className="mt-10 divide-y divide-[var(--border)] border-y border-[var(--border)]">
+            {FAQ.map((item, i) => {
+              const open = openFaq === i;
+              return (
+                <button
+                  key={item.q}
+                  type="button"
+                  onClick={() => setOpenFaq(open ? null : i)}
+                  className="w-full flex flex-col gap-2 py-5 text-left transition-colors hover:bg-background/40"
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-bold uppercase tracking-widest text-foreground">
+                      {item.q}
+                    </span>
+                    <span
+                      className={`text-muted text-lg transition-transform ${
+                        open ? "rotate-45" : ""
+                      }`}
+                      aria-hidden
+                    >
+                      +
+                    </span>
+                  </div>
+                  {open && (
+                    <p className="text-sm leading-relaxed text-muted pr-8">
+                      {item.a}
+                    </p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer CTA ── */}
+      <section className="w-full py-16">
+        <div className="mx-auto max-w-3xl px-4 flex flex-col items-center gap-4 text-center">
+          <p className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground sm:text-3xl">
+            Be ready for the drop.
+          </p>
+          <span className="text-[10px] uppercase tracking-widest text-muted">
+            Whitelist opens {formatDate(STREET_WHITELIST_DATE)} · Public mint {formatDate(STREET_DROP_DATE)}
+          </span>
+          <a
+            href={WHITELIST_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(229,62,62,0.5),0_0_48px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
+          >
+            Join Whitelist
+          </a>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso)
+    .toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    .toUpperCase();
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center gap-1 border border-[var(--border)] bg-[var(--background)] p-6 text-center">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+        {label}
+      </span>
+      <span className="font-hoodlrz text-3xl font-bold text-foreground sm:text-4xl">
+        {value}
+      </span>
+      {sub && <span className="text-xs text-muted">{sub}</span>}
+    </div>
+  );
+}
+
+function Card({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="border border-[var(--border)] bg-[var(--background)] p-6 flex flex-col gap-2">
+      <p className="text-sm font-bold uppercase tracking-widest text-foreground">{title}</p>
+      <p className="text-sm leading-relaxed text-muted">{body}</p>
+    </div>
+  );
+}
+
+function Step({ n, title, body }: { n: number; title: string; body: string }) {
+  return (
+    <div className="border border-[var(--border)] p-6 flex flex-col gap-3">
+      <span className="flex items-center justify-center w-9 h-9 border border-accent-red text-accent-red font-hoodlrz text-base font-bold">
+        {n}
+      </span>
+      <p className="text-sm font-bold uppercase tracking-widest text-foreground">{title}</p>
+      <p className="text-sm leading-relaxed text-muted">{body}</p>
     </div>
   );
 }
