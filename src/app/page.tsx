@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import Countdown from "@/components/ui/Countdown";
-import UsdToEth from "@/components/ui/UsdToEth";
 
 const STREET_DROP_DATE = "2026-06-15T18:00:00Z";
 const STREET_WHITELIST_DATE = "2026-06-12T18:00:00Z";
 const STREET_SUPPLY = 1337;
-const STREET_PRICE_USD = 10;
 
 const WHITELIST_URL = "https://forms.gle/ugVMdtzV2JMbZ745A";
 
@@ -17,8 +15,8 @@ const FAQ: Array<{ q: string; a: string }> = [
     a: "Hoodlrz Street is the public chapter of the Hoodlrz universe — a 1,337-piece collection of hand-drawn hooded identities released as standard ERC-721 NFTs on Ethereum. Each token is a unique character; the artwork lives off-chain on decentralised storage while ownership and provenance are anchored on Ethereum.",
   },
   {
-    q: "What's the supply and price?",
-    a: "1,337 NFTs total. $10 per mint (paid in ETH using the live exchange rate at the moment you mint).",
+    q: "What's the supply?",
+    a: "1,337 NFTs total. Hand-drawn, no duplicates.",
   },
   {
     q: "When does it drop?",
@@ -26,7 +24,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "How is this different from the full on-chain Hoodlrz?",
-    a: "Hoodlrz Street uses a standard ERC-721 contract — fast, cheap to mint, and supported by every wallet and marketplace. The original full on-chain Hoodlrz (where each SVG layer is stored directly on Ethereum via SSTORE2) is a separate, premium artefact for collectors who care about that level of permanence.",
+    a: "Hoodlrz Street uses a standard ERC-721 contract — fast, cheap to mint, and supported by every wallet and marketplace. The full on-chain Hoodlrz (where each SVG layer is stored directly on Ethereum via SSTORE2) is a separate, premium artefact for collectors who care about that level of permanence.",
   },
   {
     q: "How do I mint?",
@@ -35,10 +33,6 @@ const FAQ: Array<{ q: string; a: string }> = [
   {
     q: "What about whitelist?",
     a: "Join the whitelist via the button at the top of the page. Whitelisted wallets get a 3-day head start before public mint.",
-  },
-  {
-    q: "Are there royalties?",
-    a: "Yes — 10% on-chain royalties via ERC-2981, enforced by marketplaces that respect the standard. Supports the artist and continued development of the universe.",
   },
   {
     q: "Where can I trade after mint?",
@@ -70,7 +64,7 @@ export default function HomePage() {
           <h1 className="font-hoodlrz text-[40px] font-bold leading-none tracking-wider text-white sm:text-[72px]">
             HOODLRZ
           </h1>
-          <p className="max-w-md text-center text-sm leading-relaxed text-white/80 sm:text-base">
+          <p className="font-hoodlrz max-w-3xl text-center text-2xl font-bold leading-tight tracking-wider text-white sm:text-4xl md:text-5xl">
             Own the identity. Collect the culture.
           </p>
 
@@ -80,11 +74,7 @@ export default function HomePage() {
               Hoodlrz Street
             </p>
             <p className="text-white/70 text-sm sm:text-base">
-              {STREET_SUPPLY.toLocaleString()} NFTs · ${STREET_PRICE_USD}{" "}
-              <span className="text-white/50">
-                (<UsdToEth usd={STREET_PRICE_USD} bare />)
-              </span>{" "}
-              · ERC-721 on Ethereum
+              {STREET_SUPPLY.toLocaleString()} NFTs · ERC-721 on Ethereum
             </p>
           </div>
 
@@ -135,21 +125,15 @@ export default function HomePage() {
             A standard ERC-721 collection on Ethereum, hand-drawn by XERAK.
           </p>
 
-          <div className="mt-12 grid gap-6 sm:grid-cols-3">
+          <div className="mt-12 mx-auto max-w-sm">
             <Stat label="Supply" value={STREET_SUPPLY.toLocaleString()} />
-            <Stat
-              label="Price"
-              value={`$${STREET_PRICE_USD}`}
-              sub={<UsdToEth usd={STREET_PRICE_USD} />}
-            />
-            <Stat label="Royalties" value="10%" sub="ERC-2981" />
           </div>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2">
             <Card title="Standard ERC-721" body="One of the most widely supported NFT standards on Ethereum. Compatible with every wallet and marketplace — OpenSea, Blur, LooksRare, Rainbow, MetaMask, Ledger." />
             <Card title="Hand-drawn art" body="Every layer is hand-illustrated by XERAK. Walls, graffiti, hoodies, eyes, mouths, accessories, foregrounds — combined into 1,337 unique hooded identities." />
-            <Card title="Live USD pricing" body={`Each mint costs $${STREET_PRICE_USD} converted to ETH at the live exchange rate. The on-page price updates automatically.`} />
-            <Card title="On-chain ownership" body="Ownership, transfers, and royalties (10%) are enforced on Ethereum. Artwork is hosted on decentralised storage and referenced via tokenURI." />
+            <Card title="Whitelist priority" body="Whitelisted wallets get a 3-day head start before the public mint window opens." />
+            <Card title="On-chain ownership" body="Ownership and transfers are enforced on Ethereum. Artwork is hosted on decentralised storage and referenced via tokenURI." />
           </div>
         </div>
       </section>
@@ -170,7 +154,7 @@ export default function HomePage() {
             <Step
               n={2}
               title="Pick quantity"
-              body="Choose how many you want (max 10 per transaction). Pay in ETH at the live USD rate."
+              body="Choose how many you want (max 10 per transaction)."
             />
             <Step
               n={3}

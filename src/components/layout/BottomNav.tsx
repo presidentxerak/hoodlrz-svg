@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Grid3X3, Disc3, ImageIcon, User } from "lucide-react";
+import { Home, Info, Disc3, User } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface NavItem {
@@ -14,8 +14,7 @@ interface NavItem {
 const items: NavItem[] = [
   { icon: <Home size={20} />, label: "Mint", href: "/" },
   { icon: <Disc3 size={20} />, label: "Vinyl", href: "/genesis" },
-  { icon: <ImageIcon size={20} />, label: "Gallery", href: "/gallery" },
-  { icon: <Grid3X3 size={20} />, label: "About", href: "/about" },
+  { icon: <Info size={20} />, label: "About", href: "/about" },
   { icon: <User size={20} />, label: "Profile", href: "/my-collection" },
 ];
 

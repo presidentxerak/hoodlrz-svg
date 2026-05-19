@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import UsdToEth from "@/components/ui/UsdToEth";
 
 export default function CollectionsPage() {
   return (
@@ -62,12 +61,7 @@ export default function CollectionsPage() {
                 <span>
                   <span className="font-bold text-foreground">1,337</span> supply
                 </span>
-                <span>
-                  <span className="font-bold text-[#627eea]">$10</span>{" "}
-                  <span className="text-muted/70">
-                    (<UsdToEth usd={10} bare />)
-                  </span>
-                </span>
+                <span className="font-bold text-[#627eea]">ERC-721</span>
               </div>
             </div>
           </Card>
