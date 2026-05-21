@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Countdown from "@/components/ui/Countdown";
 
-const STREET_DROP_DATE = "2026-06-15T18:00:00Z";
+const STREET_DROP_DATE = "2026-06-16T18:00:00Z";
 const STREET_WHITELIST_DATE = "2026-06-12T18:00:00Z";
 const STREET_SUPPLY = 1337;
 
@@ -20,7 +20,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "When does it drop?",
-    a: "Whitelist opens June 12, 2026 at 18:00 UTC. Public mint opens June 15, 2026 at 18:00 UTC. The countdown on this page is the source of truth.",
+    a: "Whitelist opens June 12, 2026 at 18:00 UTC. Public mint opens June 16, 2026 at 18:00 UTC. The countdown on this page is the source of truth.",
   },
   {
     q: "How is this different from the full on-chain Hoodlrz?",
@@ -32,7 +32,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "What about whitelist?",
-    a: "Join the whitelist via the button at the top of the page. Whitelisted wallets get a 3-day head start before public mint.",
+    a: "Join the whitelist via the button at the top of the page. Whitelisted wallets get a 4-day head start before public mint.",
   },
   {
     q: "Where can I trade after mint?",
@@ -84,7 +84,7 @@ export default function HomePage() {
               Public Drop
             </span>
             <p className="font-hoodlrz text-2xl font-bold tracking-wider text-white sm:text-3xl">
-              JUNE 15, 2026
+              JUNE 16, 2026
             </p>
             <div className="mt-2 [&_span]:!text-white [&_.text-muted]:!text-white/50 [&_.text-foreground]:!text-white">
               <Countdown targetDate={STREET_DROP_DATE} />
@@ -110,7 +110,7 @@ export default function HomePage() {
             </button>
           </div>
           <span className="text-[10px] uppercase tracking-widest text-white/40">
-            Whitelist opens June 12, 2026 · public mint June 15
+            Whitelist opens June 12, 2026 · public mint June 16
           </span>
         </div>
       </section>
@@ -132,7 +132,7 @@ export default function HomePage() {
           <div className="mt-12 grid gap-4 sm:grid-cols-2">
             <Card title="Standard ERC-721" body="One of the most widely supported NFT standards on Ethereum. Compatible with every wallet and marketplace — OpenSea, Blur, LooksRare, Rainbow, MetaMask, Ledger." />
             <Card title="Hand-drawn art" body="Every layer is hand-illustrated by XERAK. Walls, graffiti, hoodies, eyes, mouths, accessories, foregrounds — combined into 1,337 unique hooded identities." />
-            <Card title="Whitelist priority" body="Whitelisted wallets get a 3-day head start before the public mint window opens." />
+            <Card title="Whitelist priority" body="Whitelisted wallets get a 4-day head start before the public mint window opens." />
             <Card title="On-chain ownership" body="Ownership and transfers are enforced on Ethereum. Artwork is hosted on decentralised storage and referenced via tokenURI." />
           </div>
         </div>
