@@ -183,6 +183,9 @@ export interface Database {
           stripe_payment_intent_id: string | null;
           status: "pending" | "completed" | "failed" | "refunded";
           order_type: "collect" | "marketplace" | "reward";
+          tx_hash: string | null;
+          chain_id: number | null;
+          metadata: Json | null;
           created_at: string;
         };
         Insert: {
@@ -196,6 +199,9 @@ export interface Database {
           stripe_payment_intent_id?: string | null;
           status?: "pending" | "completed" | "failed" | "refunded";
           order_type?: "collect" | "marketplace" | "reward";
+          tx_hash?: string | null;
+          chain_id?: number | null;
+          metadata?: Json | null;
           created_at?: string;
         };
         Update: {
@@ -209,6 +215,9 @@ export interface Database {
           stripe_payment_intent_id?: string | null;
           status?: "pending" | "completed" | "failed" | "refunded";
           order_type?: "collect" | "marketplace" | "reward";
+          tx_hash?: string | null;
+          chain_id?: number | null;
+          metadata?: Json | null;
           created_at?: string;
         };
         Relationships: [];

@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { getVinylById, ALL_GENESIS_VINYLS } from "@/lib/genesis/vinyls";
 import TrackSelector, { type TrackSelection } from "@/components/genesis/TrackSelector";
+import EthVinylPayment from "@/components/genesis/EthVinylPayment";
 import { useAudioStore, type Track } from "@/store/audio";
 
 const DEMO_TRACKS: Track[] = [
@@ -235,20 +236,12 @@ function GenesisVinylContent() {
                 </span>
               </button>
 
-              {/* ETH payment — coming soon, disabled for now */}
-              <button
-                type="button"
-                disabled
-                aria-disabled
-                className="w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-foreground border border-[var(--border)] bg-[var(--surface)] opacity-50 cursor-not-allowed grayscale"
-              >
-                <span className="flex items-center justify-center gap-3">
-                  <span>Pay in ETH</span>
-                  <span className="text-muted text-xs font-normal normal-case tracking-normal">
-                    Coming soon
-                  </span>
-                </span>
-              </button>
+              {/* ETH payment */}
+              <EthVinylPayment
+                vinylId={vinylId}
+                vinylName={`${vinyl.edition} #${String(vinyl.number).padStart(2, "0")}`}
+                trackSelection={trackSelection}
+              />
 
               {!trackSelection && (
                 <p className="text-[10px] text-muted text-center">

@@ -13,6 +13,14 @@ export const HOODLRZ_CHAIN_ID = Number(
   process.env.NEXT_PUBLIC_HOODLRZ_CHAIN_ID ?? "11155111" // default Sepolia
 );
 
+/**
+ * Wallet that receives ETH payments for Genesis vinyls.
+ * Set NEXT_PUBLIC_VINYL_ETH_ADDRESS in env. If empty, the ETH
+ * payment button stays disabled.
+ */
+export const VINYL_ETH_ADDRESS =
+  process.env.NEXT_PUBLIC_VINYL_ETH_ADDRESS ?? "";
+
 export const CHAIN_CONFIG: Record<number, { name: string; rpcUrl: string; explorerUrl: string; currency: string }> = {
   1: {
     name: "Ethereum Mainnet",
