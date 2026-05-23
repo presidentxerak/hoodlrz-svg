@@ -103,9 +103,9 @@ export default function GenesisListingPage() {
                           <span className="text-xs font-bold text-foreground">
                             €500
                           </span>
-                          <Badge variant={vinyl.sold ? "warning" : "success"}>
-                            {vinyl.sold ? "Sold" : "Available"}
-                          </Badge>
+                          {vinyl.sold && (
+                            <Badge variant="warning">Sold</Badge>
+                          )}
                         </div>
                       </div>
                     </Link>
