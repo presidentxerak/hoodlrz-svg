@@ -228,12 +228,28 @@ function GenesisVinylContent() {
                 }}
               >
                 <span className="relative z-10 flex items-center justify-center gap-3">
-                  <span>Collect This Vinyl</span>
+                  <span>Pay by Card</span>
                   <span className="text-white/70 text-xs font-normal">
                     €500.00
                   </span>
                 </span>
               </button>
+
+              {/* ETH payment — coming soon, disabled for now */}
+              <button
+                type="button"
+                disabled
+                aria-disabled
+                className="w-full px-8 py-4 text-sm font-bold uppercase tracking-widest text-foreground border border-[var(--border)] bg-[var(--surface)] opacity-50 cursor-not-allowed grayscale"
+              >
+                <span className="flex items-center justify-center gap-3">
+                  <span>Pay in ETH</span>
+                  <span className="text-muted text-xs font-normal normal-case tracking-normal">
+                    Coming soon
+                  </span>
+                </span>
+              </button>
+
               {!trackSelection && (
                 <p className="text-[10px] text-muted text-center">
                   Select your 4 tracks above to enable checkout.
