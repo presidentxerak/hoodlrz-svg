@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getVinylById } from "@/lib/genesis/vinyls";
 import { VINYL_ETH_ADDRESS, HOODLRZ_CHAIN_ID } from "@/lib/web3/config";
 import { computeCanonicalHash } from "@/lib/pfp/hash";
+import type { Json } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
@@ -240,6 +241,27 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Insert order with on-chain reference + shipping/tracks metadata ──
+    // Spelt out as an object literal so TS sees each leaf as a primitive
+    // string (the strict `Json` index-signature requirement rejects the
+    // nominal `Shipping` interface otherwise).
+    const orderMetadata: Json = {
+      vinylId,
+      payerAddress: tx.from,
+      valueWei: tx.value.toString(),
+      email,
+      shipping: {
+        fullName: shipping.fullName,
+        address: shipping.address,
+        city: shipping.city,
+        postalCode: shipping.postalCode,
+        country: shipping.country,
+      },
+      trackSelection: {
+        sideA: trackSelection.sideA,
+        sideB: trackSelection.sideB,
+      },
+    };
+
     const { error: orderErr } = await admin.from("orders").insert({
       account_id: accountId,
       collection_id: collection.id,
@@ -250,17 +272,7 @@ export async function POST(request: NextRequest) {
       order_type: "collect",
       tx_hash: txHash,
       chain_id: chainId,
-      metadata: {
-        vinylId,
-        payerAddress: tx.from,
-        valueWei: tx.value.toString(),
-        email,
-        shipping,
-        trackSelection: {
-          sideA: trackSelection.sideA,
-          sideB: trackSelection.sideB,
-        },
-      },
+      metadata: orderMetadata,
     });
     if (orderErr) {
       console.error("[vinyl/eth-order] order insert failed", orderErr);
