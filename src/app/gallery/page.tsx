@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Countdown from "@/components/ui/Countdown";
 
-const STREET_DROP_DATE = "2026-06-16T18:00:00Z";
+const STREET_DROP_DATE = "2026-06-16T17:30:00Z";
 
 export default function GalleryPage() {
   return (

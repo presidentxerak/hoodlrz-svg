@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Countdown from "@/components/ui/Countdown";
 
-const STREET_DROP_DATE = "2026-06-16T18:00:00Z";
+const STREET_DROP_DATE = "2026-06-16T17:30:00Z";
 const STREET_WHITELIST_DATE = "2026-06-12T18:00:00Z";
 const STREET_SUPPLY = 1337;
 
 const WHITELIST_URL = "https://forms.gle/ugVMdtzV2JMbZ745A";
+const OPENSEA_URL = "https://opensea.io/collection/hoodlrz/overview";
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
@@ -20,7 +21,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "When does it drop?",
-    a: "Whitelist opens June 12, 2026 at 18:00 UTC. Public mint opens June 16, 2026 at 18:00 UTC. The countdown on this page is the source of truth.",
+    a: "Whitelist opens June 12, 2026 at 18:00 UTC. Public mint opens June 16, 2026 at 5:30 PM UTC. The countdown on this page is the source of truth.",
   },
   {
     q: "How is this different from the full on-chain Hoodlrz?",
@@ -86,31 +87,36 @@ export default function HomePage() {
             <p className="font-hoodlrz text-2xl font-bold tracking-wider text-white sm:text-3xl">
               JUNE 16, 2026
             </p>
+            <p className="font-hoodlrz text-lg tracking-wider text-white/80 sm:text-xl">
+              5:30 PM UTC
+            </p>
             <div className="mt-2 [&_span]:!text-white [&_.text-muted]:!text-white/50 [&_.text-foreground]:!text-white">
               <Countdown targetDate={STREET_DROP_DATE} />
             </div>
           </div>
 
           {/* CTAs */}
-          <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+          <div className="mt-8 flex flex-col items-center gap-4 w-full max-w-xl">
+            <a
+              href={OPENSEA_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-3 px-10 py-5 sm:py-6 text-lg sm:text-xl font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.02] hover:shadow-[0_0_32px_rgba(229,62,62,0.5),0_0_64px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
+            >
+              <OpenSeaIcon />
+              <span>Mint on OpenSea</span>
+            </a>
             <a
               href={WHITELIST_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-150 select-none"
+              className="inline-flex items-center justify-center px-8 py-3 text-sm font-bold uppercase tracking-widest text-white/90 border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-150 select-none"
             >
               Join Whitelist
             </a>
-            <button
-              type="button"
-              disabled
-              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white cta-gradient opacity-50 cursor-not-allowed select-none"
-            >
-              Mint · Coming Soon
-            </button>
           </div>
           <span className="text-[10px] uppercase tracking-widest text-white/40">
-            Whitelist opens June 12, 2026 · public mint June 16
+            Whitelist opens June 12, 2026 · public mint June 16, 5:30 PM UTC
           </span>
         </div>
       </section>
@@ -217,16 +223,27 @@ export default function HomePage() {
             Be ready for the drop.
           </p>
           <span className="text-[10px] uppercase tracking-widest text-muted">
-            Whitelist opens {formatDate(STREET_WHITELIST_DATE)} · Public mint {formatDate(STREET_DROP_DATE)}
+            Whitelist opens {formatDate(STREET_WHITELIST_DATE)} · Public mint {formatDate(STREET_DROP_DATE)}, 5:30 PM UTC
           </span>
-          <a
-            href={WHITELIST_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(229,62,62,0.5),0_0_48px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
-          >
-            Join Whitelist
-          </a>
+          <div className="mt-2 flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+            <a
+              href={OPENSEA_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-3 px-10 py-4 text-base font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(229,62,62,0.5),0_0_48px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
+            >
+              <OpenSeaIcon />
+              <span>Mint on OpenSea</span>
+            </a>
+            <a
+              href={WHITELIST_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center px-8 py-3.5 text-sm font-bold uppercase tracking-widest text-foreground border border-[var(--border)] hover:bg-[var(--surface)] transition-colors duration-150 select-none"
+            >
+              Join Whitelist
+            </a>
+          </div>
         </div>
       </section>
     </div>
@@ -259,6 +276,26 @@ function Card({ title, body }: { title: string; body: string }) {
       <p className="text-sm font-bold uppercase tracking-widest text-foreground">{title}</p>
       <p className="text-sm leading-relaxed text-muted">{body}</p>
     </div>
+  );
+}
+
+function OpenSeaIcon() {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 16c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0" />
+      <path d="M2 20c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0" />
+      <path d="M2 12c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0" />
+    </svg>
   );
 }
 
