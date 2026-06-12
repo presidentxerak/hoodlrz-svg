@@ -12,8 +12,16 @@ const OPENSEA_URL = "https://opensea.io/collection/hoodlrz/overview";
 
 const FAQ: Array<{ q: string; a: string }> = [
   {
-    q: "What is Hoodlrz Street?",
-    a: "Hoodlrz Street is the public chapter of the Hoodlrz universe — a 1,337-piece collection of hand-drawn hooded identities released as standard ERC-721 NFTs on Ethereum. Each token is a unique character; the artwork lives off-chain on decentralised storage while ownership and provenance are anchored on Ethereum.",
+    q: "What is Hoodlrz?",
+    a: `Hoodlrz is NOT a PFP collection.
+
+It is a universe of 1337 digital alter-egos born from the streets and the walls. Handmade art, underground culture, animated storytelling and internet rebellion fused into collectible digital identities.
+
+The artistic influences run deep. XCOPY, Rektguy and CryptoSkulls for the hypnotic loops, emotional distortion and chaotic motion. Basquiat for raw symbolic expression and graffiti energy. KAWS for iconic collectible character identity. Banksy for the anonymous, anti-establishment spirit that runs through every piece.
+
+Hoodlrz is musically and culturally shaped by Aphex Twin, Travis Scott, Wu-Tang Clan and MF DOOM.
+
+Every character is a world. Every holder carries a piece of that world.`,
   },
   {
     q: "What's the supply?",
@@ -71,9 +79,6 @@ export default function HomePage() {
 
           {/* Collection summary */}
           <div className="mt-2 flex flex-col items-center gap-1">
-            <p className="text-white/90 font-hoodlrz text-xl tracking-wider sm:text-2xl">
-              Hoodlrz Street
-            </p>
             <p className="text-white/70 text-sm sm:text-base">
               {STREET_SUPPLY.toLocaleString()} NFTs · ERC-721 on Ethereum
             </p>
@@ -205,9 +210,16 @@ export default function HomePage() {
                     </span>
                   </div>
                   {open && (
-                    <p className="text-sm leading-relaxed text-muted pr-8">
-                      {item.a}
-                    </p>
+                    <div className="flex flex-col gap-3 pr-8">
+                      {item.a.split("\n\n").map((para, k) => (
+                        <p
+                          key={k}
+                          className="text-sm leading-relaxed text-muted"
+                        >
+                          {para}
+                        </p>
+                      ))}
+                    </div>
                   )}
                 </button>
               );
