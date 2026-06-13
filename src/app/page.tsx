@@ -101,20 +101,12 @@ export default function HomePage() {
           </div>
 
           {/* CTAs */}
-          <div className="mt-8 flex flex-col items-center gap-4 w-full max-w-xl">
-            <a
-              href={OPENSEA_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center px-10 py-5 sm:py-6 text-lg sm:text-xl font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.02] hover:shadow-[0_0_32px_rgba(229,62,62,0.5),0_0_64px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
-            >
-              Mint on OpenSea
-            </a>
+          <div className="mt-8 flex flex-col items-center">
             <a
               href={WHITELIST_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-8 py-3 text-sm font-bold uppercase tracking-widest text-white/90 border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-150 select-none"
+              className="inline-flex items-center justify-center px-8 py-3.5 text-base font-bold uppercase tracking-widest text-white border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-150 select-none"
             >
               Join Whitelist
             </a>
