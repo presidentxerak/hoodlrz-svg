@@ -27,7 +27,7 @@ export default function AboutPage() {
             XERAK
           </a>
           , a crypto artist active in the NFT space since 2019. Every artwork,
-          every layer, every line — hand-drawn and brought to life on-chain.
+          every layer, every line - hand-drawn and brought to life on-chain.
         </p>
         <p className="text-base leading-relaxed text-muted">
           1,337 unique ERC-721 NFTs. 7 hand-drawn SVG layers per artwork.
@@ -50,7 +50,7 @@ export default function AboutPage() {
           </h2>
           <p className="mt-4 text-base leading-relaxed text-muted">
             Every Hoodlrz lives entirely on Ethereum. The smart contract generates
-            each SVG artwork deterministically from a unique seed — no off-chain
+            each SVG artwork deterministically from a unique seed - no off-chain
             dependencies, no centralized storage.
           </p>
         </div>
@@ -59,13 +59,13 @@ export default function AboutPage() {
       {/* How it works */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          01 — How It Works
+          01 - How It Works
         </h3>
         <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted">
           <p>
             When you collect a Hoodlrz, the smart contract generates a unique seed
             for your token. This seed determines which of the 7 SVG layers are
-            selected and composed into your one-of-a-kind artwork — all computed
+            selected and composed into your one-of-a-kind artwork - all computed
             on-chain at the moment of minting.
           </p>
         </div>
@@ -88,7 +88,7 @@ export default function AboutPage() {
             </h4>
             <p className="text-[12px] leading-relaxed text-muted">
               Every SVG layer is stored directly on the Ethereum blockchain using
-              SSTORE2 — a gas-efficient pattern that stores data as contract
+              SSTORE2 - a gas-efficient pattern that stores data as contract
               bytecode. No IPFS, no Arweave, no external hosting.
             </p>
           </div>
@@ -109,7 +109,7 @@ export default function AboutPage() {
       {/* Smart Contract Architecture */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          02 — Smart Contracts
+          02 - Smart Contracts
         </h3>
         <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted">
           <p>
@@ -136,7 +136,7 @@ export default function AboutPage() {
       {/* Token Anatomy */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          03 — Anatomy of a Token
+          03 - Anatomy of a Token
         </h3>
         <div className="mt-4 text-sm leading-relaxed text-muted">
           <p>Each Hoodlrz NFT contains:</p>
@@ -145,7 +145,7 @@ export default function AboutPage() {
           {[
             { field: "tokenId", desc: "Unique token identifier on the ERC-721 contract" },
             { field: "tokenSeed", desc: "Unique seed that deterministically generates the artwork via FNV-1a + Mulberry32" },
-            { field: "7 traits", desc: "Wall, graffiti, hoodie, eyes, mouth, accessory, foreground — each selected by the PRNG" },
+            { field: "7 traits", desc: "Wall, graffiti, hoodie, eyes, mouth, accessory, foreground - each selected by the PRNG" },
             { field: "tokenURI", desc: "Base64-encoded JSON metadata with embedded SVG image, traits, and rarity score" },
             { field: "royaltyInfo", desc: "10% royalties via ERC-2981 standard" },
           ].map((item) => (
@@ -177,7 +177,7 @@ export default function AboutPage() {
       {/* Economics */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          04 — Economics
+          04 - Economics
         </h3>
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <div className="border border-[var(--border)] border-l-2 border-l-[#627eea] p-5 space-y-2">
@@ -200,7 +200,7 @@ export default function AboutPage() {
             <p className="text-xs font-bold uppercase tracking-widest text-foreground">Secondary Market</p>
             <p className="font-hoodlrz text-2xl font-bold text-foreground">OpenSea & more</p>
             <p className="text-[12px] text-muted">
-              Trade on any ERC-721 compatible marketplace — OpenSea, Blur, LooksRare.
+              Trade on any ERC-721 compatible marketplace - OpenSea, Blur, LooksRare.
               Standard Ethereum NFT, no platform lock-in.
             </p>
           </div>
@@ -210,7 +210,7 @@ export default function AboutPage() {
       {/* Supply */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          05 — Supply
+          05 - Supply
         </h3>
         <div className="mt-6 space-y-6">
           <div className="border border-[var(--border)] border-l-2 border-l-[#627eea] p-6 space-y-3">
@@ -219,7 +219,7 @@ export default function AboutPage() {
             </h4>
             <p className="text-sm leading-relaxed text-muted">
               1,337 unique hooded identities, each composed of 7 hand-drawn
-              SVG layers — walls, graffiti, hoodies, eyes, mouths, accessories,
+              SVG layers - walls, graffiti, hoodies, eyes, mouths, accessories,
               and foregrounds. Stored fully on-chain on Ethereum as ERC-721 NFTs.
               Available in light and dark variants.
             </p>
@@ -239,7 +239,7 @@ export default function AboutPage() {
             <p className="text-sm leading-relaxed text-muted">
               25 exclusive hand-crafted vinyl artworks across three editions:
               Black (10), White (5), and Craft (10). Each piece features a unique
-              hand-drawn sleeve and a custom pressed disc — you choose your 4 tracks
+              hand-drawn sleeve and a custom pressed disc - you choose your 4 tracks
               from the Hoodlrz catalog and arrange them on Side A and Side B.
               Shipped worldwide with a certificate of authenticity.
             </p>
@@ -256,7 +256,7 @@ export default function AboutPage() {
       {/* Layers */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          06 — The Layer System
+          06 - The Layer System
         </h3>
         <p className="mt-4 text-sm leading-relaxed text-muted">
           Every Hoodlrz artwork is built from 7 layers stacked in precise order.
@@ -265,13 +265,13 @@ export default function AboutPage() {
         </p>
         <div className="mt-6 space-y-0">
           {[
-            { order: "1", name: "Wall", count: 10, desc: "The background — brick patterns, decay, abstract textures" },
-            { order: "2", name: "Graffiti", count: "23+", desc: "Street art behind the character — tags, murals, stencils" },
-            { order: "3", name: "Hoodie", count: 12, desc: "The character body — the iconic hooded silhouette" },
-            { order: "4", name: "Eyes", count: 21, desc: "Expression and style — from minimal dots to cyber visors" },
-            { order: "5", name: "Mouth", count: 20, desc: "Attitude and mood — smirks, stitches, fangs" },
-            { order: "6", name: "Accessory", count: 17, desc: "Headphones, caps, goggles, crowns — the finishing touch" },
-            { order: "7", name: "Foreground", count: 11, desc: "Decorative overlay — the final layer on top of everything" },
+            { order: "1", name: "Wall", count: 10, desc: "The background - brick patterns, decay, abstract textures" },
+            { order: "2", name: "Graffiti", count: "23+", desc: "Street art behind the character - tags, murals, stencils" },
+            { order: "3", name: "Hoodie", count: 12, desc: "The character body - the iconic hooded silhouette" },
+            { order: "4", name: "Eyes", count: 21, desc: "Expression and style - from minimal dots to cyber visors" },
+            { order: "5", name: "Mouth", count: 20, desc: "Attitude and mood - smirks, stitches, fangs" },
+            { order: "6", name: "Accessory", count: 17, desc: "Headphones, caps, goggles, crowns - the finishing touch" },
+            { order: "7", name: "Foreground", count: 11, desc: "Decorative overlay - the final layer on top of everything" },
           ].map((layer) => (
             <div key={layer.name} className="flex items-center gap-4 border-b border-[var(--border)] py-3">
               <span className="font-hoodlrz text-lg font-bold text-foreground w-6">{layer.order}</span>
@@ -290,7 +290,7 @@ export default function AboutPage() {
       {/* Rarity */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          07 — Rarity System
+          07 - Rarity System
         </h3>
         <p className="mt-4 text-sm leading-relaxed text-muted">
           Each trait has a rarity weight. Combined, they determine your
@@ -325,7 +325,7 @@ export default function AboutPage() {
       {/* Comparison */}
       <section className="mt-12">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          08 — Hoodlrz vs Traditional NFTs
+          08 - Hoodlrz vs Traditional NFTs
         </h3>
         <div className="mt-6 border border-[var(--border)] divide-y divide-[var(--border)] overflow-x-auto">
           <div className="grid grid-cols-3 gap-0 min-w-[500px]">
@@ -338,11 +338,11 @@ export default function AboutPage() {
             { feature: "Mint price", trad: "Variable", hoodlrz: "0.007 ETH (fixed)" },
             { feature: "Standard", trad: "ERC-721", hoodlrz: "ERC-721 + ERC-2981" },
             { feature: "Royalties", trad: "Off-chain / optional", hoodlrz: "10% on-chain (ERC-2981)" },
-            { feature: "Dependencies", trad: "IPFS gateway required", hoodlrz: "Zero — fully self-contained" },
+            { feature: "Dependencies", trad: "IPFS gateway required", hoodlrz: "Zero - fully self-contained" },
             { feature: "Generation", trad: "Pre-generated images", hoodlrz: "Deterministic on-chain (FNV-1a + Mulberry32)" },
             { feature: "Verification", trad: "Blockchain explorer", hoodlrz: "On-chain tokenURI + Etherscan" },
             { feature: "Secondary market", trad: "OpenSea, etc.", hoodlrz: "OpenSea, Blur, any marketplace" },
-            { feature: "Longevity", trad: "Depends on IPFS pinning", hoodlrz: "Permanent — on Ethereum forever" },
+            { feature: "Longevity", trad: "Depends on IPFS pinning", hoodlrz: "Permanent - on Ethereum forever" },
           ].map((row) => (
             <div key={row.feature} className="grid grid-cols-3 gap-0 border-t border-[var(--border)] min-w-[500px]">
               <div className="p-3 text-xs font-semibold text-foreground">{row.feature}</div>
@@ -356,7 +356,7 @@ export default function AboutPage() {
       {/* The Artist */}
       <section className="mt-16">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
-          09 — The Artist
+          09 - The Artist
         </h3>
         <div className="mt-6 border border-[var(--border)] border-l-2 border-l-[#627eea] p-6 space-y-4">
           <h4 className="font-hoodlrz text-2xl font-bold text-foreground">
@@ -372,9 +372,9 @@ export default function AboutPage() {
             >
               XERAK
             </a>
-            {" "}— a crypto artist, musician, and builder active in the NFT space
+            {" "}- a crypto artist, musician, and builder active in the NFT space
             since 2019. From the hand-drawn SVG layers to the smart contracts, the
-            music, and the Genesis vinyl sleeves — every element of the Hoodlrz
+            music, and the Genesis vinyl sleeves - every element of the Hoodlrz
             universe is designed and produced by XERAK.
           </p>
           <a
@@ -395,7 +395,7 @@ export default function AboutPage() {
         </h3>
         <div className="mt-4 space-y-4 text-sm leading-relaxed text-muted">
           <p>
-            We believe digital art should live where it was born — on-chain.
+            We believe digital art should live where it was born - on-chain.
             No external servers, no broken links, no dependencies that can
             disappear. Your art, your wallet, forever on Ethereum.
           </p>

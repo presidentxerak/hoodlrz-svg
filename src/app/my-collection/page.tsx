@@ -128,7 +128,7 @@ export default function MyCollectionPage() {
       }
       setEthNfts([...verified]);
 
-      // Fetch tokenSeed for each NFT (fast, single read per token — same as reveal modal)
+      // Fetch tokenSeed for each NFT (fast, single read per token - same as reveal modal)
       for (let i = 0; i < verified.length; i++) {
         try {
           const seed: bigint = await contract.tokenSeed(verified[i].tokenId);
@@ -144,7 +144,7 @@ export default function MyCollectionPage() {
     }
   }, [account]);
 
-  // Load ETH NFTs when authed (don't require account — wallet-only users can see their NFTs)
+  // Load ETH NFTs when authed (don't require account - wallet-only users can see their NFTs)
   useEffect(() => {
     if (!HOODLRZ_NFT_ADDRESS || !authed) return;
     const timer = setTimeout(() => fetchEthNfts(false), 300);
@@ -202,7 +202,7 @@ export default function MyCollectionPage() {
               Pseudo
             </span>
             <p className="text-sm font-bold text-foreground">
-              {account?.pseudonym || "—"}
+              {account?.pseudonym || "-"}
             </p>
           </div>
 
@@ -232,7 +232,7 @@ export default function MyCollectionPage() {
                   Email
                 </span>
                 <p className="text-sm text-foreground">
-                  {account?.email || "—"}
+                  {account?.email || "-"}
                 </p>
               </>
             )}

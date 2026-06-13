@@ -208,7 +208,7 @@ async function handlePrimarySale(
     let canonicalHash: string;
 
     if (isGenesis) {
-      seed = vinylId; // e.g. "black-01" — used to look up the vinyl image
+      seed = vinylId; // e.g. "black-01" - used to look up the vinyl image
       canonicalHash = await computeCanonicalHash(seed);
       console.log(`[stripe/webhook] Minting Genesis token ${i + 1}/${quantity}: vinyl=${vinylId}, serial=${serialNumber}`);
     } else {
@@ -364,7 +364,7 @@ async function handleMarketplacePurchase(
     .update({ status: "sold" })
     .eq("id", listingId);
 
-  // Credit the seller — upsert to avoid race conditions
+  // Credit the seller - upsert to avoid race conditions
   const sellerPayoutCents = amountCents;
   const { data: existingBalance } = await supabase
     .from("seller_balances")

@@ -25,7 +25,7 @@ const EDITION_DESCRIPTIONS: Record<string, string> = {
   Black:
     "The Black Edition is the boldest expression of the Hoodlrz universe. Raw, minimal, and powerful. 10 unique hand-drawn vinyl covers.",
   White:
-    "The White Edition is pure light. Clean lines, ethereal compositions. Only 5 exist — the rarest of the Genesis collection.",
+    "The White Edition is pure light. Clean lines, ethereal compositions. Only 5 exist - the rarest of the Genesis collection.",
   Craft:
     "The Craft Edition celebrates raw texture and organic imperfection. 10 unique pieces blending street art with artisanal craft.",
 };
@@ -310,7 +310,7 @@ function GenesisVinylContent() {
         </div>
       </div>
 
-      {/* ── How It Works — Tutorial ── */}
+      {/* ── How It Works - Tutorial ── */}
       <div className="mt-16 border-t border-[var(--border)] pt-12">
         <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground sm:text-3xl mb-8 text-center">
           How It Works
@@ -328,7 +328,7 @@ function GenesisVinylContent() {
               </h3>
             </div>
             <p className="text-xs leading-relaxed text-muted">
-              Each vinyl comes with a <strong className="text-foreground">unique hand-drawn cover</strong> — your sleeve is a one-of-a-kind artwork that no one else will ever own. It&apos;s your piece of the Hoodlrz universe, designed and illustrated by XERAK.
+              Each vinyl comes with a <strong className="text-foreground">unique hand-drawn cover</strong> - your sleeve is a one-of-a-kind artwork that no one else will ever own. It&apos;s your piece of the Hoodlrz universe, designed and illustrated by XERAK.
             </p>
           </div>
 
@@ -343,7 +343,7 @@ function GenesisVinylContent() {
               </h3>
             </div>
             <p className="text-xs leading-relaxed text-muted">
-              Pick <strong className="text-foreground">4 tracks</strong> from the Hoodlrz catalog and arrange them across <strong className="text-foreground">Side A</strong> and <strong className="text-foreground">Side B</strong>. You choose the order — your disc is pressed to your exact specifications.
+              Pick <strong className="text-foreground">4 tracks</strong> from the Hoodlrz catalog and arrange them across <strong className="text-foreground">Side A</strong> and <strong className="text-foreground">Side B</strong>. You choose the order - your disc is pressed to your exact specifications.
             </p>
           </div>
 

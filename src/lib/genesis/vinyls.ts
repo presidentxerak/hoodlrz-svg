@@ -1,4 +1,4 @@
-/** Shared Genesis vinyl data — used by pages, API, and profile */
+/** Shared Genesis vinyl data - used by pages, API, and profile */
 
 export interface GenesisVinyl {
   id: string; // e.g. "black-01"

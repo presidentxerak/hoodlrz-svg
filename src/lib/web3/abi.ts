@@ -1,5 +1,5 @@
 /**
- * Minimal ABI for HoodlrzOnChain contract — only the functions used by the frontend.
+ * Minimal ABI for HoodlrzOnChain contract - only the functions used by the frontend.
  */
 export const HOODLRZ_NFT_ABI = [
   // Read functions

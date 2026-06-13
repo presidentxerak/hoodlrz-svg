@@ -69,7 +69,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
 
     const provider = await getProvider();
     if (!provider) {
-      // On mobile without MetaMask browser — deep link to MetaMask app
+      // On mobile without MetaMask browser - deep link to MetaMask app
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (isMobile) {
         const dappUrl = window.location.href.replace(/^https?:\/\//, "");
@@ -97,7 +97,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
             { chainId: chainIdHex },
           ]);
         } catch (switchErr: unknown) {
-          // Chain not added yet (error code 4902) — add it
+          // Chain not added yet (error code 4902) - add it
           const code = (switchErr as { code?: number })?.code;
           if (code === 4902) {
             try {
@@ -301,7 +301,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
 
   return (
     <>
-      {/* Mint button — always visible */}
+      {/* Mint button - always visible */}
       <button
         onClick={connectWallet}
         disabled={disabled || state === "connecting" || state === "minting"}
@@ -489,7 +489,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
           </h2>
           <p className="text-sm text-center text-muted">
             {mintedNfts.length > 0
-              ? `Hoodlrz #${mintedNfts.map((n) => n.tokenId).join(", #")} — now on Ethereum forever.`
+              ? `Hoodlrz #${mintedNfts.map((n) => n.tokenId).join(", #")} - now on Ethereum forever.`
               : "Your Hoodlrz are now on the blockchain forever."}
           </p>
 

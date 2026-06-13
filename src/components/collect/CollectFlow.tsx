@@ -271,7 +271,7 @@ export default function CollectFlow({
         </div>
       </Modal>
 
-      {/* Payment Modal — Quantity selector */}
+      {/* Payment Modal - Quantity selector */}
       <Modal isOpen={state === "quantity"} onClose={() => setState("idle")}>
         <div className="flex flex-col items-center gap-6 p-6 max-w-sm mx-auto">
           <h2 className="font-hoodlrz text-2xl font-bold tracking-wider text-foreground">

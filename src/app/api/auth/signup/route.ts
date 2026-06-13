@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Send magic link to confirm email — account will be created on confirmation
+    // Send magic link to confirm email - account will be created on confirmation
     const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithOtp({

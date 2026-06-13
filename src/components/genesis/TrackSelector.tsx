@@ -193,7 +193,7 @@ export default function TrackSelector({ onSelectionComplete, disabled }: TrackSe
       {/* Track catalog */}
       <div className="space-y-1">
         <p className="text-[10px] uppercase tracking-widest text-muted mb-2">
-          Catalog — tap to add ({totalSelected}/{TOTAL_TRACKS} selected)
+          Catalog - tap to add ({totalSelected}/{TOTAL_TRACKS} selected)
         </p>
         <div className="space-y-1 max-h-[240px] overflow-y-auto">
           {AVAILABLE_TRACKS.map((track) => {

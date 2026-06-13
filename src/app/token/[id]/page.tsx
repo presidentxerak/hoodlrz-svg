@@ -64,7 +64,7 @@ function tierBadgeVariant(
 /* ── Placeholder data ── */
 
 const PRICE_HISTORY_DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
-const PRICE_HISTORY_VALUES = [0, 0, 0, 0, 0, 0, 0]; // empty — no sales yet
+const PRICE_HISTORY_VALUES = [0, 0, 0, 0, 0, 0, 0]; // empty - no sales yet
 
 export default function TokenDetailPage() {
   const params = useParams();
@@ -84,7 +84,7 @@ export default function TokenDetailPage() {
     [pfp.traits]
   );
 
-  const owner = { pseudonym: "—" };
+  const owner = { pseudonym: "-" };
 
   // ── Genesis token: show vinyl page instead of PFP ──
   if (genesisVinyl) {

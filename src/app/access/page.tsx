@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 type AuthTab = "wallet" | "email";
 type EmailMode = "signin" | "signup";
 
-// EVM wallet detection — supports multiple coexisting wallets
+// EVM wallet detection - supports multiple coexisting wallets
 function getAvailableWallets(): { name: string; icon: string; provider: unknown }[] {
   if (typeof window === "undefined") return [];
 
@@ -108,7 +108,7 @@ export default function AccessPage() {
 
     try {
       if (emailMode === "signin") {
-        // Sign in: existing user — connect directly and go to My Collection
+        // Sign in: existing user - connect directly and go to My Collection
         const res = await fetch("/api/auth/signin", {
           method: "POST",
           body: JSON.stringify({ email }),
@@ -198,7 +198,7 @@ export default function AccessPage() {
         return;
       }
 
-      // Success — full page reload to pick up session cookies
+      // Success - full page reload to pick up session cookies
       setWalletLoading(false);
       window.location.href = "/my-collection";
     } catch (err) {
@@ -272,7 +272,7 @@ export default function AccessPage() {
           <div className="w-full flex flex-col items-center gap-4 animate-fade-in">
             <p className="text-xs text-center text-muted leading-relaxed">
               Sign a message to prove ownership of your wallet.
-              No gas fees, no transaction — just a signature.
+              No gas fees, no transaction - just a signature.
             </p>
 
             {wallets.length > 0 ? (
@@ -297,7 +297,7 @@ export default function AccessPage() {
               </div>
             ) : (
               <div className="w-full flex flex-col gap-3">
-                {/* No wallet detected — show install links */}
+                {/* No wallet detected - show install links */}
                 <p className="text-xs text-center text-muted">
                   No wallet detected. Install one to continue:
                 </p>

@@ -44,7 +44,7 @@ const COLLECTIONS_MAP: Record<
     name: "Genesis",
     slug: "genesis",
     description:
-      "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece features a unique hand-drawn sleeve and a custom pressed disc — you choose your 4 tracks and their order on Side A and Side B. Reserved for top collectors.",
+      "25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10). Each piece features a unique hand-drawn sleeve and a custom pressed disc - you choose your 4 tracks and their order on Side A and Side B. Reserved for top collectors.",
     supply: 25,
     minted: 0,
     priceEth: "",
@@ -158,7 +158,7 @@ export default function CollectionDetailPage() {
           </div>
         )}
 
-        {/* Durability Score — Hoodlrz only */}
+        {/* Durability Score - Hoodlrz only */}
         {!isGenesis && (
           <a
             href="https://nftimeless.com/"
@@ -263,7 +263,7 @@ export default function CollectionDetailPage() {
             <p className="text-sm leading-relaxed text-muted">
               Each Hoodlrz is a unique SVG artwork stored entirely on-chain. 7 hand-drawn layers
               composed using the same deterministic algorithm on the smart contract. No IPFS, no
-              external hosting — your NFT lives on Ethereum forever.
+              external hosting - your NFT lives on Ethereum forever.
             </p>
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-muted">
               <span className="bg-[#627eea]/10 text-[#627eea] px-2 py-0.5">On-Chain</span>
@@ -320,7 +320,7 @@ export default function CollectionDetailPage() {
             {/* Black Edition */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-                Black Edition — 10 pieces
+                Black Edition - 10 pieces
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.black.map((vinyl) => (
@@ -348,7 +348,7 @@ export default function CollectionDetailPage() {
             {/* White Edition */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-                White Edition — 5 pieces
+                White Edition - 5 pieces
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.white.map((vinyl) => (
@@ -376,7 +376,7 @@ export default function CollectionDetailPage() {
             {/* Craft Edition */}
             <div>
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted mb-4">
-                Craft Edition — 10 pieces
+                Craft Edition - 10 pieces
               </h3>
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
                 {GENESIS_VINYLS.craft.map((vinyl) => (

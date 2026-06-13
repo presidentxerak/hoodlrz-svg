@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
           if (account) accountId = account.id;
         }
       } catch {
-        // Not logged in — that's fine for Genesis
+        // Not logged in - that's fine for Genesis
       }
     }
 
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
 
     // For Genesis: look up the per-vinyl Stripe Price (one Product per vinyl,
     // populated by `npm run seed:stripe`). The Hoodlrz primary sale path still
-    // uses inline price_data — switch to a Stripe Price the same way if you
+    // uses inline price_data - switch to a Stripe Price the same way if you
     // want the PFP drop in the catalog too.
     let genesisPriceId: string | null = null;
     if (isGenesisCheckout) {

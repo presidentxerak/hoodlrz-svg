@@ -40,7 +40,7 @@ export default function AudioPlayer() {
   } = useAudioStore();
 
   // Tracks are loaded externally (e.g. by the Vinyl page)
-  // No auto-load here — player only appears when tracks are set
+  // No auto-load here - player only appears when tracks are set
 
   // Sync play/pause with audio element
   useEffect(() => {

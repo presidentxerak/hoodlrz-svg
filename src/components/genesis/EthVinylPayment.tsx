@@ -196,7 +196,7 @@ export default function EthVinylPayment({ vinylId, vinylName, trackSelection }: 
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        // Payment succeeded but recording failed — surface tx so support can reconcile.
+        // Payment succeeded but recording failed - surface tx so support can reconcile.
         throw new Error(
           (data.error || "Order recording failed") +
             ` Your payment went through (tx ${tx.hash.slice(0, 10)}…). Contact support with this hash.`,
@@ -266,7 +266,7 @@ export default function EthVinylPayment({ vinylId, vinylName, trackSelection }: 
             Pay in ETH
           </h2>
           <p className="text-sm text-muted">
-            {vinylName} — €{VINYL_PRICE_EUR} (≈ {ethLabel} ETH at the current rate).
+            {vinylName} - €{VINYL_PRICE_EUR} (≈ {ethLabel} ETH at the current rate).
             Shipping details below; we send your vinyl worldwide.
           </p>
 

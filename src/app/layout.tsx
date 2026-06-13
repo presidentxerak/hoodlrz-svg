@@ -6,6 +6,7 @@ import Providers from "@/components/layout/Providers";
 import Header from "@/components/layout/Header";
 import AudioPlayer from "@/components/audio/AudioPlayer";
 import BottomNav from "@/components/layout/BottomNav";
+import OpenSeaStickyBanner from "@/components/layout/OpenSeaStickyBanner";
 import Footer from "@/components/layout/Footer";
 
 const geistSans = localFont({
@@ -18,7 +19,7 @@ const geistSans = localFont({
 export const metadata: Metadata = {
   title: "HOODLRZ",
   description:
-    "HOODLRZ — Premium digital collectibles. Discover, collect, and showcase unique art from the HOODLRZ universe.",
+    "HOODLRZ - Premium digital collectibles. Discover, collect, and showcase unique art from the HOODLRZ universe.",
   icons: {
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -45,10 +46,11 @@ export default function RootLayout({
         <ThemeProvider>
           <Providers>
             <Header />
-            <main className="min-h-[calc(100dvh-3.5rem)] pb-28 md:pb-12">
+            <main className="min-h-[calc(100dvh-3.5rem)] pb-44 md:pb-24">
               {children}
             </main>
             <AudioPlayer />
+            <OpenSeaStickyBanner />
             <BottomNav />
             <Footer />
           </Providers>

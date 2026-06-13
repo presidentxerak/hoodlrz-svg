@@ -48,7 +48,7 @@ export default function UsdToEth({ usd, className = "", bare = false }: Props) {
   }
 
   if (!usdPerEth) {
-    return <span className={className}>{bare ? "—" : "≈ — ETH"}</span>;
+    return <span className={className}>{bare ? "-" : "≈ - ETH"}</span>;
   }
 
   const eth = usd / usdPerEth;

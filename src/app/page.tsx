@@ -33,7 +33,7 @@ Every character is a world. Every holder carries a piece of that world.`,
   },
   {
     q: "How is this different from the full on-chain Hoodlrz?",
-    a: "Hoodlrz Street uses a standard ERC-721 contract — fast, cheap to mint, and supported by every wallet and marketplace. The full on-chain Hoodlrz (where each SVG layer is stored directly on Ethereum via SSTORE2) is a separate, premium artefact for collectors who care about that level of permanence.",
+    a: "Hoodlrz Street uses a standard ERC-721 contract - fast, cheap to mint, and supported by every wallet and marketplace. The full on-chain Hoodlrz (where each SVG layer is stored directly on Ethereum via SSTORE2) is a separate, premium artefact for collectors who care about that level of permanence.",
   },
   {
     q: "How do I mint?",
@@ -45,7 +45,7 @@ Every character is a world. Every holder carries a piece of that world.`,
   },
   {
     q: "Where can I trade after mint?",
-    a: "OpenSea, Blur, LooksRare, or any ERC-721-compatible marketplace. Hoodlrz Street is a standard NFT — no platform lock-in.",
+    a: "OpenSea, Blur, LooksRare, or any ERC-721-compatible marketplace. Hoodlrz Street is a standard NFT - no platform lock-in.",
   },
 ];
 
@@ -106,10 +106,9 @@ export default function HomePage() {
               href={OPENSEA_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-3 px-10 py-5 sm:py-6 text-lg sm:text-xl font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.02] hover:shadow-[0_0_32px_rgba(229,62,62,0.5),0_0_64px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
+              className="inline-flex w-full items-center justify-center px-10 py-5 sm:py-6 text-lg sm:text-xl font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.02] hover:shadow-[0_0_32px_rgba(229,62,62,0.5),0_0_64px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
             >
-              <OpenSeaIcon />
-              <span>Mint on OpenSea</span>
+              Mint on OpenSea
             </a>
             <a
               href={WHITELIST_URL}
@@ -141,8 +140,8 @@ export default function HomePage() {
           </div>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-2">
-            <Card title="Standard ERC-721" body="One of the most widely supported NFT standards on Ethereum. Compatible with every wallet and marketplace — OpenSea, Blur, LooksRare, Rainbow, MetaMask, Ledger." />
-            <Card title="Hand-drawn art" body="Every layer is hand-illustrated by XERAK. Walls, graffiti, hoodies, eyes, mouths, accessories, foregrounds — combined into 1,337 unique hooded identities." />
+            <Card title="Standard ERC-721" body="One of the most widely supported NFT standards on Ethereum. Compatible with every wallet and marketplace - OpenSea, Blur, LooksRare, Rainbow, MetaMask, Ledger." />
+            <Card title="Hand-drawn art" body="Every layer is hand-illustrated by XERAK. Walls, graffiti, hoodies, eyes, mouths, accessories, foregrounds - combined into 1,337 unique hooded identities." />
             <Card title="Whitelist priority" body="Whitelisted wallets get a 4-day head start before the public mint window opens." />
             <Card title="On-chain ownership" body="Ownership and transfers are enforced on Ethereum. Artwork is hosted on decentralised storage and referenced via tokenURI." />
           </div>
@@ -160,7 +159,7 @@ export default function HomePage() {
             <Step
               n={1}
               title="Connect"
-              body="Connect any Ethereum wallet — MetaMask, Rainbow, WalletConnect-compatible."
+              body="Connect any Ethereum wallet - MetaMask, Rainbow, WalletConnect-compatible."
             />
             <Step
               n={2}
@@ -242,10 +241,9 @@ export default function HomePage() {
               href={OPENSEA_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-3 px-10 py-4 text-base font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(229,62,62,0.5),0_0_48px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
+              className="inline-flex items-center justify-center px-10 py-4 text-base font-bold uppercase tracking-widest text-white cta-gradient hover:scale-[1.03] hover:shadow-[0_0_24px_rgba(229,62,62,0.5),0_0_48px_rgba(213,63,140,0.3)] active:scale-[0.98] transition-transform duration-150 select-none"
             >
-              <OpenSeaIcon />
-              <span>Mint on OpenSea</span>
+              Mint on OpenSea
             </a>
             <a
               href={WHITELIST_URL}
@@ -288,26 +286,6 @@ function Card({ title, body }: { title: string; body: string }) {
       <p className="text-sm font-bold uppercase tracking-widest text-foreground">{title}</p>
       <p className="text-sm leading-relaxed text-muted">{body}</p>
     </div>
-  );
-}
-
-function OpenSeaIcon() {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M2 16c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0" />
-      <path d="M2 20c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0" />
-      <path d="M2 12c1.5-1.2 3-1.2 4.5 0s3 1.2 4.5 0 3-1.2 4.5 0 3 1.2 4.5 0" />
-    </svg>
   );
 }
 

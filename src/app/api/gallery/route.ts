@@ -54,7 +54,7 @@ const RPC_URLS: Record<number, string[]> = {
   ],
 };
 
-// Simple in-memory cache — good enough to smooth over page refreshes.
+// Simple in-memory cache - good enough to smooth over page refreshes.
 interface CacheEntry {
   at: number;
   payload: { tokens: TokenInfo[]; totalSupply: number; debug?: string };

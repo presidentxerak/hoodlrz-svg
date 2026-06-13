@@ -2,8 +2,8 @@
  * Ethereum / Web3 configuration for Hoodlrz On-Chain.
  *
  * Set these env vars in Vercel / .env.local:
- *   NEXT_PUBLIC_HOODLRZ_NFT_ADDRESS — deployed HoodlrzOnChain contract address
- *   NEXT_PUBLIC_HOODLRZ_CHAIN_ID    — 1 (mainnet) or 11155111 (Sepolia)
+ *   NEXT_PUBLIC_HOODLRZ_NFT_ADDRESS - deployed HoodlrzOnChain contract address
+ *   NEXT_PUBLIC_HOODLRZ_CHAIN_ID    - 1 (mainnet) or 11155111 (Sepolia)
  */
 
 export const HOODLRZ_NFT_ADDRESS =

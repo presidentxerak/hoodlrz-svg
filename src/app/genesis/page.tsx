@@ -61,7 +61,7 @@ export default function GenesisListingPage() {
           </div>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
             25 exclusive hand-crafted vinyl artworks across three editions: Black (10), White (5), and Craft (10).
-            Each piece features a unique hand-drawn sleeve and a custom pressed disc — choose your 4 tracks
+            Each piece features a unique hand-drawn sleeve and a custom pressed disc - choose your 4 tracks
             and their order on Side A and Side B. A one-of-a-kind collectible shipped worldwide.
           </p>
         </div>
