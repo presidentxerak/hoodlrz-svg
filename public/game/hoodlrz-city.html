@@ -3144,5 +3144,136 @@ window.addEventListener('load',boot);
   else wire();
 })();
 </script>
+
+<!-- ============================================================
+     Patch 2: real NFT plane on facades + big mode toggle button
+============================================================ -->
+<style>
+  #modeBtn{position:fixed;right:12px;bottom:74px;z-index:62;pointer-events:auto;
+    background:rgba(0,0,0,.85);border:2px solid #ff2db5;color:#fff;
+    font-family:'Outfit',sans-serif;font-weight:800;font-size:12px;letter-spacing:.06em;
+    padding:11px 16px;cursor:pointer;text-transform:uppercase;display:none;
+    box-shadow:0 0 18px rgba(255,45,181,.35);transition:.12s}
+  #modeBtn:hover{background:#ff2db5;color:#000}
+  #modeBtn.show{display:block}
+  @media (max-width:640px){
+    #modeBtn{right:8px;bottom:64px;font-size:11px;padding:10px 12px}
+  }
+</style>
+
+<button id="modeBtn" type="button">🎮 RESUME MOVEMENT</button>
+
+<script>
+(function(){
+  /* ---- Big mode toggle (cursor ↔ movement) ---- */
+  function wireMode(){
+    const btn = document.getElementById('modeBtn');
+    if (!btn) return;
+    const update = () => {
+      const locked = !!document.pointerLockElement;
+      btn.textContent = locked ? '🖱️ FREE CURSOR (ESC)' : '🎮 RESUME MOVEMENT';
+    };
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const locked = !!document.pointerLockElement;
+      if (locked) { try { document.exitPointerLock(); } catch(_){} return; }
+      const cv = document.querySelector('canvas');
+      if (cv) try { cv.requestPointerLock(); } catch(_){}
+    });
+    document.addEventListener('pointerlockchange', update);
+    // Show only while playing
+    setInterval(() => {
+      const st = (typeof state !== 'undefined') ? state : null;
+      btn.classList.toggle('show', !!(st && st.playing));
+    }, 500);
+    update();
+  }
+
+  /* ---- Real NFT image on the building facade ----
+     We wrap makeBuildingDetail so every per-tower detail group gets
+     a textured plane on the front carrying the holder's actual NFT.
+     The plane stays black until the texture is loaded (lazy, async). */
+  function patchFacades(){
+    if (typeof THREE === 'undefined' || typeof makeBuildingDetail !== 'function' || typeof FLOOR_H === 'undefined') {
+      return setTimeout(patchFacades, 300);
+    }
+    const original = makeBuildingDetail;
+    const texCache = {};
+    function loadTex(url){
+      if (texCache[url]) return texCache[url];
+      const loader = new THREE.TextureLoader();
+      loader.crossOrigin = 'anonymous';   // allow cross-origin IPFS gateways
+      const tex = loader.load(
+        url,
+        (t) => { t.encoding = THREE.sRGBEncoding; t.needsUpdate = true; },
+        undefined,
+        () => { /* image failed; the placeholder colour stays */ },
+      );
+      tex.encoding = THREE.sRGBEncoding;
+      texCache[url] = tex;
+      return tex;
+    }
+    window.makeBuildingDetail = function(b){
+      const G = original(b);
+      try {
+        const oc = (typeof onchain !== 'undefined') ? onchain : null;
+        if (!oc || !oc.live) return G;
+        const url = oc.tokenImg ? oc.tokenImg(b.tokenId) : null;
+        if (!url) return G;
+        const FH = (typeof FLOOR_H !== 'undefined') ? FLOOR_H : 3.2;
+        // Plane size: a bit narrower than the building, takes the centre slab
+        // (skip the bottom floor where the door is, skip a sliver at the top
+        // where the trim sits).
+        const planeW = Math.max(2, b.w - 1.2);
+        const totalH = b.floors * FH;
+        const planeH = Math.max(planeW, totalH - FH - 1.4);
+        const yCenter = FH + planeH / 2 + 0.2;       // sits just above the door
+        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: loadTex(url) });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
+        plane.position.set(b.x, yCenter, b.z + b.w / 2 + 0.12);
+        plane.renderOrder = 1;
+        G.add(plane);
+        // also drop a matching thin border behind to make the artwork pop
+        const frame = new THREE.Mesh(
+          new THREE.PlaneGeometry(planeW + 0.28, planeH + 0.28),
+          new THREE.MeshBasicMaterial({ color: 0x000000 })
+        );
+        frame.position.set(b.x, yCenter, b.z + b.w / 2 + 0.11);
+        G.add(frame);
+      } catch (err) { console.warn('NFT facade patch failed for', b.tokenId, err); }
+      return G;
+    };
+  }
+
+  /* ---- Extra search feedback when the wallet isn't even a holder ---- */
+  function patchSearchFeedback(){
+    if (typeof window.findBuilding !== 'function') return setTimeout(patchSearchFeedback, 300);
+    const original = window.findBuilding;
+    window.findBuilding = function(q){
+      const r = original(q);
+      try {
+        const cleanQ = (q || '').trim().toLowerCase();
+        if (!cleanQ) return r;
+        const oc = (typeof onchain !== 'undefined') ? onchain : null;
+        if (oc && Array.isArray(oc.owners) && oc.owners.length) {
+          const partial = oc.owners.some((w) => String(w).toLowerCase().includes(cleanQ));
+          if (!partial && typeof window.toast === 'function') {
+            window.toast('Not a holder · ' + oc.owners.length + ' wallets indexed · try HOLDERS', 'warn');
+          }
+        }
+      } catch (_) {}
+      return r;
+    };
+  }
+
+  function start(){
+    wireMode();
+    patchFacades();
+    patchSearchFeedback();
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+</script>
 </body>
 </html>
