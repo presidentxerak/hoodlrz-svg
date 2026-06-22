@@ -2962,5 +2962,187 @@ function boot(){
 }
 window.addEventListener('load',boot);
 </script>
+
+<!-- ============================================================
+     Patch: holders directory + control hints + pointer-lock hint
+     Self-contained: only DOM + listeners, no edits to existing code.
+============================================================ -->
+<style>
+  #holdersBtn{display:none}
+  #ops[style*="flex"] #holdersBtn{display:inline-block}
+  #holders{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.78);backdrop-filter:blur(6px)}
+  #holders.open{display:flex}
+  #holders .hcard{position:relative;width:min(720px,94vw);max-height:88vh;display:flex;flex-direction:column;
+    border:1px solid rgba(255,255,255,.3);background:#0a0a14;color:#fff;font-family:'Outfit',sans-serif}
+  #holders .hhead{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px 18px;
+    border-bottom:1px solid rgba(255,255,255,.18)}
+  #holders h3{font-family:'Hoodlrz',sans-serif;font-size:20px;letter-spacing:.04em;margin:0}
+  #holders .hcount{font-size:11px;letter-spacing:.18em;color:#9d9dba;text-transform:uppercase}
+  #holders .hclose{width:32px;height:32px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;
+    cursor:pointer;font-size:14px;line-height:1}
+  #holders .hclose:hover{background:#fff;color:#000}
+  #holders .hsearch{padding:10px 18px;border-bottom:1px solid rgba(255,255,255,.12)}
+  #holders .hsearch input{width:100%;padding:8px 11px;background:transparent;color:#fff;
+    border:1px solid rgba(255,255,255,.25);outline:0;font-family:inherit;font-size:13px}
+  #holders .hlist{overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+  #holders .hitem{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid rgba(255,255,255,.12);
+    cursor:pointer;background:rgba(255,255,255,.02);transition:.12s}
+  #holders .hitem:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+  #holders .himg{width:46px;height:46px;background:#000;border:1px solid rgba(255,255,255,.2);overflow:hidden;flex-shrink:0}
+  #holders .himg img{width:100%;height:100%;object-fit:cover;display:block}
+  #holders .himeta{display:flex;flex-direction:column;min-width:0;font-size:11px;line-height:1.3}
+  #holders .haddr{font-family:'Consolas',monospace;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #holders .hcount2{color:#9d9dba;letter-spacing:.04em}
+
+  #ctrlHint{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:55;
+    pointer-events:none;display:none;gap:6px;flex-wrap:wrap;justify-content:center;max-width:96vw}
+  #ctrlHint.show{display:flex}
+  #ctrlHint span{font-family:'Consolas',monospace;font-size:10.5px;letter-spacing:.05em;color:#fff;
+    background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.18);padding:3px 7px}
+  #ctrlHint b{color:#ff2db5;font-weight:700;margin-right:4px}
+
+  #plockHint{position:fixed;right:12px;top:60px;z-index:62;display:none;align-items:center;gap:8px;
+    pointer-events:none;background:rgba(0,0,0,.7);border:1px solid #ff2db5;color:#fff;padding:6px 10px;
+    font-family:'Consolas',monospace;font-size:11px;letter-spacing:.06em}
+  #plockHint.show{display:flex}
+  #plockHint b{color:#ff2db5;font-weight:700}
+
+  @media (max-width:640px){
+    #ctrlHint span{font-size:9.5px;padding:2px 5px}
+    #plockHint{font-size:10px;padding:4px 8px}
+  }
+</style>
+
+<div id="holders" role="dialog" aria-modal="true">
+  <div class="hcard">
+    <div class="hhead">
+      <div>
+        <h3>HOLDERS DIRECTORY</h3>
+        <div class="hcount" id="hCount">- holders</div>
+      </div>
+      <button class="hclose" id="hClose" aria-label="close">✕</button>
+    </div>
+    <div class="hsearch">
+      <input id="hSearch" type="text" placeholder="search wallet 0x… or rank #" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="hlist" id="hList"></div>
+  </div>
+</div>
+
+<div id="ctrlHint">
+  <span><b>ESC</b>free cursor</span>
+  <span><b>E</b>interact</span>
+  <span><b>F</b>search tower</span>
+  <span><b>J</b>journal</span>
+  <span><b>H</b>FAQ</span>
+  <span><b>HOLDERS</b>top bar</span>
+</div>
+
+<div id="plockHint"><b>ESC</b>&nbsp;to free your cursor and click the UI</div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  const fmt = (w) => (w && w.length > 10) ? (w.slice(0,6) + '…' + w.slice(-4)) : (w || '');
+
+  function injectHoldersBtn(){
+    const ops = $('ops');
+    if (!ops || $('holdersBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'holdersBtn';
+    btn.textContent = 'HOLDERS';
+    btn.style.cssText = "font-family:'Outfit',sans-serif;font-weight:800;font-size:12px;letter-spacing:.06em;cursor:pointer;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.6);color:#fff;padding:8px 13px;backdrop-filter:blur(6px);transition:.12s;pointer-events:auto";
+    btn.onmouseenter = () => { btn.style.background = '#fff'; btn.style.color = '#000'; };
+    btn.onmouseleave = () => { btn.style.background = 'rgba(0,0,0,.6)'; btn.style.color = '#fff'; };
+    btn.addEventListener('click', openHolders);
+    // place right after the search wrap
+    const wallet = $('walletBtn');
+    if (wallet && wallet.parentNode) wallet.parentNode.insertBefore(btn, wallet);
+    else ops.appendChild(btn);
+    btn.style.display = 'inline-block';
+  }
+
+  function buildHolderList(filterStr){
+    const list = $('hList'); if (!list) return;
+    list.innerHTML = '';
+    const oc = (typeof onchain!=='undefined'?onchain:null);
+    if (!oc || !Array.isArray(oc.owners) || oc.owners.length === 0){
+      list.innerHTML = '<div style="grid-column:1/-1;padding:24px;text-align:center;color:#9d9dba;font-size:12px">No on-chain holders loaded yet.<br>Run <code>/api/city/refresh</code> to fill the cache.</div>';
+      $('hCount').textContent = '0 holders';
+      return;
+    }
+    const q = (filterStr || '').trim().toLowerCase();
+    const num = /^#?\d+$/.test(q) ? parseInt(q.replace(/[^0-9]/g,''), 10) : null;
+    let shown = 0;
+    oc.owners.forEach((wallet, i) => {
+      if (q){
+        const matchAddr = String(wallet || '').toLowerCase().includes(q);
+        const matchRank = num !== null && (i + 1) === num;
+        if (!matchAddr && !matchRank) return;
+      }
+      const img = oc.images && oc.images[i];
+      const el = document.createElement('div');
+      el.className = 'hitem';
+      el.innerHTML =
+        '<div class="himg">' + (img ? '<img loading="lazy" src="' + img + '" alt="">' : '') + '</div>' +
+        '<div class="himeta">' +
+          '<span class="haddr">' + fmt(wallet) + '</span>' +
+          '<span class="hcount2">#' + (i + 1) + ' · find on map</span>' +
+        '</div>';
+      el.addEventListener('click', () => {
+        closeHolders();
+        try { if (typeof findBuilding === 'function') findBuilding(wallet); } catch(_) {}
+      });
+      list.appendChild(el);
+      shown++;
+    });
+    $('hCount').textContent = (q ? (shown + ' / ' + oc.owners.length) : oc.owners.length) + ' holders';
+  }
+
+  function openHolders(){
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch(_) {}
+    const st = (typeof state !== 'undefined') ? state : null;
+    if (st) st.panelOpen = true;
+    buildHolderList($('hSearch').value);
+    $('holders').classList.add('open');
+  }
+  function closeHolders(){
+    $('holders').classList.remove('open');
+    const st = (typeof state !== 'undefined') ? state : null;
+    if (st) st.panelOpen = false;
+  }
+
+  function wire(){
+    injectHoldersBtn();
+    $('hClose').addEventListener('click', closeHolders);
+    $('holders').addEventListener('click', (e) => { if (e.target.id === 'holders') closeHolders(); });
+    $('hSearch').addEventListener('input', (e) => buildHolderList(e.target.value));
+    $('hSearch').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') closeHolders(); });
+
+    // Esc closes the holders modal even when locked
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && $('holders').classList.contains('open')) closeHolders();
+    });
+
+    // Show the control hints whenever the game is in play
+    const showHint = () => { $('ctrlHint').classList.add('show'); };
+    const hideHint = () => { $('ctrlHint').classList.remove('show'); };
+    setInterval(() => {
+      const st = (typeof state !== 'undefined') ? state : null;
+      if (st && st.playing) showHint(); else hideHint();
+    }, 500);
+
+    // Pointer-lock indicator: nudge the user that ESC frees the cursor
+    document.addEventListener('pointerlockchange', () => {
+      const locked = !!document.pointerLockElement;
+      $('plockHint').classList.toggle('show', locked);
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+  else wire();
+})();
+</script>
 </body>
 </html>
