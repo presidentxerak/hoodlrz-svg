@@ -1,4 +1,6 @@
 import PFPViewer from "@/components/ui/PFPViewer";
+import FaqAccordion from "@/components/ui/FaqAccordion";
+import { HOODLRZ_FAQ } from "@/lib/faq";
 
 const SHOWCASE_SEEDS = [
   "hoodlrz-about-1",
@@ -407,6 +409,19 @@ export default function AboutPage() {
           <p className="text-foreground font-semibold">
             Own the identity. Collect the culture. On-chain forever.
           </p>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="mt-16 mb-8">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-muted">
+          FAQ
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Everything you need to know about the Hoodlrz universe.
+        </p>
+        <div className="mt-6">
+          <FaqAccordion items={HOODLRZ_FAQ} />
         </div>
       </section>
     </div>

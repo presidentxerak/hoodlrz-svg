@@ -7,7 +7,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 
 const navLinks = [
-  { href: "/", label: "Mint" },
+  { href: "/", label: "Collection" },
   { href: "/genesis", label: "Vinyl" },
   { href: "/about", label: "About" },
   { href: "/my-collection", label: "My Collection" },
@@ -58,23 +58,6 @@ export default function Header() {
 
   return (
     <>
-      {/* Whitelist Banner */}
-      <div className="relative overflow-hidden cta-gradient-animated text-white">
-        <div className="mx-auto flex h-9 max-w-7xl items-center justify-center gap-3 px-4 text-[11px] sm:text-xs font-bold uppercase tracking-widest">
-          <span className="truncate">
-            Don&apos;t miss! Be on the White List my Frenz!
-          </span>
-          <a
-            href="https://forms.gle/ugVMdtzV2JMbZ745A"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-shrink-0 border border-white/40 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-white hover:bg-white/20 transition-colors"
-          >
-            White List
-          </a>
-        </div>
-      </div>
-
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:h-16 sm:px-6">
           {/* Logo */}

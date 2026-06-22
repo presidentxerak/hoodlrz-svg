@@ -6,7 +6,6 @@ import Providers from "@/components/layout/Providers";
 import Header from "@/components/layout/Header";
 import AudioPlayer from "@/components/audio/AudioPlayer";
 import BottomNav from "@/components/layout/BottomNav";
-import OpenSeaStickyBanner from "@/components/layout/OpenSeaStickyBanner";
 import Footer from "@/components/layout/Footer";
 
 const geistSans = localFont({
@@ -46,11 +45,10 @@ export default function RootLayout({
         <ThemeProvider>
           <Providers>
             <Header />
-            <main className="min-h-[calc(100dvh-3.5rem)] pb-44 md:pb-24">
+            <main className="min-h-[calc(100dvh-3.5rem)] pb-24 md:pb-12">
               {children}
             </main>
             <AudioPlayer />
-            <OpenSeaStickyBanner />
             <BottomNav />
             <Footer />
           </Providers>

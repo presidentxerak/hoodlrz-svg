@@ -12,7 +12,7 @@ interface NavItem {
 }
 
 const items: NavItem[] = [
-  { icon: <Home size={20} />, label: "Mint", href: "/" },
+  { icon: <Home size={20} />, label: "Collection", href: "/" },
   { icon: <Disc3 size={20} />, label: "Vinyl", href: "/genesis" },
   { icon: <Info size={20} />, label: "About", href: "/about" },
   { icon: <User size={20} />, label: "Profile", href: "/my-collection" },

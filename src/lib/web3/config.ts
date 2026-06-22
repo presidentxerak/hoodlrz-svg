@@ -2,12 +2,23 @@
  * Ethereum / Web3 configuration for Hoodlrz On-Chain.
  *
  * Set these env vars in Vercel / .env.local:
- *   NEXT_PUBLIC_HOODLRZ_NFT_ADDRESS - deployed HoodlrzOnChain contract address
- *   NEXT_PUBLIC_HOODLRZ_CHAIN_ID    - 1 (mainnet) or 11155111 (Sepolia)
+ *   NEXT_PUBLIC_HOODLRZ_NFT_ADDRESS    - deployed full-on-chain HoodlrzOnChain contract address
+ *   NEXT_PUBLIC_HOODLRZ_STREET_ADDRESS - deployed standard ERC-721 Hoodlrz collection address
+ *   NEXT_PUBLIC_HOODLRZ_CHAIN_ID       - 1 (mainnet) or 11155111 (Sepolia)
  */
 
 export const HOODLRZ_NFT_ADDRESS =
   process.env.NEXT_PUBLIC_HOODLRZ_NFT_ADDRESS ?? "";
+
+/**
+ * Standard ERC-721 Hoodlrz collection on Ethereum mainnet.
+ * The home page gallery fetches its tokens + metadata from this address.
+ */
+export const HOODLRZ_STREET_ADDRESS =
+  process.env.NEXT_PUBLIC_HOODLRZ_STREET_ADDRESS ??
+  "0xdde5f965f9d80da49c5cb2951d046156f26ebfa2";
+
+export const HOODLRZ_STREET_CHAIN_ID = 1; // mainnet
 
 export const HOODLRZ_CHAIN_ID = Number(
   process.env.NEXT_PUBLIC_HOODLRZ_CHAIN_ID ?? "11155111" // default Sepolia
