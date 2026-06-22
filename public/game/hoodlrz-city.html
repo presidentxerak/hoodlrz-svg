@@ -3288,30 +3288,58 @@ window.addEventListener('load',boot);
   function showMobileWalletPrompt(){
     const old = document.getElementById('mmPrompt');
     if (old) old.remove();
-    const deepLink = buildDeepLink();
+    // Three flavours of MetaMask deep link, in order of reliability:
+    //  - universal link (works best on Safari, can be eaten by iframes in Chrome iOS)
+    //  - custom scheme (works when MetaMask is installed, no fallback)
+    //  - the bare URL the user can paste into MM's in-app browser
+    let host = location.host, path = '/city';
+    try {
+      const t = window.top && window.top.location;
+      if (t && t.host) { host = t.host; path = t.pathname || '/city'; }
+    } catch (_) {}
+    const universal = 'https://metamask.app.link/dapp/' + host + path;
+    const scheme = 'metamask://dapp/' + host + path;
+    const bare = 'https://' + host + path;
+
     const overlay = document.createElement('div');
     overlay.id = 'mmPrompt';
     overlay.style.cssText =
-      'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);' +
-      'display:flex;align-items:center;justify-content:center;padding:20px;' +
-      "font-family:'Outfit',sans-serif";
+      'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.9);' +
+      'display:flex;align-items:center;justify-content:center;padding:18px;' +
+      "font-family:'Outfit',sans-serif;overflow-y:auto";
     overlay.innerHTML =
       '<div style="background:#0a0a14;border:1px solid rgba(255,255,255,.4);' +
-        'padding:24px 22px;text-align:center;max-width:340px;width:100%;color:#fff;">' +
-        '<div style="font-family:\'Hoodlrz\',sans-serif;font-size:24px;letter-spacing:.04em;line-height:1.1;margin-bottom:10px">' +
+        'padding:22px 20px;text-align:center;max-width:360px;width:100%;color:#fff;">' +
+        '<div style="font-family:\'Hoodlrz\',sans-serif;font-size:22px;letter-spacing:.04em;line-height:1.1;margin-bottom:8px">' +
           'OPEN IN METAMASK' +
         '</div>' +
-        '<div style="font-size:12.5px;color:#9d9dba;margin-bottom:18px;line-height:1.55">' +
-          'On mobile the page must run inside the MetaMask in-app browser ' +
-          'to connect your wallet. Tap below to open it there.' +
+        '<div style="font-size:12px;color:#9d9dba;margin-bottom:14px;line-height:1.55">' +
+          'Your wallet only injects inside the MetaMask in-app browser. ' +
+          'Try the buttons below in order if the first doesn\'t open the app.' +
         '</div>' +
-        '<a id="mmOpenBtn" href="' + deepLink + '" ' +
-          'style="display:block;padding:14px 18px;background:#ff2db5;color:#000;' +
+        '<a id="mmA1" href="' + universal + '" target="_top" rel="noopener" ' +
+          'style="display:block;padding:14px 16px;background:#ff2db5;color:#000;' +
           'text-decoration:none;font-weight:800;letter-spacing:.05em;font-size:13px;' +
-          'margin-bottom:10px">OPEN METAMASK ▸</a>' +
+          'margin-bottom:8px">1 · OPEN METAMASK ▸</a>' +
+        '<a id="mmA2" href="' + scheme + '" target="_top" ' +
+          'style="display:block;padding:11px 16px;background:transparent;color:#fff;' +
+          'border:1px solid rgba(255,255,255,.5);text-decoration:none;font-weight:700;' +
+          'letter-spacing:.05em;font-size:12px;margin-bottom:14px">' +
+          '2 · TRY DIRECT LINK (metamask://)</a>' +
+        '<div style="font-size:11.5px;color:#9d9dba;line-height:1.5;text-align:left;' +
+          'border-top:1px solid rgba(255,255,255,.15);padding-top:12px;margin-bottom:12px">' +
+          '<b style="color:#fff">Still nothing?</b> Open the MetaMask app, tap the ' +
+          'browser icon (☰ → Browser), and paste this URL:' +
+          '<div id="mmURL" style="margin-top:8px;padding:8px;background:#000;' +
+          'border:1px dashed #ff2db5;color:#ff2db5;font-family:monospace;font-size:11px;' +
+          'word-break:break-all;user-select:all;-webkit-user-select:all">' + bare + '</div>' +
+          '<button id="mmCopyBtn" type="button" style="margin-top:8px;background:none;' +
+          'border:1px solid rgba(255,255,255,.4);color:#fff;font-family:inherit;' +
+          'font-size:11px;padding:6px 12px;cursor:pointer">📋 Copy URL</button>' +
+        '</div>' +
         '<a href="https://metamask.io/download/" target="_blank" rel="noopener" ' +
-          'style="display:block;padding:9px;color:#fff;text-decoration:underline;font-size:12px;' +
-          'margin-bottom:14px">Don\'t have MetaMask? Install it</a>' +
+          'style="display:block;padding:8px;color:#fff;text-decoration:underline;font-size:11.5px;' +
+          'margin-bottom:10px">Don\'t have MetaMask? Install it</a>' +
         '<button id="mmCloseBtn" type="button" ' +
           'style="background:none;border:0;color:#9d9dba;font-size:12px;' +
           'text-decoration:underline;cursor:pointer;font-family:inherit">Cancel</button>' +
@@ -3320,11 +3348,24 @@ window.addEventListener('load',boot);
     const close = () => overlay.remove();
     overlay.querySelector('#mmCloseBtn').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-    // Once the user taps the MM link the page either deep-links into the
-    // app or stays here; either way the modal can go.
-    overlay.querySelector('#mmOpenBtn').addEventListener('click', () => {
-      setTimeout(close, 100);
+    overlay.querySelector('#mmCopyBtn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(bare);
+        overlay.querySelector('#mmCopyBtn').textContent = '✓ Copied';
+      } catch (_) {
+        // older browsers
+        const range = document.createRange();
+        range.selectNode(overlay.querySelector('#mmURL'));
+        const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        try { document.execCommand('copy'); } catch (__) {}
+        sel.removeAllRanges();
+        overlay.querySelector('#mmCopyBtn').textContent = '✓ Selected';
+      }
     });
+    // Buttons close the modal a tick after the user taps them so the
+    // deep-link navigation has a chance to fire.
+    overlay.querySelector('#mmA1').addEventListener('click', () => setTimeout(close, 150));
+    overlay.querySelector('#mmA2').addEventListener('click', () => setTimeout(close, 150));
   }
   function patchWallet(){
     if (typeof connectWallet !== 'function' || typeof gateEnter !== 'function') {
