@@ -3367,6 +3367,21 @@ window.addEventListener('load',boot);
     overlay.querySelector('#mmA1').addEventListener('click', () => setTimeout(close, 150));
     overlay.querySelector('#mmA2').addEventListener('click', () => setTimeout(close, 150));
   }
+  /* Same-origin iframes can ask the host page to show the MetaMask
+     prompt. The parent renders the <a href='metamask.app.link/...'>
+     in the TOP window, which is the only context most mobile browsers
+     reliably honour for app deep links. We still fall back to our
+     own in-iframe modal when there's no parent (direct hit on the
+     game HTML). */
+  function askParentForWalletPrompt(){
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'request-metamask-prompt' }, '*');
+        return true;
+      }
+    } catch (_) {}
+    return false;
+  }
   function patchWallet(){
     if (typeof connectWallet !== 'function' || typeof gateEnter !== 'function') {
       return setTimeout(patchWallet, 300);
@@ -3374,7 +3389,10 @@ window.addEventListener('load',boot);
     const origConnect = connectWallet;
     const wrapped = async function(){
       if (typeof window.ethereum === 'undefined') {
-        if (isMobileUA()) { showMobileWalletPrompt(); return null; }
+        if (isMobileUA()) {
+          if (!askParentForWalletPrompt()) showMobileWalletPrompt();
+          return null;
+        }
         if (typeof toast === 'function') toast('No wallet found · install MetaMask','warn');
         return null;
       }
@@ -3386,7 +3404,7 @@ window.addEventListener('load',boot);
     const origGate = gateEnter;
     const wrappedGate = async function(){
       if (typeof window.ethereum === 'undefined' && isMobileUA()) {
-        showMobileWalletPrompt();
+        if (!askParentForWalletPrompt()) showMobileWalletPrompt();
         return;
       }
       return origGate();
