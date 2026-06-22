@@ -41,6 +41,11 @@ alter table public.city_holders enable row level security;
 alter table public.city_tokens  enable row level security;
 alter table public.city_sync_state enable row level security;
 
+-- Idempotent policy creation (CREATE POLICY itself has no IF NOT EXISTS).
+drop policy if exists "read city_holders"    on public.city_holders;
+drop policy if exists "read city_tokens"     on public.city_tokens;
+drop policy if exists "read city_sync_state" on public.city_sync_state;
+
 create policy "read city_holders"
   on public.city_holders for select using (true);
 create policy "read city_tokens"
