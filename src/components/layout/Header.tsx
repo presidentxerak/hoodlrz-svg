@@ -6,9 +6,10 @@ import { LogOut } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 
-const navLinks = [
+const navLinks: { href: string; label: string; beta?: boolean }[] = [
   { href: "/", label: "Collection" },
   { href: "/genesis", label: "Vinyl" },
+  { href: "/city", label: "City", beta: true },
   { href: "/about", label: "About" },
   { href: "/my-collection", label: "My Collection" },
 ];
@@ -86,9 +87,14 @@ export default function Header() {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className="px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:text-foreground"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:text-foreground"
                 >
                   {link.label}
+                  {link.beta && (
+                    <span className="border border-[#ff2db5]/60 text-[#ff2db5] text-[8px] font-bold uppercase tracking-widest px-1 py-px leading-none">
+                      Beta
+                    </span>
+                  )}
                 </Link>
               ))}
             </nav>

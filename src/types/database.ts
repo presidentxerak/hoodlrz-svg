@@ -132,6 +132,72 @@ export interface Database {
         };
         Relationships: [];
       };
+      city_holders: {
+        Row: {
+          wallet: string;
+          token_count: number;
+          updated_at: string;
+        };
+        Insert: {
+          wallet: string;
+          token_count?: number;
+          updated_at?: string;
+        };
+        Update: {
+          wallet?: string;
+          token_count?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      city_tokens: {
+        Row: {
+          token_id: number;
+          owner: string | null;
+          image_url: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          token_id: number;
+          owner?: string | null;
+          image_url?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          token_id?: number;
+          owner?: string | null;
+          image_url?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      city_sync_state: {
+        Row: {
+          id: boolean;
+          last_run: string | null;
+          holder_count: number | null;
+          token_count: number | null;
+          ok: boolean | null;
+          note: string | null;
+        };
+        Insert: {
+          id?: boolean;
+          last_run?: string | null;
+          holder_count?: number | null;
+          token_count?: number | null;
+          ok?: boolean | null;
+          note?: string | null;
+        };
+        Update: {
+          id?: boolean;
+          last_run?: string | null;
+          holder_count?: number | null;
+          token_count?: number | null;
+          ok?: boolean | null;
+          note?: string | null;
+        };
+        Relationships: [];
+      };
       tokens: {
         Row: {
           id: string;

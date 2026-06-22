@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Info, Disc3, User } from "lucide-react";
+import { Home, Info, Disc3, User, Building2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface NavItem {
   icon: ReactNode;
   label: string;
   href: string;
+  beta?: boolean;
 }
 
 const items: NavItem[] = [
   { icon: <Home size={20} />, label: "Collection", href: "/" },
   { icon: <Disc3 size={20} />, label: "Vinyl", href: "/genesis" },
+  { icon: <Building2 size={20} />, label: "City", href: "/city", beta: true },
   { icon: <Info size={20} />, label: "About", href: "/about" },
   { icon: <User size={20} />, label: "Profile", href: "/my-collection" },
 ];
@@ -43,6 +45,11 @@ export default function BottomNav() {
                 isActive ? "opacity-100" : "opacity-0"
               }`}
             />
+            {item.beta && (
+              <span className="absolute top-1 right-1/4 translate-x-1/2 border border-[#ff2db5]/60 text-[#ff2db5] text-[7px] font-bold uppercase tracking-widest px-0.5 leading-none">
+                Beta
+              </span>
+            )}
             {item.icon}
             <span className="text-[10px] leading-none">{item.label}</span>
           </Link>
