@@ -109,8 +109,8 @@ async function pull(alchemyKey: string): Promise<PullResult> {
 }
 
 async function refresh() {
-  const alchemyKey = process.env.ALCHEMY_KEY;
-  if (!alchemyKey) throw new Error("ALCHEMY_KEY is not set");
+  const alchemyKey = process.env.ALCHEMY_KEY ?? process.env.ALCHEMY_API_KEY;
+  if (!alchemyKey) throw new Error("ALCHEMY_KEY (or ALCHEMY_API_KEY) is not set");
 
   const admin = createAdminClient();
   const runAt = new Date().toISOString();
