@@ -3266,21 +3266,65 @@ window.addEventListener('load',boot);
     };
   }
 
-  /* ---- Mobile MetaMask deep-link: redirect to MM's in-app browser
-         when window.ethereum isn't injected (Safari / Chrome mobile). ---- */
+  /* ---- Mobile MetaMask deep-link prompt -------------------------------
+         An auto-redirect to metamask.app.link is unreliable on iOS Safari
+         (no app installed → silent bounce; some Safari versions strip the
+         user-gesture by the time the assignment runs). Instead we surface
+         a modal with a real <a href="metamask.app.link/..."> the user
+         taps directly — the browser then treats it as a fresh navigation
+         and reliably opens MetaMask if installed, or shows the install
+         prompt if not. */
   function isMobileUA(){
     return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   }
-  function deepLinkMetaMask(){
-    // Iframe is same-origin so we can safely read window.top.location.
+  function buildDeepLink(){
     let host = location.host, path = '/city';
     try {
       const t = window.top && window.top.location;
       if (t && t.host) { host = t.host; path = t.pathname || '/city'; }
     } catch (_) {}
-    const url = 'https://metamask.app.link/dapp/' + host + path;
-    try { (window.top || window).location.href = url; }
-    catch (_) { window.location.href = url; }
+    return 'https://metamask.app.link/dapp/' + host + path;
+  }
+  function showMobileWalletPrompt(){
+    const old = document.getElementById('mmPrompt');
+    if (old) old.remove();
+    const deepLink = buildDeepLink();
+    const overlay = document.createElement('div');
+    overlay.id = 'mmPrompt';
+    overlay.style.cssText =
+      'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);' +
+      'display:flex;align-items:center;justify-content:center;padding:20px;' +
+      "font-family:'Outfit',sans-serif";
+    overlay.innerHTML =
+      '<div style="background:#0a0a14;border:1px solid rgba(255,255,255,.4);' +
+        'padding:24px 22px;text-align:center;max-width:340px;width:100%;color:#fff;">' +
+        '<div style="font-family:\'Hoodlrz\',sans-serif;font-size:24px;letter-spacing:.04em;line-height:1.1;margin-bottom:10px">' +
+          'OPEN IN METAMASK' +
+        '</div>' +
+        '<div style="font-size:12.5px;color:#9d9dba;margin-bottom:18px;line-height:1.55">' +
+          'On mobile the page must run inside the MetaMask in-app browser ' +
+          'to connect your wallet. Tap below to open it there.' +
+        '</div>' +
+        '<a id="mmOpenBtn" href="' + deepLink + '" ' +
+          'style="display:block;padding:14px 18px;background:#ff2db5;color:#000;' +
+          'text-decoration:none;font-weight:800;letter-spacing:.05em;font-size:13px;' +
+          'margin-bottom:10px">OPEN METAMASK ▸</a>' +
+        '<a href="https://metamask.io/download/" target="_blank" rel="noopener" ' +
+          'style="display:block;padding:9px;color:#fff;text-decoration:underline;font-size:12px;' +
+          'margin-bottom:14px">Don\'t have MetaMask? Install it</a>' +
+        '<button id="mmCloseBtn" type="button" ' +
+          'style="background:none;border:0;color:#9d9dba;font-size:12px;' +
+          'text-decoration:underline;cursor:pointer;font-family:inherit">Cancel</button>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('#mmCloseBtn').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    // Once the user taps the MM link the page either deep-links into the
+    // app or stays here; either way the modal can go.
+    overlay.querySelector('#mmOpenBtn').addEventListener('click', () => {
+      setTimeout(close, 100);
+    });
   }
   function patchWallet(){
     if (typeof connectWallet !== 'function' || typeof gateEnter !== 'function') {
@@ -3289,26 +3333,19 @@ window.addEventListener('load',boot);
     const origConnect = connectWallet;
     const wrapped = async function(){
       if (typeof window.ethereum === 'undefined') {
-        if (isMobileUA()) {
-          if (typeof toast === 'function') toast('Opening MetaMask…','win');
-          deepLinkMetaMask();
-          return null;
-        }
+        if (isMobileUA()) { showMobileWalletPrompt(); return null; }
         if (typeof toast === 'function') toast('No wallet found · install MetaMask','warn');
         return null;
       }
       return origConnect();
     };
-    // Replace both the bare binding and the window prop so every caller
-    // in the game picks up the new logic.
     try { connectWallet = wrapped; } catch (_) {}
     window.connectWallet = wrapped;
 
     const origGate = gateEnter;
     const wrappedGate = async function(){
       if (typeof window.ethereum === 'undefined' && isMobileUA()) {
-        if (typeof toast === 'function') toast('Opening MetaMask…','win');
-        deepLinkMetaMask();
+        showMobileWalletPrompt();
         return;
       }
       return origGate();
@@ -3316,11 +3353,10 @@ window.addEventListener('load',boot);
     try { gateEnter = wrappedGate; } catch (_) {}
     window.gateEnter = wrappedGate;
 
-    // The gate's <button id="play"> was wired up to the ORIGINAL gateEnter
-    // before we ran. Rewire it to point at our wrapped function.
+    // Re-bind the gate button so the old direct ref to gateEnter is gone.
     const pb = document.getElementById('play');
     if (pb) {
-      const fresh = pb.cloneNode(true);   // strips old listeners
+      const fresh = pb.cloneNode(true);
       pb.parentNode.replaceChild(fresh, pb);
       fresh.addEventListener('click', wrappedGate);
     }
