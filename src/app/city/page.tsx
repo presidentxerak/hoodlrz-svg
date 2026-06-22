@@ -19,9 +19,25 @@ import { useEffect, useState } from "react";
 export default function CityPage() {
   const [showMm, setShowMm] = useState(false);
   const [host, setHost] = useState("hoodlrz.com");
+  // iframe height kept in sync with the actual visible viewport so MM /
+  // Safari mobile WebViews (where 100dvh is unreliable) still get a
+  // properly sized game canvas.
+  const [iframeH, setIframeH] = useState("calc(100dvh - 3.5rem)");
 
   useEffect(() => {
     setHost(window.location.host);
+
+    const HEADER_PX = 56;
+    const resize = () => {
+      const h = Math.max(window.innerHeight - HEADER_PX, 320);
+      setIframeH(h + "px");
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    window.addEventListener("orientationchange", resize);
+    // Some mobile browsers fire 'resize' late after the URL bar
+    // collapses; force one more measure after the next frame.
+    requestAnimationFrame(resize);
 
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const hasEthereum =
@@ -37,7 +53,11 @@ export default function CityPage() {
       if (t === "request-metamask-prompt") setShowMm(true);
     }
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("orientationchange", resize);
+      window.removeEventListener("message", onMessage);
+    };
   }, []);
 
   const universalLink = `https://metamask.app.link/dapp/${host}/city`;
@@ -49,7 +69,16 @@ export default function CityPage() {
       <iframe
         src="/game/hoodlrz-city.html"
         title="hOodlrz CITY (Beta)"
-        className="fixed left-0 right-0 top-14 bottom-16 md:bottom-0 w-full border-0 block"
+        style={{
+          position: "fixed",
+          top: "3.5rem",
+          left: 0,
+          right: 0,
+          width: "100%",
+          height: iframeH,
+          border: 0,
+          display: "block",
+        }}
         allow="fullscreen; gamepad; accelerometer; microphone; clipboard-read; clipboard-write"
       />
       {showMm && (
