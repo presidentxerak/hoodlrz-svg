@@ -3266,10 +3266,71 @@ window.addEventListener('load',boot);
     };
   }
 
+  /* ---- Mobile MetaMask deep-link: redirect to MM's in-app browser
+         when window.ethereum isn't injected (Safari / Chrome mobile). ---- */
+  function isMobileUA(){
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  }
+  function deepLinkMetaMask(){
+    // Iframe is same-origin so we can safely read window.top.location.
+    let host = location.host, path = '/city';
+    try {
+      const t = window.top && window.top.location;
+      if (t && t.host) { host = t.host; path = t.pathname || '/city'; }
+    } catch (_) {}
+    const url = 'https://metamask.app.link/dapp/' + host + path;
+    try { (window.top || window).location.href = url; }
+    catch (_) { window.location.href = url; }
+  }
+  function patchWallet(){
+    if (typeof connectWallet !== 'function' || typeof gateEnter !== 'function') {
+      return setTimeout(patchWallet, 300);
+    }
+    const origConnect = connectWallet;
+    const wrapped = async function(){
+      if (typeof window.ethereum === 'undefined') {
+        if (isMobileUA()) {
+          if (typeof toast === 'function') toast('Opening MetaMask…','win');
+          deepLinkMetaMask();
+          return null;
+        }
+        if (typeof toast === 'function') toast('No wallet found · install MetaMask','warn');
+        return null;
+      }
+      return origConnect();
+    };
+    // Replace both the bare binding and the window prop so every caller
+    // in the game picks up the new logic.
+    try { connectWallet = wrapped; } catch (_) {}
+    window.connectWallet = wrapped;
+
+    const origGate = gateEnter;
+    const wrappedGate = async function(){
+      if (typeof window.ethereum === 'undefined' && isMobileUA()) {
+        if (typeof toast === 'function') toast('Opening MetaMask…','win');
+        deepLinkMetaMask();
+        return;
+      }
+      return origGate();
+    };
+    try { gateEnter = wrappedGate; } catch (_) {}
+    window.gateEnter = wrappedGate;
+
+    // The gate's <button id="play"> was wired up to the ORIGINAL gateEnter
+    // before we ran. Rewire it to point at our wrapped function.
+    const pb = document.getElementById('play');
+    if (pb) {
+      const fresh = pb.cloneNode(true);   // strips old listeners
+      pb.parentNode.replaceChild(fresh, pb);
+      fresh.addEventListener('click', wrappedGate);
+    }
+  }
+
   function start(){
     wireMode();
     patchFacades();
     patchSearchFeedback();
+    patchWallet();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
