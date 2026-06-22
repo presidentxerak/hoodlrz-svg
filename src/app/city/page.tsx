@@ -2,6 +2,11 @@
 // MetaMask (window.ethereum) still works because the iframe is same-origin;
 // pointer-lock, keyboard capture and the game's globals stay isolated from
 // the host site.
+//
+// The iframe is fixed-positioned right under the sticky header and stretches
+// to the bottom of the dynamic viewport. The BottomNav is hidden on this
+// route (see BottomNav.tsx) so the game gets the full available height on
+// mobile too.
 
 import type { Metadata } from "next";
 
@@ -11,14 +16,19 @@ export const metadata: Metadata = {
 };
 
 export default function CityPage() {
+  // The header is 3.5rem (h-14). We use 100dvh so mobile browsers shrink
+  // correctly when the URL bar appears/disappears.
   return (
-    <iframe
-      src="/game/hoodlrz-city.html"
-      title="hOodlrz CITY (Beta)"
-      // Fixed below the sticky header (3.5rem) and above the mobile
-      // BottomNav (4rem). On desktop BottomNav is hidden so bottom = 0.
-      className="fixed left-0 right-0 top-14 bottom-16 md:bottom-0 w-full border-0 block"
-      allow="fullscreen; gamepad; accelerometer; microphone; clipboard-read; clipboard-write"
-    />
+    <div
+      className="fixed inset-x-0 z-40"
+      style={{ top: "3.5rem", height: "calc(100dvh - 3.5rem)" }}
+    >
+      <iframe
+        src="/game/hoodlrz-city.html"
+        title="hOodlrz CITY (Beta)"
+        className="block w-full h-full border-0"
+        allow="fullscreen; gamepad; accelerometer; microphone; clipboard-read; clipboard-write"
+      />
+    </div>
   );
 }

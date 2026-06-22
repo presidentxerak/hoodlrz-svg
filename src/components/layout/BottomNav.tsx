@@ -23,6 +23,10 @@ const items: NavItem[] = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  // The hOodlrz CITY game needs the full mobile viewport; the BottomNav
+  // would chop ~64px off the bottom of the iframe otherwise.
+  if (pathname?.startsWith("/city")) return null;
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t border-[var(--border)] bg-background/90 backdrop-blur-md md:hidden">
       {items.map((item) => {
