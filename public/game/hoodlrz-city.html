@@ -3008,14 +3008,31 @@ window.addEventListener('load',boot);
         <h3>HOLDERS DIRECTORY</h3>
         <div class="hcount" id="hCount">- holders</div>
       </div>
-      <button class="hclose" id="hClose" aria-label="close">✕</button>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button id="hTabList" class="htab on" type="button">LIST</button>
+        <button id="hTabMap" class="htab" type="button">MAP</button>
+        <button class="hclose" id="hClose" aria-label="close">✕</button>
+      </div>
     </div>
-    <div class="hsearch">
+    <div class="hsearch" id="hSearchWrap">
       <input id="hSearch" type="text" placeholder="search wallet 0x… or rank #" autocomplete="off" spellcheck="false">
     </div>
     <div class="hlist" id="hList"></div>
+    <div id="hMap" style="display:none;flex:1;overflow:hidden;position:relative;background:#000">
+      <canvas id="hMapCv" style="display:block;width:100%;height:100%;cursor:crosshair"></canvas>
+      <div id="hMapInfo" style="position:absolute;left:10px;bottom:10px;font-family:'Consolas',monospace;font-size:11px;color:#9d9dba;pointer-events:none">click a dot · jump to that tower · brightest = biggest holder</div>
+    </div>
   </div>
 </div>
+
+<style>
+  #holders .htab{font-family:"Outfit",sans-serif;font-size:10px;letter-spacing:.14em;font-weight:700;
+    padding:5px 9px;border:1px solid rgba(255,255,255,.3);background:transparent;color:#9d9dba;cursor:pointer}
+  #holders .htab.on{background:#ff2db5;color:#000;border-color:#ff2db5}
+  #holders .htab:hover:not(.on){color:#fff;border-color:#fff}
+  #holders .hcard{height:88vh}
+  #hMap{flex:1}
+</style>
 
 <div id="ctrlHint">
   <span><b>ESC</b>free cursor</span>
@@ -3093,11 +3110,84 @@ window.addEventListener('load',boot);
     if (st) st.panelOpen = true;
     buildHolderList($('hSearch').value);
     $('holders').classList.add('open');
+    if (typeof setHoldersTab === 'function') {
+      // re-paint the map if we re-opened on the map tab
+      if (mapMode) requestAnimationFrame(drawHoldersMap);
+    }
   }
   function closeHolders(){
     $('holders').classList.remove('open');
     const st = (typeof state !== 'undefined') ? state : null;
     if (st) st.panelOpen = false;
+  }
+
+  /* ---- Holders map (2D top-down of the city, dot per tower) ---- */
+  let mapMode = false;
+  function drawHoldersMap(){
+    const cv = $('hMapCv');
+    if (!cv) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const r = cv.getBoundingClientRect();
+    const W = Math.max(200, r.width|0), H = Math.max(200, r.height|0);
+    cv.width = W * dpr; cv.height = H * dpr;
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+    // grid
+    ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 20; i++) {
+      const x = (W * i) / 20, y = (H * i) / 20;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    const bs = (typeof buildings !== 'undefined') ? buildings : [];
+    if (!bs.length) {
+      ctx.fillStyle = '#9d9dba'; ctx.font = '12px Consolas, monospace'; ctx.textAlign = 'center';
+      ctx.fillText('No towers loaded yet', W / 2, H / 2);
+      return;
+    }
+    // bounds
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, maxF = 1;
+    for (const b of bs) {
+      if (b.x < minX) minX = b.x; if (b.x > maxX) maxX = b.x;
+      if (b.z < minZ) minZ = b.z; if (b.z > maxZ) maxZ = b.z;
+      if (b.floors > maxF) maxF = b.floors;
+    }
+    const pad = 24;
+    const sx = (W - pad * 2) / Math.max(1, maxX - minX);
+    const sz = (H - pad * 2) / Math.max(1, maxZ - minZ);
+    const s = Math.min(sx, sz);
+    const offX = pad + ((W - pad * 2) - (maxX - minX) * s) / 2;
+    const offY = pad + ((H - pad * 2) - (maxZ - minZ) * s) / 2;
+    const dotXY = [];
+    for (const b of bs) {
+      const x = offX + (b.x - minX) * s;
+      const y = offY + (b.z - minZ) * s;
+      const t = b.floors / maxF;
+      const radius = 2 + t * 4;
+      const alpha = 0.4 + t * 0.6;
+      ctx.fillStyle = 'rgba(255,45,181,' + alpha.toFixed(2) + ')';
+      ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill();
+      dotXY.push({ x: x, y: y, r: Math.max(8, radius + 4), b: b });
+    }
+    // player marker
+    if (typeof player !== 'undefined' && player.pos) {
+      const px = offX + (player.pos.x - minX) * s;
+      const py = offY + (player.pos.z - minZ) * s;
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(px, py, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(px - 8, py); ctx.lineTo(px + 8, py); ctx.moveTo(px, py - 8); ctx.lineTo(px, py + 8); ctx.stroke();
+    }
+    cv._dots = dotXY;
+  }
+  function setHoldersTab(mode){
+    mapMode = mode === 'map';
+    $('hList').style.display = mapMode ? 'none' : 'grid';
+    $('hSearchWrap').style.display = mapMode ? 'none' : 'block';
+    $('hMap').style.display = mapMode ? 'flex' : 'none';
+    $('hTabList').classList.toggle('on', !mapMode);
+    $('hTabMap').classList.toggle('on', mapMode);
+    if (mapMode) requestAnimationFrame(drawHoldersMap);
   }
 
   function wire(){
@@ -3106,6 +3196,25 @@ window.addEventListener('load',boot);
     $('holders').addEventListener('click', (e) => { if (e.target.id === 'holders') closeHolders(); });
     $('hSearch').addEventListener('input', (e) => buildHolderList(e.target.value));
     $('hSearch').addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Escape') closeHolders(); });
+
+    $('hTabList').addEventListener('click', () => setHoldersTab('list'));
+    $('hTabMap').addEventListener('click', () => setHoldersTab('map'));
+    $('hMapCv').addEventListener('click', (e) => {
+      const cv = $('hMapCv');
+      const r = cv.getBoundingClientRect();
+      const x = e.clientX - r.left, y = e.clientY - r.top;
+      const dots = cv._dots || [];
+      let best = null, bestD = Infinity;
+      for (const d of dots) {
+        const dd = Math.hypot(x - d.x, y - d.y);
+        if (dd < d.r && dd < bestD) { bestD = dd; best = d; }
+      }
+      if (best && typeof findBuilding === 'function') {
+        closeHolders();
+        try { findBuilding(best.b.addr || best.b.short || ''); } catch (_) {}
+      }
+    });
+    window.addEventListener('resize', () => { if (mapMode) drawHoldersMap(); });
 
     // Esc closes the holders modal even when locked
     window.addEventListener('keydown', (e) => {
@@ -3133,47 +3242,17 @@ window.addEventListener('load',boot);
 </script>
 
 <!-- ============================================================
-     Patch 2: real NFT plane on facades + big mode toggle button
+     Patch 2: real NFT plane on facades
 ============================================================ -->
 <style>
-  #modeBtn{position:fixed;right:12px;bottom:74px;z-index:62;pointer-events:auto;
-    background:rgba(0,0,0,.85);border:2px solid #ff2db5;color:#fff;
-    font-family:'Outfit',sans-serif;font-weight:800;font-size:12px;letter-spacing:.06em;
-    padding:11px 16px;cursor:pointer;text-transform:uppercase;display:none;
-    box-shadow:0 0 18px rgba(255,45,181,.35);transition:.12s}
-  #modeBtn:hover{background:#ff2db5;color:#000}
-  #modeBtn.show{display:block}
-  @media (max-width:640px){
-    #modeBtn{right:8px;bottom:64px;font-size:11px;padding:10px 12px}
-  }
+  /* (mode toggle button removed - ESC alone frees the cursor) */
 </style>
-
-<button id="modeBtn" type="button">🎮 RESUME MOVEMENT</button>
 
 <script>
 (function(){
-  /* ---- Big mode toggle (cursor ↔ movement) ---- */
+  /* ---- Mode toggle removed - ESC alone handles cursor release ---- */
   function wireMode(){
-    const btn = document.getElementById('modeBtn');
-    if (!btn) return;
-    const update = () => {
-      const locked = !!document.pointerLockElement;
-      btn.textContent = locked ? '🖱️ FREE CURSOR (ESC)' : '🎮 RESUME MOVEMENT';
-    };
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const locked = !!document.pointerLockElement;
-      if (locked) { try { document.exitPointerLock(); } catch(_){} return; }
-      const cv = document.querySelector('canvas');
-      if (cv) try { cv.requestPointerLock(); } catch(_){}
-    });
-    document.addEventListener('pointerlockchange', update);
-    // Show only while playing
-    setInterval(() => {
-      const st = (typeof state !== 'undefined') ? state : null;
-      btn.classList.toggle('show', !!(st && st.playing));
-    }, 500);
-    update();
+    /* no-op kept so start() doesn't break if anything calls it */
   }
 
   /* ---- Real NFT image on the building facade ----
@@ -3460,11 +3539,18 @@ window.addEventListener('load',boot);
       '#settingsModal .sclose:hover{background:#fff;color:#000}';
     document.head.appendChild(style);
 
-    // 2. The CSS above hides #resume forever; we don't poll state because
-    //    touching state.paused on a timer can interfere with other game
-    //    transitions (jail, inside-building, etc.). The pause flag may
-    //    still flip in memory but with no visible overlay the player just
-    //    gets a frozen camera until they tap something else, which is OK.
+    // 2. ESC fires the original pointerlockchange handler which sets
+    //    state.paused = true and stops the animation loop. Poll and clear
+    //    it - but ONLY when the player is in normal play (not in a real
+    //    pause state like jail/eaten/panel/shop). This restores movement
+    //    instantly after ESC without freezing the game when a panel or
+    //    other modal genuinely needs the world frozen.
+    setInterval(() => {
+      const st = (typeof state !== 'undefined') ? state : null;
+      if (!st || !st.playing) return;
+      if (st.panelOpen || st.shopOpen || st.inJail || st.eaten || st.faqOpen || st.journalOpen) return;
+      if (st.paused) st.paused = false;
+    }, 150);
 
     // 3. Build the Settings modal + button.
     function build() {

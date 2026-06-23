@@ -41,16 +41,8 @@ export default function CityPage() {
 
   return (
     <>
-      {/*
-        Option 3: a fixed-positioned wrapper acts as the iframe's
-        containing block. The wrapper anchors itself to the viewport
-        (top: 3.5rem; bottom: 0; left/right: 0). The iframe then
-        simply fills 100% of that wrapper - no calc, no fixed
-        positioning quirk, no dependency on dvh/100vh resolution by
-        the browser. The wrapper guarantees the iframe takes every
-        pixel of the visible area below the sticky header on every
-        browser, every viewport unit interpretation.
-      */}
+      {/* Wrapper-based iframe sizing (option 3) - browser computes
+          height from top+bottom, iframe fills 100%/100%. */}
       <div
         style={{
           position: "fixed",
