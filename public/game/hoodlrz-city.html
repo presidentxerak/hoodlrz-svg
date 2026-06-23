@@ -4510,38 +4510,226 @@ window.addEventListener('unhandledrejection',(ev)=>{
       return { side, yCenter };
     }
 
-    // Hand-inked Hoodlr placeholder for holders whose image cache is empty
-    // or fails to load. Looks like the inside of the brick tag - black card,
-    // white silhouette of a Hoodlr, wallet short below. Shared as a single
-    // canvas reused for every facade so it costs ~one texture total.
-    let _placeholderTex = null;
-    function makePlaceholderTexture(){
-      if (_placeholderTex) return _placeholderTex;
-      const R = 512;
-      const cv = document.createElement('canvas');
-      cv.width = cv.height = R;
-      const ctx = cv.getContext('2d');
-      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, R, R);
-      ctx.strokeStyle = '#fff'; ctx.lineWidth = 5;
-      ctx.strokeRect(8, 8, R - 16, R - 16);
-      if (typeof drawHoodlr === 'function') {
-        const s = R * 0.7;
-        try { drawHoodlr(ctx, (R - s) / 2, (R - s) / 2 - 16, s, (typeof rng === 'function' ? rng : Math.random)); } catch (_) {}
+    // Pool of slogans for billboard ads. Bilingual mix to match the city
+    // vibe (HOODLRZ + manifesto + nightlife tags).
+    const BILLBOARDS = [
+      { l1: 'THE BLOCK',     l2: "DON'T SLEEP",      accent: '#ff2db5' },
+      { l1: 'MINT',          l2: 'YOUR SOUL',         accent: '#56e0ff' },
+      { l1: 'hOodlrz',       l2: 'NOIZE FM',          accent: '#39ff9e' },
+      { l1: 'BURN',          l2: 'THE BANKS',         accent: '#ffd84d' },
+      { l1: 'CITY',          l2: 'NEVER STOPS',       accent: '#ff5b6e' },
+      { l1: 'CODE',          l2: 'IS GRAFFITI',       accent: '#b46bff' },
+      { l1: 'GHOST',         l2: 'IN THE LEDGER',     accent: '#56e0ff' },
+      { l1: 'OWN',           l2: 'YOUR KEYS',         accent: '#ffd84d' },
+      { l1: 'NO',            l2: 'MIDDLEMAN',         accent: '#ff2db5' },
+      { l1: 'STAY',          l2: 'PUFT',              accent: '#56e0ff' },
+      { l1: 'DRINK',         l2: '$HOOD COLA',        accent: '#39ff9e' },
+      { l1: 'MIDNIGHT',      l2: 'LAUNDRY',           accent: '#ffd84d' },
+      { l1: 'TAG',           l2: 'KING',              accent: '#ff2db5' },
+      { l1: 'SAKURA',        l2: 'RAMEN',             accent: '#ff5b6e' },
+      { l1: 'NEON',          l2: 'PAWN',              accent: '#b46bff' },
+    ];
+    const _billboardCache = Object.create(null);
+    function makeBillboardTex(ad){
+      const key = ad.l1 + '|' + ad.l2;
+      if (_billboardCache[key]) return _billboardCache[key];
+      const W = 768, H = 384;
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#0a0a14'; c.fillRect(0, 0, W, H);
+      // Grunge specks so the ad doesn't look like a smooth print
+      for (let i = 0; i < 220; i++) {
+        c.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.07).toFixed(3) + ')';
+        c.fillRect(Math.random()*W, Math.random()*H, 1 + Math.random()*7, 1 + Math.random()*5);
       }
-      ctx.fillStyle = '#fff';
-      ctx.font = "bold 36px 'Hoodlrz', 'Arial Black', sans-serif";
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('hOodlrz', R / 2, R - 60);
+      // White outline frame (same line weight as bricks)
+      c.strokeStyle = '#ffffff'; c.lineWidth = 7;
+      c.strokeRect(12, 12, W-24, H-24);
+      // Big line 1
+      c.fillStyle = '#ffffff';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = "bold 130px 'Hoodlrz', 'Arial Black', sans-serif";
+      c.shadowColor = ad.accent; c.shadowBlur = 14;
+      c.fillText(ad.l1, W/2, H*0.36);
+      // Accent line 2
+      c.shadowBlur = 18;
+      c.fillStyle = ad.accent;
+      c.font = "bold 92px 'Hoodlrz', 'Arial Black', sans-serif";
+      c.fillText(ad.l2, W/2, H*0.72);
+      c.shadowBlur = 0;
+      // Drip from a couple of letters for the inked feel
+      c.fillStyle = ad.accent;
+      for (let i = 0; i < 6; i++) {
+        const x = W*0.18 + Math.random() * W*0.64;
+        c.fillRect(x, H*0.78, 2 + Math.random()*3, 10 + Math.random()*30);
+      }
       const tex = new THREE.CanvasTexture(cv);
       tex.encoding = THREE.sRGBEncoding;
       tex.anisotropy = 8;
-      _placeholderTex = tex;
+      _billboardCache[key] = tex;
       return tex;
     }
+
+    // Closed roll-up shutter (street-level shop closed). Slats + handle +
+    // a small spray-paint tag on top so it doesn't look like a flat box.
+    let _shutterTex = null;
+    function makeShutterTex(){
+      if (_shutterTex) return _shutterTex;
+      const W = 256, H = 384;
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+      // Horizontal slats
+      c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1.6;
+      for (let y = 6; y < H - 10; y += 6) {
+        c.beginPath(); c.moveTo(8, y); c.lineTo(W-8, y); c.stroke();
+      }
+      // Side rails + top + bottom kerb
+      c.strokeStyle = '#fff'; c.lineWidth = 5;
+      c.strokeRect(4, 4, W-8, H-8);
+      // Handle at the bottom
+      c.fillStyle = '#fff'; c.fillRect(W/2-32, H-22, 64, 9);
+      // Lock keyhole
+      c.beginPath(); c.arc(W/2, H-50, 6, 0, Math.PI*2); c.stroke();
+      c.beginPath(); c.moveTo(W/2, H-50); c.lineTo(W/2, H-38); c.stroke();
+      // Pink graffiti tag
+      c.strokeStyle = '#ff2db5'; c.lineWidth = 6; c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(40, H*0.4);
+      c.bezierCurveTo(80, H*0.32, 140, H*0.52, 200, H*0.4);
+      c.stroke();
+      c.fillStyle = '#ff2db5';
+      c.font = "bold 38px 'Hoodlrz', sans-serif";
+      c.textAlign = 'center';
+      c.fillText('CLOSED', W/2, H*0.55);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.anisotropy = 8;
+      _shutterTex = tex;
+      return tex;
+    }
+
+    // Broken / smashed window with jagged cracks + a missing chunk.
+    let _brokenTex = null;
+    function makeBrokenTex(){
+      if (_brokenTex) return _brokenTex;
+      const W = 256, H = 256;
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
+      c.strokeStyle = '#fff'; c.lineWidth = 5; c.strokeRect(4, 4, W-8, H-8);
+      // Mullion cross
+      c.lineWidth = 2.5;
+      c.beginPath(); c.moveTo(W/2, 8); c.lineTo(W/2, H-8); c.moveTo(8, H/2); c.lineTo(W-8, H/2); c.stroke();
+      // Radial cracks from a random impact point
+      const cx = W/2 + (Math.random()-0.5)*70;
+      const cy = H/2 + (Math.random()-0.5)*70;
+      c.lineWidth = 2.8; c.lineCap = 'round'; c.lineJoin = 'round';
+      for (let i = 0; i < 9; i++) {
+        const a = (i/9) * Math.PI*2 + Math.random()*0.4;
+        const len = 70 + Math.random()*70;
+        const mx = cx + Math.cos(a)*len*0.6 + (Math.random()-0.5)*10;
+        const my = cy + Math.sin(a)*len*0.6 + (Math.random()-0.5)*10;
+        c.beginPath();
+        c.moveTo(cx, cy);
+        c.lineTo(mx, my);
+        c.lineTo(cx + Math.cos(a)*len, cy + Math.sin(a)*len);
+        c.stroke();
+      }
+      // Missing chunk near the impact point - pure black hole
+      c.fillStyle = '#000';
+      c.beginPath();
+      c.moveTo(cx - 30, cy - 18);
+      c.lineTo(cx + 35, cy - 28);
+      c.lineTo(cx + 40, cy + 36);
+      c.lineTo(cx - 24, cy + 30);
+      c.closePath();
+      c.fill();
+      // Spray paint X to mark "condemned"
+      c.strokeStyle = '#ff2db5'; c.lineWidth = 8; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(W*0.25, H*0.18); c.lineTo(W*0.75, H*0.82); c.stroke();
+      c.beginPath(); c.moveTo(W*0.75, H*0.18); c.lineTo(W*0.25, H*0.82); c.stroke();
+      const tex = new THREE.CanvasTexture(cv);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.anisotropy = 8;
+      _brokenTex = tex;
+      return tex;
+    }
+
+    // Canvas / Hoodlr placeholder for holders whose image cache is empty
+    // or fails to load. Now uses the same billboard-ad design so an
+    // un-resolved facade reads as "shop is open, ad is up" instead of
+    // a plain grey card.
+    let _placeholderTex = null;
+    function makePlaceholderTexture(){
+      if (_placeholderTex) return _placeholderTex;
+      // Just pick the first billboard - any visitor will see the same
+      // fallback so it reads as an actual brand, not random per-tower.
+      _placeholderTex = makeBillboardTex(BILLBOARDS[0]);
+      return _placeholderTex;
+    }
+
+    // Per-building street-level decals: 1-2 of {billboard, shutter,
+    // broken window} on the side walls. Picked deterministically from
+    // a hash of b.short so the same building keeps the same decals
+    // across visits but the whole city reads as varied.
+    function addStreetSignage(b, G){
+      if (!b || !b.short) return;
+      let h = 0;
+      for (let i = 0; i < b.short.length; i++) h = ((h * 31) + b.short.charCodeAt(i)) >>> 0;
+      // Decide how many decals (0, 1 or 2 per building)
+      const count = (h % 5 === 0) ? 0 : ((h % 3 === 0) ? 2 : 1);
+      const sides = [
+        { dx: -1, dz:  0, ry: -Math.PI/2 },
+        { dx:  1, dz:  0, ry:  Math.PI/2 },
+        { dx:  0, dz: -1, ry:  Math.PI    },
+      ];
+      const used = new Set();
+      for (let n = 0; n < count; n++) {
+        let s; for (let tries = 0; tries < 6; tries++) {
+          const idx = (h + n * 31) % sides.length;
+          if (!used.has(idx)) { s = sides[idx]; used.add(idx); break; }
+          h = (h * 17 + 1) >>> 0;
+        }
+        if (!s) break;
+        // Pick decal type
+        const variant = (h >> (n * 4)) % 10;
+        let mat, w, ht, y;
+        if (variant < 5) {
+          // Billboard ad (50%)
+          const ad = BILLBOARDS[(h + n * 7) % BILLBOARDS.length];
+          mat = new THREE.MeshBasicMaterial({ map: makeBillboardTex(ad), toneMapped: false });
+          w = Math.min(b.w * 0.7, 6); ht = w * 0.5;
+          y = 3.5 + (n * 0.6);
+        } else if (variant < 8) {
+          // Closed rolling shutter (30%) - at street level
+          mat = new THREE.MeshBasicMaterial({ map: makeShutterTex(), toneMapped: false });
+          w = Math.min(b.w * 0.45, 3.4); ht = 4.4;
+          y = 2.4;
+        } else {
+          // Broken window (20%)
+          mat = new THREE.MeshBasicMaterial({ map: makeBrokenTex(), transparent: true, toneMapped: false });
+          w = ht = 1.6;
+          y = 3.0 + ((h >> n) % 6) * 0.5;
+        }
+        const decal = new THREE.Mesh(new THREE.PlaneGeometry(w, ht), mat);
+        const off = b.w / 2 + 0.06;
+        decal.position.set(b.x + s.dx * off, y, b.z + s.dz * off);
+        decal.rotation.y = s.ry;
+        decal.renderOrder = 4;
+        G.add(decal);
+      }
+    }
+    // Expose for the makeBuildingDetail wrapper below.
+    window.__addStreetSignage = addStreetSignage;
 
     window.makeBuildingDetail = function(b){
       const G = original(b);
       dbg.wrappedCalls++;
+      // Street-level signage on every building (billboard ads, closed
+      // shutters, smashed windows). Wrapped in try so a single decal
+      // failure can't break the whole detail group.
+      try { addStreetSignage(b, G); } catch (_) {}
       try {
         const oc = (typeof onchain !== 'undefined') ? onchain : null;
         // For non-holder buildings (dev/preview without an Alchemy cache),
