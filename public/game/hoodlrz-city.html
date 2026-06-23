@@ -3408,11 +3408,121 @@ window.addEventListener('load',boot);
     }
   }
 
+  /* ---- Holder check fallback. The local onchain.owners list can be
+         empty if /api/city/holders failed or hasn't returned yet. Always
+         double-check with the server before refusing entry. */
+  function patchHolderCheck(){
+    if (typeof isHoodlrzHolder !== 'function') return setTimeout(patchHolderCheck, 300);
+    const orig = isHoodlrzHolder;
+    const wrapped = async function(w){
+      try {
+        // First trust the local cache when it has data.
+        const oc = (typeof onchain !== 'undefined') ? onchain : null;
+        if (oc && oc.live && Array.isArray(oc.owners) && oc.owners.length) {
+          const lw = String(w || '').toLowerCase();
+          if (oc.owners.some((o) => String(o).toLowerCase() === lw)) return true;
+        }
+        // Authoritative server check (reads city_holders directly).
+        const r = await fetch('/api/city/verify-holder?wallet=' + encodeURIComponent(String(w || '')))
+          .then((res) => res.json())
+          .catch(() => null);
+        if (r && r.isHolder === true) return true;
+        // Last resort: run the original (handles the Alchemy direct path).
+        return await orig(w);
+      } catch (_) {
+        return false;
+      }
+    };
+    try { isHoodlrzHolder = wrapped; } catch (_) {}
+    window.isHoodlrzHolder = wrapped;
+  }
+
+  /* ---- ESC should only release the pointer + open the HUD, never
+         throw up a pause overlay. We do this by:
+         1. Hiding #resume permanently via injected CSS.
+         2. Auto-clearing state.paused whenever something tries to set it.
+         3. Moving the mouse / FOV / invert / head-bob controls into a
+            dedicated Settings modal opened from a button in the top bar. */
+  function patchPauseAndSettings(){
+    // 1. Hide the pause overlay entirely.
+    const style = document.createElement('style');
+    style.textContent =
+      '#resume{display:none!important}' +
+      '#settingsBtn{font-family:"Outfit",sans-serif;font-weight:800;font-size:14px;' +
+        'cursor:pointer;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.6);' +
+        'color:#fff;padding:8px 11px;backdrop-filter:blur(6px);transition:.12s;pointer-events:auto}' +
+      '#settingsBtn:hover{background:#fff;color:#000}' +
+      '#settingsModal{position:fixed;inset:0;z-index:90;display:none;align-items:center;' +
+        'justify-content:center;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);padding:18px}' +
+      '#settingsModal.show{display:flex}' +
+      '#settingsModal .scard{background:#0a0a14;border:1px solid rgba(255,255,255,.3);' +
+        'color:#fff;font-family:"Outfit",sans-serif;width:min(420px,94vw);padding:22px;' +
+        'box-sizing:border-box;max-height:90vh;overflow-y:auto}' +
+      '#settingsModal h3{font-family:"Hoodlrz",sans-serif;font-size:22px;letter-spacing:.04em;margin:0 0 14px}' +
+      '#settingsModal .sclose{margin-top:14px;width:100%;padding:10px;border:1px solid rgba(255,255,255,.35);' +
+        'background:transparent;color:#fff;cursor:pointer;font-family:inherit;font-weight:700;letter-spacing:.05em}' +
+      '#settingsModal .sclose:hover{background:#fff;color:#000}';
+    document.head.appendChild(style);
+
+    // 2. Whenever something sets state.paused = true / shows #resume, undo it.
+    setInterval(() => {
+      const resume = document.getElementById('resume');
+      if (resume && resume.style.display && resume.style.display !== 'none') {
+        resume.style.display = 'none';
+      }
+      const st = (typeof state !== 'undefined') ? state : null;
+      if (st && st.paused) st.paused = false;
+    }, 120);
+
+    // 3. Build the Settings modal + button.
+    function build() {
+      if (document.getElementById('settingsBtn')) return;
+      const resume = document.getElementById('resume');
+      const settingsContent = resume?.querySelector('.settings');
+      if (!settingsContent) return setTimeout(build, 300);
+
+      // Modal scaffold
+      const modal = document.createElement('div');
+      modal.id = 'settingsModal';
+      modal.innerHTML = '<div class="scard"><h3>SETTINGS</h3><div id="settingsSlot"></div>' +
+        '<button type="button" class="sclose" id="settingsClose">CLOSE</button></div>';
+      document.body.appendChild(modal);
+
+      // Move (not clone) the existing settings into the modal so their
+      // event listeners (bound by initSettingsUI) still work.
+      modal.querySelector('#settingsSlot').appendChild(settingsContent);
+
+      // Open / close handlers
+      const close = () => modal.classList.remove('show');
+      modal.querySelector('#settingsClose').addEventListener('click', close);
+      modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+
+      // Button in the top ops bar
+      const ops = document.getElementById('ops');
+      if (ops) {
+        const btn = document.createElement('button');
+        btn.id = 'settingsBtn';
+        btn.type = 'button';
+        btn.textContent = '⚙';
+        btn.title = 'Settings';
+        btn.addEventListener('click', () => {
+          try { if (document.pointerLockElement) document.exitPointerLock(); } catch (_) {}
+          modal.classList.add('show');
+        });
+        // place at the end of the row
+        ops.appendChild(btn);
+      }
+    }
+    build();
+  }
+
   function start(){
     wireMode();
     patchFacades();
     patchSearchFeedback();
     patchWallet();
+    patchHolderCheck();
+    patchPauseAndSettings();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
