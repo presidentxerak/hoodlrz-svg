@@ -4336,20 +4336,82 @@ window.addEventListener('load',boot);
     try { connectWallet = wrapped; } catch (_) {}
     window.connectWallet = wrapped;
 
-    const origGate = gateEnter;
-    const wrappedGate = async function(){
-      if (typeof window.ethereum === 'undefined' && isMobileUA()) {
-        if (!askParentForWalletPrompt()) showMobileWalletPrompt();
+    // REPLACE gateEnter wholesale instead of just wrapping it. The original
+    // had a "no holder cache loaded → bypass the gate" path that let users
+    // walk in on desktop without ever touching their wallet whenever
+    // /api/city/holders was slow / errored. Strict version:
+    //   1. require an injected wallet (or open MetaMask deep-link on mobile)
+    //   2. eth_requestAccounts (auto-prompts the MetaMask modal)
+    //   3. server-side /api/city/verify-holder is the SOURCE OF TRUTH for
+    //      "is this wallet a holder?" - we never trust the client-side
+    //      onchain.owners list to gate entry, even though we use it as a
+    //      hint to short-circuit the network call when it agrees.
+    let gatePassedNew = false;
+    const setStat = (t, cls) => { try { if (typeof setGateStat === 'function') setGateStat(t, cls || ''); } catch (_) {} };
+    const newGate = async function(){
+      if (gatePassedNew) {
+        if (typeof startGame === 'function') startGame();
         return;
       }
-      return origGate();
+      // No wallet at all
+      if (typeof window.ethereum === 'undefined') {
+        if (isMobileUA()) {
+          setStat('Opening MetaMask…');
+          if (!askParentForWalletPrompt()) showMobileWalletPrompt();
+        } else {
+          setStat('Install MetaMask to verify your Hoodlrz NFT', 'bad');
+        }
+        return;
+      }
+      // 1. Connect wallet
+      let w = (typeof state !== 'undefined' && state.wallet) || null;
+      if (!w) {
+        setStat('Approve the wallet connection in MetaMask…');
+        try { w = await window.connectWallet(); } catch (_) {}
+      }
+      if (!w) {
+        setStat('Connect your wallet to enter', 'bad');
+        return;
+      }
+      // 2. Verify holder server-side (authoritative)
+      setStat('Checking Hoodlrz ownership…');
+      let isHolder = false;
+      // 2a. local cache hint - skip the network when we already know.
+      try {
+        const oc = (typeof onchain !== 'undefined') ? onchain : null;
+        if (oc && oc.live && Array.isArray(oc.owners)) {
+          const lw = String(w).toLowerCase();
+          if (oc.owners.some((o) => String(o).toLowerCase() === lw)) isHolder = true;
+        }
+      } catch (_) {}
+      // 2b. server check (covers brand-new holders, stale local cache,
+      //     and the case where onchain.live never flipped true)
+      if (!isHolder) {
+        try {
+          const res = await fetch('/api/city/verify-holder?wallet=' + encodeURIComponent(w))
+            .then((r) => (r.ok ? r.json() : null))
+            .catch(() => null);
+          if (res && res.isHolder === true) isHolder = true;
+        } catch (e) {
+          console.warn('[gate] verify-holder failed', e);
+        }
+      }
+      if (isHolder) {
+        gatePassedNew = true;
+        // keep the legacy flag in sync so other code paths see "gate passed"
+        try { window.gatePassed = true; } catch (_) {}
+        setStat('Holder verified ✓ welcome in', 'ok');
+        if (typeof startGame === 'function') startGame();
+      } else {
+        setStat('No Hoodlrz NFT in this wallet · holders only', 'bad');
+      }
     };
-    try { gateEnter = wrappedGate; } catch (_) {}
-    window.gateEnter = wrappedGate;
-    // NB: we do NOT replace the #play button. boot() will addEventListener
-    // ('click', gateEnter) after we've reassigned gateEnter, so the listener
-    // already points at our wrapped version. Cloning the button can desync
-    // boot's later listener attachment.
+    try { gateEnter = newGate; } catch (_) {}
+    window.gateEnter = newGate;
+    // boot() runs window.load (after DOMContentLoaded), so it calls
+    // addEventListener('click', gateEnter) AFTER we've reassigned the
+    // local gateEnter variable above. Both the click listener and the
+    // window.gateEnter export point at newGate from that moment on.
   }
 
   /* ---- Holder check fallback. The local onchain.owners list can be
@@ -4501,23 +4563,22 @@ window.addEventListener('load',boot);
     let fired = false;
     const tryConnect = async () => {
       if (fired) return;
-      // Give up after ~20s if the gate / holders never show up.
+      // Give up after ~20s of polling if conditions never come true.
       if (++attempts > 80) { fired = true; return; }
-      // If the user already tapped Enter the Block and connected manually,
-      // there's nothing to auto-trigger.
+      // If the user already tapped Enter the Block manually, don't fire
+      // a duplicate connect request.
       if (typeof state !== 'undefined' && state.wallet) { fired = true; return; }
-      // gateEnter is defined inside the main game script; patchWallet has
-      // wrapped it onto window by the time start() runs.
-      const gate = window.gateEnter || (typeof gateEnter === 'function' ? gateEnter : null);
+      // We wait for two things only:
+      //  - gateEnter is wrapped onto window by patchWallet (instant)
+      //  - the gate modal is on screen (boot has rendered it)
+      // We deliberately do NOT wait for onchain.live - the new gateEnter
+      // uses /api/city/verify-holder server-side which works regardless,
+      // and waiting for onchain.live was the bug that made auto-connect
+      // never fire on slow mobile networks.
+      const gate = window.gateEnter;
       const startEl = document.getElementById('start');
-      const oc = (typeof onchain !== 'undefined') ? onchain : null;
       const gateVisible = startEl && getComputedStyle(startEl).display !== 'none';
-      // We need to wait until:
-      //  - gateEnter exists (script has run)
-      //  - the gate modal is on screen (boot() done, build() done)
-      //  - holders cache is loaded (otherwise gateEnter would bypass the
-      //    gate, since "configured" requires onchain.live)
-      if (typeof gate !== 'function' || !gateVisible || !oc || !oc.live) {
+      if (typeof gate !== 'function' || !gateVisible) {
         return setTimeout(tryConnect, 250);
       }
       fired = true;
