@@ -2491,25 +2491,80 @@ async function gateEnter(){
 }
 
 /* ---- free mint of a found hidden NFT ---- */
+// Real free-claim flow against the treasury. The server signs a
+// safeTransferFrom out of the treasury wallet so the player receives an
+// on-chain Hoodlrz NFT without paying any gas. One claim per wallet
+// forever (enforced by the city_claims primary key on the server side).
 async function mintFound(tag){
-  if(!state.wallet){const w=await connectWallet();if(!w)return;}
-  if(HOODLRZ.mintContract&&window.ethereum){
-    try{
-      // switch to the mint chain, then send the free-mint tx
-      try{await window.ethereum.request({method:'wallet_switchEthereumChain',params:[{chainId:HOODLRZ.mintChainHex}]});}catch(_){}
-      const txh=await window.ethereum.request({method:'eth_sendTransaction',params:[{from:state.wallet,to:HOODLRZ.mintContract,data:HOODLRZ.mintData,value:'0x0'}]});
-      state.minted.add(tag);sfx.vault();
-      toast('Free mint sent ✓ tx '+shortOf(txh),'gold');
-      addJournal('Minted '+tag,'Free-minted '+tag+' to '+shortOf(state.wallet)+'.');
-    }catch(e){toast('Mint rejected or failed','warn');}
-  }else{
-    // no real mint contract configured → simulate, and say so plainly
-    state.minted.add(tag);sfx.vault();
-    toast('Free mint simulated ('+tag+') · set HOODLRZ.mintContract for a real mint','gold');
-    addJournal('Minted '+tag+' (simulated)','Configure a real mint contract in the code to mint on-chain.');
+  // 1. Player must be connected so we can sign the claim message
+  if (!state.wallet) {
+    const w = await connectWallet();
+    if (!w) { toast('Connect your wallet to claim','warn'); return; }
   }
-  // refresh the panel button → "minted"
-  const act=$('panelAct');if(act&&act.innerHTML)act.innerHTML='<span class="minted">✓ Minted to your wallet</span>';
+  const wallet = state.wallet;
+  const act = $('panelAct');
+  const setBtn = (html) => { if (act) act.innerHTML = html; };
+  // Already claimed? Surface the existing tx instead of starting a new one.
+  try {
+    const pre = await fetch('/api/city/claim?wallet=' + encodeURIComponent(wallet))
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null);
+    if (pre && pre.claimed) {
+      state.minted.add(tag);
+      setBtn('<span class="minted">✓ Already claimed · <a href="'+pre.explorerUrl+'" target="_blank" style="color:#2dffa6">view tx</a></span>');
+      toast('Wallet already claimed (Hoodlr #'+pre.tokenId+')','gold');
+      return;
+    }
+  } catch (_) { /* network blip - proceed and let the POST handle dedupe */ }
+
+  // 2. Sign a fresh, wallet+timestamp-bound message
+  const ts = Date.now();
+  const msg = 'Hoodlrz CITY reward claim\n\nWallet: ' + String(wallet).toLowerCase() + '\nReward: ' + tag + '\nTimestamp: ' + ts;
+  setBtn('<span class="minted">Sign the claim message in your wallet…</span>');
+  let signature;
+  try {
+    signature = await window.ethereum.request({
+      method: 'personal_sign',
+      params: [msg, wallet],
+    });
+  } catch (e) {
+    setBtn('<button class="actbtn" onclick="mintFound(\''+tag+'\')">CLAIM YOUR HOODLR ▸</button>');
+    toast('Claim cancelled in wallet','warn');
+    return;
+  }
+
+  // 3. POST to the server, which signs the on-chain transfer
+  setBtn('<span class="minted">Minting on-chain… ~10s</span>');
+  let res;
+  try {
+    res = await fetch('/api/city/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet, rewardId: tag, message: msg, signature }),
+    }).then(r => r.json().then(j => ({status: r.status, body: j})));
+  } catch (e) {
+    setBtn('<button class="actbtn" onclick="mintFound(\''+tag+'\')">CLAIM YOUR HOODLR ▸</button>');
+    toast('Network error · try again','warn');
+    return;
+  }
+  if (!res || res.status >= 400) {
+    const err = res && res.body && res.body.error ? res.body.error : 'Claim failed';
+    setBtn('<button class="actbtn" onclick="mintFound(\''+tag+'\')">RETRY CLAIM ▸</button>');
+    toast(err.slice(0, 100),'warn');
+    return;
+  }
+  const { tokenId, explorerUrl, openseaUrl } = res.body;
+  state.minted.add(tag);
+  sfx.vault();
+  toast('★ Claimed Hoodlr #'+tokenId+' to your wallet','gold');
+  addJournal('Claimed · '+tag, 'Free-minted Hoodlr #'+tokenId+' to '+shortOf(wallet)+'.');
+  setBtn(
+    '<span class="minted">✓ Hoodlr #'+tokenId+' minted to your wallet</span>'+
+    '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+
+      '<a href="'+explorerUrl+'" target="_blank" style="flex:1;text-align:center;padding:10px;border:1px solid rgba(255,255,255,.4);color:#fff;font-size:11px;letter-spacing:.06em;text-decoration:none">VIEW TX</a>'+
+      '<a href="'+openseaUrl+'" target="_blank" style="flex:1;text-align:center;padding:10px;border:1px solid #2dffa6;color:#2dffa6;font-size:11px;letter-spacing:.06em;text-decoration:none">VIEW ON OPENSEA</a>'+
+    '</div>'
+  );
 }
 
 /* ---- search bar: find your building by wallet / short / floors ---- */

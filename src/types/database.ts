@@ -198,6 +198,30 @@ export interface Database {
         };
         Relationships: [];
       };
+      city_claims: {
+        Row: {
+          wallet: string;
+          token_id: number;
+          tx_hash: string;
+          reward_id: string | null;
+          claimed_at: string;
+        };
+        Insert: {
+          wallet: string;
+          token_id: number;
+          tx_hash: string;
+          reward_id?: string | null;
+          claimed_at?: string;
+        };
+        Update: {
+          wallet?: string;
+          token_id?: number;
+          tx_hash?: string;
+          reward_id?: string | null;
+          claimed_at?: string;
+        };
+        Relationships: [];
+      };
       tokens: {
         Row: {
           id: string;
