@@ -448,10 +448,10 @@
     <div class="jailbox panel-bg">
       <div class="jt">BUSTED</div>
       <div class="jsub">YOU'RE IN JAIL</div>
-      <p>The police caught you holding Hoodz and threw you in a cell. You're locked up for <b>10 minutes</b>.</p>
-      <p class="dayline">TIME LEFT <b id="jailClock">10:00</b></p>
+      <p>The police caught you holding Hoodz and threw you in a cell. You're locked up for <b>30 seconds</b>.</p>
+      <p class="dayline">TIME LEFT <b id="jailClock">0:30</b></p>
       <button id="jailBail">PAY 100 HOODZ · GET OUT NOW</button>
-      <p class="hint2">or wait out the 10 minutes to be released automatically</p>
+      <p class="hint2">or wait out the 30 seconds to be released automatically</p>
     </div>
   </div>
 
@@ -460,10 +460,10 @@
     <div class="jailbox panel-bg">
       <div class="jt">EATEN</div>
       <div class="jsub">SHARKS GOT YOU</div>
-      <p>You waded into the lake and the sharks dragged you under. You black out for <b>10 minutes</b>.</p>
-      <p class="dayline">REVIVE IN <b id="lakeClock">10:00</b></p>
+      <p>You waded into the lake and the sharks dragged you under. You black out for <b>30 seconds</b>.</p>
+      <p class="dayline">REVIVE IN <b id="lakeClock">0:30</b></p>
       <button id="lakeBail">PAY 100 HOODZ · RESPAWN NOW</button>
-      <p class="hint2">or wait out the 10 minutes to respawn automatically</p>
+      <p class="hint2">or wait out the 30 seconds to respawn automatically</p>
     </div>
   </div>
 
@@ -566,7 +566,7 @@
       <p>The <b>Hood Blaster only fires when an enemy is locked</b>: aim a gang into your crosshair and a red-magenta lock reticle appears, then fire. No lock means no projectile (so turning around never wastes shots). The <b>Street Bat</b> is a melee weapon and hits at close range. Every hit makes a gang drop Hoodz; downing one also pays $HOOD.</p>
 
       <h3>Police, SWAT &amp; jail</h3>
-      <p>Officers (marked <b>POLICE</b>) and elite <b>SWAT</b> units patrol on foot, and <b>police cars and vans drive the streets</b>: when one gets close, its <b>gyrophare flashes red and blue and a siren wails</b>. If you are holding Hoodz near them, a POLICE NEARBY warning fires. Get busted and you are <b>locked up for 10 minutes</b>: pay 100 Hoodz to get out now, or wait it out.</p>
+      <p>Officers (marked <b>POLICE</b>) and elite <b>SWAT</b> units patrol on foot, and <b>police cars and vans drive the streets</b>: when one gets close, its <b>gyrophare flashes red and blue and a siren wails</b>. If you are holding Hoodz near them, a POLICE NEARBY warning fires. Get busted and you are <b>locked up for 30 seconds</b>: pay 100 Hoodz to get out now, or wait it out.</p>
 
       <h3>Street life</h3>
       <p>The Block is alive: citizens, oracles, gangs, plus <b>stray dogs and cats</b>, night workers and junkies wandering the blocks. Talk to anyone with <kbd>E</kbd>; some know more than they should.</p>
@@ -3572,7 +3572,7 @@ function updateJailClock(){
   return ms;
 }
 function startJailTimer(){
-  state.jailUntil=Date.now()+600*1000;   // locked up for 10 minutes
+  state.jailUntil=Date.now()+30*1000;   // locked up for 30 seconds
   updateJailClock();
   clearInterval(jailTick);
   jailTick=setInterval(()=>{ if(updateJailClock()<=0) releaseFromJail(); },1000);
@@ -3596,7 +3596,7 @@ function updateLakeClock(){
   const el=$('lakeClock');if(el)el.textContent=mm+':'+ss;return ms;}
 function getEaten(){
   if(state.eaten)return;
-  state.eaten=true; state.eatenUntil=Date.now()+600*1000; sfx.down(); sfx.hurt();
+  state.eaten=true; state.eatenUntil=Date.now()+30*1000; sfx.down(); sfx.hurt();
   spawnBurst(player.pos.clone().setY(1),0xffffff,30);
   const bb=$('lakeBail');if(bb){const c=Math.min(BAIL_HOODZ,state.hoodz);bb.textContent=(c?'PAY '+c+' HOODZ':'GO FREE')+' · RESPAWN NOW';}
   updateLakeClock();
