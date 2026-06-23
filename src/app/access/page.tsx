@@ -89,6 +89,12 @@ export default function AccessPage() {
   // Wallet state
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletError, setWalletError] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+    }
+  }, []);
 
   async function handleEmailSubmit(e: FormEvent) {
     e.preventDefault();
@@ -275,7 +281,7 @@ export default function AccessPage() {
               No gas fees, no transaction - just a signature.
             </p>
 
-            {wallets.length > 0 ? (
+            {wallets.length > 0 && (
               <div className="w-full flex flex-col gap-2">
                 {wallets.map((w) => (
                   <button
@@ -295,11 +301,26 @@ export default function AccessPage() {
                   </button>
                 ))}
               </div>
-            ) : (
+            )}
+
+            {/* Mobile deep link - always visible on mobile so users in
+                Safari/Chrome can pop into the MetaMask in-app browser even
+                when another wallet (Coinbase, Phantom) injected ethereum. */}
+            {isMobile && (
+              <a
+                href={`https://metamask.app.link/dapp/${typeof window !== "undefined" ? window.location.host : "hoodlrz.com"}/access`}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest border border-[#ff2db5] text-[#ff2db5] hover:bg-[#ff2db5]/10 transition-colors"
+              >
+                Open in MetaMask app
+              </a>
+            )}
+
+            {wallets.length === 0 && (
               <div className="w-full flex flex-col gap-3">
-                {/* No wallet detected - show install links */}
                 <p className="text-xs text-center text-muted">
-                  No wallet detected. Install one to continue:
+                  {isMobile
+                    ? "No wallet detected. Tap the button above to open this page inside MetaMask, or install a wallet:"
+                    : "No wallet detected. Install one to continue:"}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
@@ -319,16 +340,6 @@ export default function AccessPage() {
                     </a>
                   ))}
                 </div>
-
-                {/* Mobile deep link */}
-                <button
-                  onClick={() => {
-                    window.location.href = `https://metamask.app.link/dapp/${window.location.host}/access`;
-                  }}
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest border border-[#627eea] text-[#627eea] hover:bg-[#627eea]/10 transition-colors"
-                >
-                  Open in MetaMask (Mobile)
-                </button>
               </div>
             )}
 

@@ -1993,15 +1993,42 @@ async function loadArt(){
 function setOnchainStatus(t){const el=$('chainStat');if(el)el.textContent=t;}
 
 /* ---- wallet connect (real MetaMask / injected provider) ---- */
+function pickInjectedProvider(){
+  if(typeof window==='undefined'||!window.ethereum)return null;
+  const eth=window.ethereum;
+  const providers=eth.providers||[eth];
+  // Prefer MetaMask when several wallets coexist (avoids Coinbase / Phantom
+  // hijacking the connect button and confusing the user).
+  return providers.find(p=>p&&p.isMetaMask&&!p.isBraveWallet)||providers.find(p=>p)||eth;
+}
 async function connectWallet(){
-  if(!window.ethereum){toast('No wallet found · install MetaMask to connect','warn');return null;}
+  const eth=pickInjectedProvider();
+  if(!eth){toast('No wallet found · install MetaMask to connect','warn');return null;}
   try{
-    const acc=await window.ethereum.request({method:'eth_requestAccounts'});
+    const acc=await eth.request({method:'eth_requestAccounts'});
     state.wallet=acc&&acc[0];
     updateWalletUI();
     toast('Wallet connected: '+shortOf(state.wallet),'win');
+    // Refresh state when the user swaps account or chain in the wallet UI.
+    if(eth.on&&!eth.__hoodlrzWired){
+      eth.__hoodlrzWired=true;
+      eth.on('accountsChanged',(accs)=>{
+        state.wallet=accs&&accs[0]||null;
+        updateWalletUI();
+        if(!state.wallet)toast('Wallet disconnected','warn');
+        else toast('Wallet switched: '+shortOf(state.wallet),'win');
+      });
+      eth.on('chainChanged',()=>{ /* no-op: holder check is chain-agnostic via our cache */ });
+    }
     return state.wallet;
-  }catch(e){toast('Wallet connection cancelled','warn');return null;}
+  }catch(e){
+    // 4001 = user rejected. Anything else is a real error worth showing.
+    const code=e&&e.code, msg=(e&&e.message)||'';
+    if(code===4001||/reject|denied/i.test(msg)){toast('Wallet connection cancelled','warn');}
+    else if(code===-32002||/already pending/i.test(msg)){toast('Wallet popup already open · check MetaMask','warn');}
+    else{toast('Wallet error: '+(msg||'unknown'),'warn');console.warn('[wallet] connect failed',e);}
+    return null;
+  }
 }
 function updateWalletUI(){const b=$('walletBtn');if(!b)return;
   b.textContent=state.wallet?('● '+shortOf(state.wallet)):'CONNECT WALLET';

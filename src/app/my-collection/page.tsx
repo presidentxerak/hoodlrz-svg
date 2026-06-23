@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import PFPViewer from "@/components/ui/PFPViewer";
@@ -72,6 +72,59 @@ export default function MyCollectionPage() {
 
   // Track wrong-chain state
   const [wrongChain, setWrongChain] = useState(false);
+  const [connectError, setConnectError] = useState("");
+
+  // Pick the best injected provider available (handles EIP-6963 multi-wallet
+  // setups where MetaMask sits in window.ethereum.providers[] instead of
+  // window.ethereum itself).
+  const pickProvider = useCallback((): unknown => {
+    if (typeof window === "undefined") return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eth = (window as any).ethereum;
+    if (!eth) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const providers: any[] = eth.providers || [eth];
+    return (
+      providers.find((p) => p && p.isMetaMask && !p.isBraveWallet) ||
+      providers.find((p) => p) ||
+      eth
+    );
+  }, []);
+
+  // Forward-ref so connectAndFetch can call fetchEthNfts after it's defined.
+  const fetchEthNftsRef = useRef<((r?: boolean) => Promise<void>) | null>(null);
+
+  /* ── Explicit connect: prompts the wallet popup, then refetches ── */
+  const connectAndFetch = useCallback(async () => {
+    setConnectError("");
+    try {
+      const prov = pickProvider() as
+        | {
+            request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+          }
+        | null;
+      if (!prov) {
+        const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (mobile) {
+          window.location.href = `https://metamask.app.link/dapp/${window.location.host}/my-collection`;
+          return;
+        }
+        setConnectError("No wallet detected — install MetaMask and reload.");
+        return;
+      }
+      await prov.request({ method: "eth_requestAccounts" });
+      await fetchEthNftsRef.current?.(true);
+    } catch (err) {
+      const e = err as { code?: number; message?: string };
+      if (e?.code === 4001 || /reject|denied/i.test(e?.message || "")) {
+        setConnectError("Connection cancelled in your wallet.");
+      } else if (e?.code === -32002) {
+        setConnectError("Wallet popup already open — check MetaMask.");
+      } else {
+        setConnectError(e?.message || "Wallet connection failed.");
+      }
+    }
+  }, [pickProvider]);
 
   /* ── Fetch ETH NFTs from on-chain ── */
   const fetchEthNfts = useCallback(async (isRefresh = false) => {
@@ -82,10 +135,15 @@ export default function MyCollectionPage() {
     try {
       if (!isRefresh) setEthLoading(true);
 
-      const eth = (window as { ethereum?: { request: (args: { method: string }) => Promise<string[]> } }).ethereum;
-      if (!eth) { setEthLoading(false); return; }
+      const prov = pickProvider() as
+        | { request: (args: { method: string }) => Promise<string[]> }
+        | null;
+      if (!prov) { setEthLoading(false); return; }
 
-      const accounts: string[] = await eth.request({ method: "eth_accounts" });
+      // Silent probe first - if the wallet has already granted permission
+      // we get the address; otherwise we leave the page in "Connect Wallet"
+      // state instead of hanging on a spinner.
+      const accounts: string[] = await prov.request({ method: "eth_accounts" });
       if (!accounts || accounts.length === 0) { setEthLoading(false); return; }
       const addr = accounts[0];
 
@@ -112,7 +170,7 @@ export default function MyCollectionPage() {
 
       const { BrowserProvider, Contract } = await import("ethers");
       // Use "any" to prevent NETWORK_ERROR if chain was recently switched
-      const provider = new BrowserProvider(eth as import("ethers").Eip1193Provider, "any");
+      const provider = new BrowserProvider(prov as import("ethers").Eip1193Provider, "any");
 
       const network = await provider.getNetwork();
       if (Number(network.chainId) !== HOODLRZ_CHAIN_ID) {
@@ -164,7 +222,12 @@ export default function MyCollectionPage() {
       setEthLoading(false);
       setRefreshing(false);
     }
-  }, [account]);
+  }, [account, pickProvider]);
+
+  // Keep the ref up to date so connectAndFetch can call the latest closure.
+  useEffect(() => {
+    fetchEthNftsRef.current = fetchEthNfts;
+  }, [fetchEthNfts]);
 
   // Load ETH NFTs when authed (don't require account - wallet-only users can see their NFTs)
   useEffect(() => {
@@ -172,6 +235,23 @@ export default function MyCollectionPage() {
     const timer = setTimeout(() => fetchEthNfts(false), 300);
     return () => clearTimeout(timer);
   }, [fetchEthNfts, authed]);
+
+  // Refetch when the user swaps account or chain in their wallet so the
+  // page stays in sync without a manual reload.
+  useEffect(() => {
+    const prov = pickProvider() as
+      | { on?: (e: string, h: (...a: unknown[]) => void) => void; removeListener?: (e: string, h: (...a: unknown[]) => void) => void }
+      | null;
+    if (!prov?.on) return;
+    const onAccountsChanged = () => fetchEthNfts(true);
+    const onChainChanged = () => fetchEthNfts(true);
+    prov.on("accountsChanged", onAccountsChanged);
+    prov.on("chainChanged", onChainChanged);
+    return () => {
+      prov.removeListener?.("accountsChanged", onAccountsChanged);
+      prov.removeListener?.("chainChanged", onChainChanged);
+    };
+  }, [fetchEthNfts, pickProvider]);
 
   // Street NFTs can also be fetched off the wallet-login email so users who
   // signed in via wallet but haven't unlocked MetaMask yet still see them.
@@ -264,7 +344,13 @@ export default function MyCollectionPage() {
                     {ethAddress}
                   </a>
                 ) : (
-                  <p className="text-sm text-muted">Connect your wallet to view</p>
+                  <button
+                    type="button"
+                    onClick={connectAndFetch}
+                    className="text-sm text-[#627eea] hover:underline font-bold uppercase tracking-widest"
+                  >
+                    Connect Wallet →
+                  </button>
                 )}
               </>
             ) : (
@@ -483,19 +569,28 @@ export default function MyCollectionPage() {
           </div>
 
           <h2 className="text-lg font-bold text-foreground">
-            No collectibles yet
+            {ethAddress ? "No collectibles yet" : "Connect your wallet"}
           </h2>
 
           <p className="max-w-md text-sm leading-relaxed text-muted">
-            Start collecting to build your Hoodlrz identity. Each piece is
-            unique, generated from 7 hand-drawn layers, stored on-chain forever.
+            {ethAddress
+              ? "Start collecting to build your Hoodlrz identity. Each piece is unique, generated from 7 hand-drawn layers, stored on-chain forever."
+              : "We need wallet permission to read your Hoodlrz NFTs. Your wallet will pop up to approve — no signature, no gas."}
           </p>
 
-          <p className="text-xs text-muted">
-            Just collected? It may take a few moments for the blockchain to confirm your transaction.
-          </p>
+          {connectError && (
+            <p className="text-xs text-red-500 max-w-md">{connectError}</p>
+          )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 justify-center">
+            {!ethAddress && (
+              <button
+                onClick={connectAndFetch}
+                className="inline-flex items-center gap-2 px-6 py-3 text-sm font-bold uppercase tracking-widest bg-[#627eea] text-white hover:bg-[#4c6ce0] transition-all duration-150"
+              >
+                Connect Wallet
+              </button>
+            )}
             <Button variant="primary" size="lg" href="/collection/hoodlrz">
               Start Collecting
             </Button>
@@ -507,6 +602,12 @@ export default function MyCollectionPage() {
               {refreshing ? "Refreshing..." : "Refresh"}
             </button>
           </div>
+
+          {ethAddress && (
+            <p className="text-xs text-muted">
+              Just collected? It may take a few moments for the blockchain to confirm your transaction.
+            </p>
+          )}
         </div>
       )}
     </div>
