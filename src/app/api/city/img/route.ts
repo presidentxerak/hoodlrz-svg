@@ -83,13 +83,13 @@ async function tryFetch(u: string): Promise<Response | null> {
   }
 }
 
-async function fetchImageBytes(rawUrl: string): Promise<{ bytes: Buffer; contentType: string } | null> {
+async function fetchImageBytes(rawUrl: string): Promise<{ bytes: ArrayBuffer; contentType: string } | null> {
   for (const u of urlCandidates(rawUrl)) {
     const res = await tryFetch(u);
     if (!res) continue;
-    const buf = Buffer.from(await res.arrayBuffer());
+    const buf = await res.arrayBuffer();
     const ct = res.headers.get("content-type") ?? "image/png";
-    if (!ct.startsWith("image/") && buf.length < 4096) continue;   // skip HTML 404 pages
+    if (!ct.startsWith("image/") && buf.byteLength < 4096) continue;   // skip HTML 404 pages
     return { bytes: buf, contentType: ct };
   }
   return null;
@@ -182,7 +182,7 @@ async function resolveOwnerImage(wallet: string): Promise<string | null> {
   return null;
 }
 
-function imageResponse(bytes: Buffer, contentType: string): Response {
+function imageResponse(bytes: ArrayBuffer, contentType: string): Response {
   return new Response(bytes, {
     status: 200,
     headers: {
