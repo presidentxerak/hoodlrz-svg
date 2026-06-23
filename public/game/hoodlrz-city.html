@@ -364,10 +364,10 @@
       <div><span>Search</span><kbd>F</kbd></div>
       <div><span>Free cursor</span><kbd>Esc</kbd></div>
     </div>
-    <p class="lore" style="color:#fff;font-weight:700"><span class="g">hOodlrz holders only.</span> Connect the wallet that holds your Hoodlrz NFT.</p>
-    <button id="play">CONNECT WALLET TO ENTER</button>
+    <p class="lore" style="color:#fff;font-weight:700">Open to everyone. <span class="g">Holders</span> can free-mint hidden NFTs once inside.</p>
+    <button id="play">ENTER THE BLOCK ▸</button>
     <div id="gateStat" class="gatestat"></div>
-    <div class="hint">Press <b>F</b> to search your tower · connect a wallet to free-mint found NFTs. Blue-green glow = pick up · red-magenta = danger.</div>
+    <div class="hint">Press <b>F</b> to search your tower · connect a wallet (optional) to free-mint found NFTs. Blue-green glow = pick up · red-magenta = danger.</div>
     <button id="startFaq">Read the full rules &amp; FAQ</button>
   </div>
 </div>
@@ -504,8 +504,8 @@
     <button id="faqClose" aria-label="close">✕</button>
     <h2 class="ttl">hOodlrz CITY · RULES &amp; FAQ</h2>
     <div class="faqbody">
-      <h3>Access · holders only</h3>
-      <p>The Block is <b>Hoodlrz holders only</b>. On the start screen, connect the wallet that holds your Hoodlrz NFT: once ownership is verified, the ENTER button unlocks. If a wallet holds no Hoodlrz, it cannot enter.</p>
+      <h3>Access · open to everyone</h3>
+      <p>The Block is <b>open to everyone</b> — tap ENTER THE BLOCK on the start screen and you're in. Connecting a wallet is optional and only needed if you want to <b>free-mint a hidden NFT</b> you recover inside the city.</p>
 
       <h3>The goal</h3>
       <p>Recover the <b>3 hidden secret souls</b> sealed in towers across The Block: GENESIS #0000, PHANTOM #0001 and ASHEN #0002. Read the Oracles, get the exact wallet from an informant, find that tower's wallet sign, walk up and press <kbd>E</kbd> to claim it. You can then free-mint it to your wallet.</p>
@@ -4330,93 +4330,29 @@ window.addEventListener('load',boot);
     try { connectWallet = wrapped; } catch (_) {}
     window.connectWallet = wrapped;
 
-    // REPLACE gateEnter wholesale instead of just wrapping it. The original
-    // had a "no holder cache loaded → bypass the gate" path that let users
-    // walk in on desktop without ever touching their wallet whenever
-    // /api/city/holders was slow / errored. Strict version:
-    //   1. require an injected wallet (or open MetaMask deep-link on mobile)
-    //   2. eth_requestAccounts (auto-prompts the MetaMask modal)
-    //   3. server-side /api/city/verify-holder is the SOURCE OF TRUTH for
-    //      "is this wallet a holder?" - we never trust the client-side
-    //      onchain.owners list to gate entry, even though we use it as a
-    //      hint to short-circuit the network call when it agrees.
-    let gatePassedNew = false;
+    // The Block is OPEN TO EVERYONE. We removed the holder gate entirely
+    // - the player taps Enter the Block and the game starts. A wallet is
+    // still useful (free-mint hidden NFTs once recovered) but it is no
+    // longer required to enter. We override gateEnter so any cached older
+    // version's logic can't get in the way.
     const setStat = (t, cls) => { try { if (typeof setGateStat === 'function') setGateStat(t, cls || ''); } catch (_) {} };
-    const newGate = async function(){
-      if (gatePassedNew) {
-        if (typeof startGame === 'function') startGame();
-        return;
-      }
-      // No wallet at all
-      if (typeof window.ethereum === 'undefined') {
-        if (isMobileUA()) {
-          setStat('Opening MetaMask…');
-          if (!askParentForWalletPrompt()) showMobileWalletPrompt();
-        } else {
-          setStat('Install MetaMask to verify your Hoodlrz NFT', 'bad');
-        }
-        return;
-      }
-      // 1. Connect wallet
-      let w = (typeof state !== 'undefined' && state.wallet) || null;
-      if (!w) {
-        setStat('Approve the wallet connection in MetaMask…');
-        try { w = await window.connectWallet(); } catch (_) {}
-      }
-      if (!w) {
-        setStat('Connect your wallet to enter', 'bad');
-        return;
-      }
-      // 2. Verify holder server-side (authoritative)
-      setStat('Checking Hoodlrz ownership…');
-      let isHolder = false;
-      // 2a. local cache hint - skip the network when we already know.
-      try {
-        const oc = (typeof onchain !== 'undefined') ? onchain : null;
-        if (oc && oc.live && Array.isArray(oc.owners)) {
-          const lw = String(w).toLowerCase();
-          if (oc.owners.some((o) => String(o).toLowerCase() === lw)) isHolder = true;
-        }
-      } catch (_) {}
-      // 2b. server check (covers brand-new holders, stale local cache,
-      //     and the case where onchain.live never flipped true)
-      if (!isHolder) {
-        try {
-          const res = await fetch('/api/city/verify-holder?wallet=' + encodeURIComponent(w))
-            .then((r) => (r.ok ? r.json() : null))
-            .catch(() => null);
-          if (res && res.isHolder === true) isHolder = true;
-        } catch (e) {
-          console.warn('[gate] verify-holder failed', e);
-        }
-      }
-      if (isHolder) {
-        gatePassedNew = true;
-        // keep the legacy flag in sync so other code paths see "gate passed"
-        try { window.gatePassed = true; } catch (_) {}
-        setStat('Holder verified ✓ welcome in', 'ok');
-        if (typeof startGame === 'function') startGame();
-      } else {
-        setStat('No Hoodlrz NFT in this wallet · holders only', 'bad');
-      }
+    const newGate = function(){
+      try { window.gatePassed = true; } catch (_) {}
+      setStat('Welcome to The Block', 'ok');
+      if (typeof startGame === 'function') startGame();
     };
     try { gateEnter = newGate; } catch (_) {}
     window.gateEnter = newGate;
-    // boot() runs window.load (after DOMContentLoaded), so it calls
-    // addEventListener('click', gateEnter) AFTER we've reassigned the
-    // local gateEnter variable above. Both the click listener and the
-    // window.gateEnter export point at newGate from that moment on.
-
-    // Defense-in-depth: re-bind the #play click handler in case the
-    // original boot()'s addEventListener already fired with a stale
-    // function reference (e.g. cached HTML from before this patch).
+    // Defense-in-depth: re-bind the #play click handler in case a cached
+    // older HTML had already wired the strict-gate version. cloneNode
+    // wipes any prior listener; addEventListener attaches the open one.
     const reBind = () => {
       const btn = document.getElementById('play');
       if (!btn) return setTimeout(reBind, 200);
       const clone = btn.cloneNode(true);
       btn.parentNode.replaceChild(clone, btn);
       clone.addEventListener('click', newGate);
-      console.log('[GATE] strict v2 active · wallet required · server-verified');
+      console.log('[GATE] open · everyone welcome · wallet optional');
     };
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', reBind);
@@ -4553,15 +4489,11 @@ window.addEventListener('load',boot);
          and the gate passes. No second tap on Enter the Block needed.
   */
   function patchMobileAutoConnect(){
-    if (typeof window === 'undefined' || typeof window.ethereum === 'undefined') return;
-    const ua = navigator.userAgent;
-    const mobile = /iPhone|iPad|iPod|Android/i.test(ua);
-    // Auto-fire whenever we're on a mobile UA AND an injected provider
-    // exists - that's effectively "we're inside a wallet's in-app
-    // browser" (MetaMask, Coinbase Wallet, Trust, Rainbow, Phantom EVM,
-    // Rabby Mobile, ...). On Safari/Chrome with no extension, window.
-    // ethereum is undefined so this block is a no-op.
-    if (!mobile) return;
+    // No-op since the gate is open: there's no connection to auto-trigger
+    // on page load anymore. Wallet connect is still available manually
+    // (top-bar CONNECT WALLET button) for the free-mint flow.
+    return;
+    // eslint-disable-next-line no-unreachable
     let attempts = 0;
     // Visible hint so the user understands why MetaMask is asking for
     // permission a beat after they land here.

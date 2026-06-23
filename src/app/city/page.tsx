@@ -30,12 +30,11 @@ export default function CityPage() {
   const [showMm, setShowMm] = useState(false);
 
   useEffect(() => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const hasEthereum =
-      typeof (window as unknown as { ethereum?: unknown }).ethereum !==
-      "undefined";
-    if (isMobile && !hasEthereum) setShowMm(true);
-
+    // The game is OPEN to everyone now - no wallet needed to enter, so we
+    // never auto-show the MetaMask prompt on page load. We still listen
+    // for an explicit request-metamask-prompt message from the iframe
+    // (fired by the optional CONNECT WALLET button) for the free-mint
+    // flow.
     function onMessage(e: MessageEvent) {
       if (!e || !e.data) return;
       const t = (e.data as { type?: string }).type;
