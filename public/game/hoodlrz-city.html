@@ -5180,11 +5180,167 @@ window.addEventListener('unhandledrejection',(ev)=>{
     window.addEventListener('beforeunload', flush);
     window.addEventListener('pagehide', flush);
 
-    // 4. Expose a manual reset hook for testers / settings UI.
+    // 4. Stamp every saved snapshot with savedAt so the cross-device
+    //    sync layer below can pick the newest one between local and
+    //    server. We rebuild snapshot() to include it.
+    const baseSnapshot = snapshot;
+    function stampedSnapshot(){
+      const o = baseSnapshot();
+      o.savedAt = Date.now();
+      return o;
+    }
+    // Use the stamped version everywhere
+    flushMonkey(stampedSnapshot);
+
+    /* ---- Cross-device sync via /api/city/progress -----------------
+           When a wallet is connected, GET the remote snapshot once,
+           pick whichever side has the newer savedAt, and apply.
+           Subsequent saves debounce-POST to the server (max once every
+           10s) so a chatty save() doesn't spam Supabase. */
+    const SIG_KEY = 'hoodlrz-progress-sig';
+    let cachedSig = null;
+    async function getOrCreateSig(wallet){
+      try {
+        if (!cachedSig) cachedSig = JSON.parse(localStorage.getItem(SIG_KEY) || 'null');
+      } catch (_) {}
+      if (cachedSig && cachedSig.wallet === wallet && Date.now() - cachedSig.ts < 23 * 60 * 60 * 1000) {
+        return cachedSig;
+      }
+      if (typeof window.ethereum === 'undefined') return null;
+      const ts = Date.now();
+      const message = 'Hoodlrz CITY progress save\n\nWallet: ' + wallet.toLowerCase() + '\nTimestamp: ' + ts;
+      let signature;
+      try {
+        signature = await window.ethereum.request({ method: 'personal_sign', params: [message, wallet] });
+      } catch (_) { return null; }
+      cachedSig = { wallet, message, signature, ts };
+      try { localStorage.setItem(SIG_KEY, JSON.stringify(cachedSig)); } catch (_) {}
+      return cachedSig;
+    }
+    function applySnapshot(snap){
+      if (!snap || typeof snap !== 'object') return;
+      if (typeof snap.hoodz === 'number') state.hoodz = snap.hoodz;
+      if (typeof snap.cash === 'number') state.cash = snap.cash;
+      if (typeof snap.weapon === 'string') state.weapon = snap.weapon;
+      if (snap.inventory && typeof snap.inventory === 'object') state.inventory = snap.inventory;
+      if (typeof snap.secretsFound === 'number') state.secretsFound = snap.secretsFound;
+      if (typeof snap.vaultsFound === 'number') state.vaultsFound = snap.vaultsFound;
+      if (typeof snap.oraclesTalked === 'number') state.oraclesTalked = snap.oraclesTalked;
+      if (typeof snap.day === 'number') state.day = snap.day;
+      if (Array.isArray(snap.keys))       state.keys       = new Set(snap.keys);
+      if (Array.isArray(snap.minted))     state.minted     = new Set(snap.minted);
+      if (Array.isArray(snap.knownClues)) state.knownClues = new Set(snap.knownClues);
+      if (Array.isArray(snap.journal))    state.journal    = snap.journal;
+      try {
+        if (state.inventory && state.inventory.sneakers && typeof player !== 'undefined') {
+          player.speed = Math.max(player.speed || 0, 9.1);
+          player.sprint = Math.max(player.sprint || 0, 15.5);
+        }
+      } catch (_) {}
+      try { if (typeof updateHUD === 'function') updateHUD(); } catch (_) {}
+    }
+    async function pullRemote(wallet){
+      try {
+        const res = await fetch('/api/city/progress?wallet=' + encodeURIComponent(wallet));
+        if (!res.ok) return null;
+        const j = await res.json();
+        return j && j.snapshot ? j.snapshot : null;
+      } catch (_) { return null; }
+    }
+    let lastRemotePush = 0;
+    let pendingPush = null;
+    async function pushRemote(wallet){
+      const now = Date.now();
+      if (now - lastRemotePush < 10000) {
+        // Coalesce - schedule one push after the cooldown ends
+        if (pendingPush) return;
+        pendingPush = setTimeout(() => { pendingPush = null; pushRemote(wallet).catch(() => {}); }, 10000 - (now - lastRemotePush) + 100);
+        return;
+      }
+      lastRemotePush = now;
+      const sig = await getOrCreateSig(wallet);
+      if (!sig) return;
+      try {
+        await fetch('/api/city/progress', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet, message: sig.message, signature: sig.signature, snapshot: stampedSnapshot(),
+          }),
+        });
+      } catch (_) {}
+    }
+    // Trigger sync as soon as the wallet appears. We poll because the
+    // wallet can connect any time after start() ran.
+    let lastSyncedWallet = null;
+    setInterval(async () => {
+      const w = (typeof state !== 'undefined' && state.wallet) ? state.wallet : null;
+      if (!w || w === lastSyncedWallet) return;
+      lastSyncedWallet = w;
+      const remote = await pullRemote(w);
+      if (remote && typeof remote === 'object') {
+        const local = stampedSnapshot();
+        const remoteTs = typeof remote.savedAt === 'number' ? remote.savedAt : 0;
+        const localTs  = typeof local.savedAt  === 'number' ? local.savedAt  : 0;
+        if (remoteTs > localTs) {
+          applySnapshot(remote);
+          try { if (typeof toast === 'function') toast('Restored progress from your wallet · ' + state.hoodz + ' Hoodz','win'); } catch (_) {}
+        } else if (localTs > remoteTs) {
+          // Local is newer - push it
+          pushRemote(w).catch(() => {});
+        }
+      } else {
+        // No remote snapshot yet - push the local one to seed
+        pushRemote(w).catch(() => {});
+      }
+    }, 1500);
+    // On every local save while a wallet is connected, mirror to server.
+    function maybePushRemote(){
+      const w = (typeof state !== 'undefined' && state.wallet) ? state.wallet : null;
+      if (!w) return;
+      pushRemote(w).catch(() => {});
+    }
+
+    // 5. Expose a manual reset hook for testers / settings UI.
     window.resetPlayerProgress = function(){
       try { localStorage.removeItem(KEY); } catch (_) {}
+      try { localStorage.removeItem(SIG_KEY); } catch (_) {}
       try { if (typeof toast === 'function') toast('Progress reset · reload to start fresh', 'win'); } catch (_) {}
     };
+
+    // Helper used above: replaces save() / flush() with versions that
+    // use stampedSnapshot AND fan out to the remote when a wallet is
+    // connected. Done here to keep the patch above untouched.
+    function flushMonkey(stamped){
+      const localFlush = () => {
+        try { localStorage.setItem(KEY, JSON.stringify(stamped())); } catch (_) {}
+      };
+      // Re-wire the visibility / unload listeners
+      const onVis = () => { if (document.hidden) { localFlush(); maybePushRemote(); } };
+      document.addEventListener('visibilitychange', onVis);
+      window.addEventListener('beforeunload', () => { localFlush(); maybePushRemote(); });
+      window.addEventListener('pagehide', () => { localFlush(); maybePushRemote(); });
+
+      // Override the previous save() debounce by hooking into updateHUD
+      // one more time so each call flushes (debounced) + remote-pushes.
+      const prevUpdate = window.updateHUD;
+      if (typeof prevUpdate === 'function') {
+        let queued = false;
+        window.updateHUD = function(){
+          const r = prevUpdate.apply(this, arguments);
+          if (!queued) {
+            queued = true;
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+              queued = false;
+              try { localStorage.setItem(KEY, JSON.stringify(stamped())); } catch (_) {}
+              maybePushRemote();
+            }));
+          }
+          return r;
+        };
+        try { updateHUD = window.updateHUD; } catch (_) {}
+      }
+    }
   }
 
   function start(){
@@ -5217,7 +5373,14 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // the symbols we need (scene, gangs, projectiles, sfx, etc.) are created
   // inside script #1 at boot time.
   function ready(){
-    return typeof scene !== 'undefined'
+    // Wait until ALL of the following are true before spawning the army:
+    //  - scene + core game functions are defined
+    //  - buildCity has run (buildings populated, lakeBounds set) so the
+    //    AABB-blocked spawn loops don't land tanks in nowhere-land
+    //  - the player has actually tapped Enter the Block (state.playing)
+    //    so the heavy spawn doesn't compete with the boot path. That was
+    //    causing the "freeze on first load until Cmd+Shift+R" bug.
+    return typeof scene !== 'undefined' && scene
         && typeof gangs !== 'undefined'
         && typeof projectiles !== 'undefined'
         && typeof spawnHoodz === 'function'
@@ -5226,7 +5389,10 @@ window.addEventListener('unhandledrejection',(ev)=>{
         && typeof toast === 'function'
         && typeof clock !== 'undefined'
         && typeof blockedAt === 'function'
-        && typeof groundY === 'function';
+        && typeof groundY === 'function'
+        && typeof buildings !== 'undefined' && buildings.length > 0
+        && typeof lakeBounds !== 'undefined' && lakeBounds !== null
+        && typeof state !== 'undefined' && state.playing === true;
   }
   function patchWarOnTheStreets(){
     if (!ready()) return setTimeout(patchWarOnTheStreets, 400);

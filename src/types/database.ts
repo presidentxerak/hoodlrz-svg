@@ -222,6 +222,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      city_progress: {
+        Row: {
+          wallet: string;
+          snapshot: unknown;
+          updated_at: string;
+        };
+        Insert: {
+          wallet: string;
+          snapshot: unknown;
+          updated_at?: string;
+        };
+        Update: {
+          wallet?: string;
+          snapshot?: unknown;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       tokens: {
         Row: {
           id: string;
