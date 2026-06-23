@@ -1462,6 +1462,73 @@ function makeBigWalletSign(text){
   return mat;
 }
 
+// 100 graffiti slogans tagged on building side walls in the Hoodlrz font.
+// Picked deterministically per building via a hash of b.short so every
+// tower keeps its own tag across visits.
+const HOODLRZ_TAGS = [
+  "We mint reality","Code the streets","Trust the chain","Burn the banks",
+  "Own your keys","Decode the noise","Ghost in ledger","Print no lies",
+  "Kill the middleman","Nodes over kings","Chaos is currency","Sign the void",
+  "Art on-chain","Walls remember","Data never dies","Proof of chaos",
+  "We are blocks","Mint the future","Break the system","Anonymous forever",
+  "Streets go digital","Ink meets code","Hack the canvas","Rebellion rising",
+  "Control is illusion","Ledger never forgets","Paint the protocol","Crypto is culture",
+  "Reality is forked","Trust no server","Zero trust","Freedom tokenized",
+  "Chain your dreams","Recode the world","Noise becomes signal","Decentralize",
+  "Data is power","Art breaks rules","Code is graffiti","Walls talk back",
+  "Burn old money","Pixels have value","Future is minted","Write your hash",
+  "Truth on-chain","System corrupted","We own nothing","Sign your existence",
+  "Fork the system","Protocol over power","Street meets chain","Hidden in blocks",
+  "Everything is ledger","We are nodes","Paint your wallet","Crypto never sleeps",
+  "Invisible visible","Own your data","Break every rule","Trustless is truth",
+  "Digital blood","Code over kings","Art is weapon","Value is fiction",
+  "System is broken","Rewrite the rules","Mint your soul","Ghosts hold keys",
+  "Noise is art","Control is dead","Banks are ghosts","Chain the chaos",
+  "Data wants freedom","Nothing is real","Reality is code","Keys unlock worlds",
+  "Street owns code","Silence is signal","Future hacks back","We are protocol",
+  "Code breaks walls","Art meets anarchy","Mint or die","Ledger is truth",
+  "Own the moment","System needs reset","Chaos writes code","Burn the past",
+  "Digital street life","Paint the future","Signal over noise","Crypto eats world",
+  "Trust is obsolete","Get tokenized","Walls hold secrets","Hack your reality",
+  "Art is ledger","Code never lies","Freedom is coded","We disrupt everything",
+];
+const _graffitiCache = Object.create(null);
+function makeGraffitiTagMat(text){
+  if(_graffitiCache[text]) return _graffitiCache[text];
+  const W=1024, H=256;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const c=cv.getContext('2d');
+  c.clearRect(0,0,W,H);
+  // Auto-size to fit the canvas width with some padding
+  let fs=170;
+  c.font='bold '+fs+"px 'Hoodlrz', 'Arial Black', sans-serif";
+  while(c.measureText(text).width>W-40 && fs>40){
+    fs-=10;
+    c.font='bold '+fs+"px 'Hoodlrz', 'Arial Black', sans-serif";
+  }
+  c.textAlign='center'; c.textBaseline='middle';
+  // Spray-paint look: thick white outline + slightly translucent fill,
+  // with a touch of rotation jitter on the line to feel hand-tagged.
+  c.lineJoin='round'; c.lineCap='round';
+  c.shadowColor='rgba(255,255,255,0.25)'; c.shadowBlur=10;
+  c.strokeStyle='#ffffff'; c.lineWidth=Math.max(8, fs*0.07);
+  c.strokeText(text, W/2, H/2+6);
+  c.shadowBlur=0;
+  c.fillStyle='rgba(255,255,255,0.92)';
+  c.fillText(text, W/2, H/2+6);
+  // Drip below a couple of letters for the inked-tag feel
+  c.fillStyle='rgba(255,255,255,0.7)';
+  for(let k=0;k<3;k++){
+    const x=80+Math.random()*(W-160), w=2+Math.random()*3, len=14+Math.random()*22;
+    c.fillRect(x, H/2+fs*0.4, w, len);
+  }
+  const tex=new THREE.CanvasTexture(cv);
+  tex.encoding=THREE.sRGBEncoding; tex.anisotropy=16;
+  const mat=new THREE.MeshBasicMaterial({map:tex,transparent:true,side:THREE.DoubleSide,toneMapped:false,depthWrite:false});
+  _graffitiCache[text]=mat;
+  return mat;
+}
+
 function makeBuildingDetail(b){
   const G=new THREE.Group();
   const cx=b.x,cz=b.z,bw=b.w,h=b.floors*FLOOR_H,fz=cz+bw/2+0.06;
@@ -1469,6 +1536,35 @@ function makeBuildingDetail(b){
   trim.position.set(cx,h+.5,cz);edges(trim);G.add(trim);
   const sign=new THREE.Mesh(new THREE.PlaneGeometry(bw*0.6,1.4),makeWalletSign(b.short,b.floors,0xffffff));
   sign.position.set(cx,4.75,cz+bw/2+0.08);G.add(sign);
+
+  // Hoodlrz graffiti tag on one side wall. Hash b.short to pick a stable
+  // slogan + side so the same building keeps its tag across visits. Skip
+  // half the buildings so the city doesn't read as wall-to-wall noise.
+  if (b.short) {
+    let hh = 0;
+    for (let i = 0; i < b.short.length; i++) hh = ((hh * 31) + b.short.charCodeAt(i)) >>> 0;
+    if (hh % 2 === 0) {     // tag ~50% of buildings
+      const text = HOODLRZ_TAGS[hh % HOODLRZ_TAGS.length];
+      const mat = makeGraffitiTagMat(text);
+      const tagW = Math.min(bw * 0.9, 9);
+      const tagH = tagW * 0.25;
+      const tagY = 2.6 + (hh % 7) * 0.25;   // varied eye-level
+      // Pick a side: left, right or back (front already has the NFT plane).
+      const side = hh % 3;
+      const off = bw / 2 + 0.08;
+      let pos, rot;
+      if (side === 0)      { pos = [cx - off, tagY, cz];      rot = -Math.PI / 2; }
+      else if (side === 1) { pos = [cx + off, tagY, cz];      rot =  Math.PI / 2; }
+      else                 { pos = [cx,       tagY, cz - off]; rot =  Math.PI; }
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(tagW, tagH), mat);
+      m.position.set(pos[0], pos[1], pos[2]);
+      m.rotation.y = rot;
+      // Tilt a degree for a hand-tagged feel
+      m.rotation.z = ((hh >> 4) % 5 - 2) * 0.015;
+      m.renderOrder = 4;
+      G.add(m);
+    }
+  }
   // BIG wallet sign on all four sides of the top of the tower so the
   // holder's address is legible from anywhere in the block.
   const bigText=(b.pseudo||b.short||'').toString();
