@@ -719,24 +719,94 @@ function drawHoodlr(ctx,x,y,s,r){
   ctx.restore();
 }
 function buildFacadeTexture(floors, bw){
+  // Hand-inked facade: brick wall + a row of 5 outlined windows per floor.
+  // Most windows are empty (mullion cross). ~6% are closed roll-shutters
+  // (horizontal slats), ~6% are broken (cross + radial cracks) and ~8%
+  // frame a small Hoodlr silhouette. Bottom row is reserved for the door.
   const Hc=128, Wc=Math.max(Hc, Math.round(Hc*bw/FLOOR_H));
-  const cv=document.createElement('canvas'); cv.width=Wc; cv.height=floors*Hc; const ctx=cv.getContext('2d');
+  const cv=document.createElement('canvas'); cv.width=Wc; cv.height=floors*Hc;
+  const ctx=cv.getContext('2d');
   ctx.fillStyle='#000'; ctx.fillRect(0,0,Wc,cv.height);
-  // brick courses across the whole wall
-  ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2; const bh=22;
-  for(let yy=0;yy<=cv.height;yy+=bh){ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(Wc,yy);ctx.stroke();
-    const off=((yy/bh)|0)%2?Wc/6:0; for(let xx=off;xx<Wc+off;xx+=Wc/3){ctx.beginPath();ctx.moveTo(xx,yy);ctx.lineTo(xx,yy+bh);ctx.stroke();}}
-  const P=Math.round(Hc*0.78), px=Math.round((Wc-P)/2);
-  const fr=makeRNG((Math.round(bw*97)+floors*131)>>>0);
-  for(let f=0;f<Math.max(0,floors-1);f++){       // reserve the BOTTOM cell for the entrance/door
-    const y0=f*Hc, ty=y0+(Hc-P)/2;
-    ctx.fillStyle='#000'; ctx.fillRect(px-6,ty-6,P+12,P+12);
-    ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.strokeRect(px-4,ty-4,P+8,P+8);
-    drawHoodlr(ctx,px,ty,P,fr);
-    ctx.fillStyle='#fff'; ctx.font='bold 13px Consolas,monospace'; ctx.textAlign='left';
-    ctx.fillText('#'+String(randInt(1,9999)).padStart(4,'0'),px,ty-9);
+  // brick courses kept from the previous look so the wall reads as masonry.
+  ctx.strokeStyle='rgba(255,255,255,.45)'; ctx.lineWidth=2; const bh=22;
+  for(let yy=0;yy<=cv.height;yy+=bh){
+    ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(Wc,yy);ctx.stroke();
+    const off=((yy/bh)|0)%2?Wc/6:0;
+    for(let xx=off;xx<Wc+off;xx+=Wc/3){
+      ctx.beginPath();ctx.moveTo(xx,yy);ctx.lineTo(xx,yy+bh);ctx.stroke();
+    }
   }
-  const tex=new THREE.CanvasTexture(cv); tex.anisotropy=4; tex.encoding=THREE.sRGBEncoding; return tex;
+
+  const fr=makeRNG((Math.round(bw*97)+floors*131)>>>0);
+  const N=5, cellW=Wc/N;
+  const padX=cellW*0.18, padY=Hc*0.18;
+  const wW=cellW-padX*2, wH=Hc-padY*2;
+
+  // f=0 is at the top of the texture which maps to the top of the tower; the
+  // last row of the canvas (y0=(floors-1)*Hc) is left blank for the entrance.
+  for(let f=0;f<Math.max(0,floors-1);f++){
+    const y0=f*Hc;
+    for(let c=0;c<N;c++){
+      const x=c*cellW+padX, y=y0+padY;
+      const v=fr();
+      // black inset so the brick pattern doesn't bleed into the glass
+      ctx.fillStyle='#000'; ctx.fillRect(x-2,y-2,wW+4,wH+4);
+      // outline frame (the white "window")
+      ctx.strokeStyle='#fff'; ctx.lineWidth=3; ctx.strokeRect(x,y,wW,wH);
+
+      if(v<0.06){
+        // closed rolling shutter - dense horizontal slats
+        ctx.strokeStyle='#fff'; ctx.lineWidth=1.2;
+        for(let s=y+4;s<y+wH-2;s+=5){
+          ctx.beginPath(); ctx.moveTo(x+3,s); ctx.lineTo(x+wW-3,s); ctx.stroke();
+        }
+        // little handle at the bottom
+        ctx.fillStyle='#fff';
+        ctx.fillRect(x+wW/2-3, y+wH-5, 6, 3);
+      } else if(v<0.12){
+        // broken glass - mullion cross + jagged cracks radiating from a hit point
+        ctx.strokeStyle='#fff'; ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.moveTo(x+wW/2,y+3); ctx.lineTo(x+wW/2,y+wH-3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x+3,y+wH/2); ctx.lineTo(x+wW-3,y+wH/2); ctx.stroke();
+        ctx.lineWidth=1.6;
+        const hx=x+wW*(0.35+fr()*0.30), hy=y+wH*(0.35+fr()*0.30);
+        for(let k=0;k<6;k++){
+          const a=fr()*Math.PI*2, len=Math.min(wW,wH)*0.5*(0.5+fr()*0.5);
+          const mx=hx+Math.cos(a)*len*0.55 + (fr()-0.5)*5;
+          const my=hy+Math.sin(a)*len*0.55 + (fr()-0.5)*5;
+          ctx.beginPath();
+          ctx.moveTo(hx,hy);
+          ctx.lineTo(mx,my);                                  // kink → jagged
+          ctx.lineTo(hx+Math.cos(a)*len, hy+Math.sin(a)*len);
+          ctx.stroke();
+        }
+      } else if(v<0.20){
+        // Hoodlr silhouette behind the glass, clipped to the window
+        ctx.save();
+        ctx.beginPath(); ctx.rect(x+2,y+2,wW-4,wH-4); ctx.clip();
+        const s=Math.min(wW,wH)*1.05;
+        drawHoodlr(ctx, x+wW/2 - s/2, y+wH - s*0.92, s, fr);
+        ctx.restore();
+        // re-draw the mullion cross on top so it still reads as a window
+        ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(x+wW/2,y+3); ctx.lineTo(x+wW/2,y+wH-3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x+3,y+wH/2); ctx.lineTo(x+wW-3,y+wH/2); ctx.stroke();
+      } else {
+        // plain window - mullion cross dividing into four panes; a few get a
+        // faint diagonal glint so the city isn't visually flat
+        ctx.strokeStyle='#fff'; ctx.lineWidth=1.4;
+        ctx.beginPath(); ctx.moveTo(x+wW/2,y+3); ctx.lineTo(x+wW/2,y+wH-3); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x+3,y+wH/2); ctx.lineTo(x+wW-3,y+wH/2); ctx.stroke();
+        if(v<0.45){
+          ctx.fillStyle='rgba(255,255,255,.08)';
+          ctx.fillRect(x+wW*0.55, y+wH*0.05, wW*0.40, wH*0.40);
+        }
+      }
+    }
+  }
+
+  const tex=new THREE.CanvasTexture(cv); tex.anisotropy=4; tex.encoding=THREE.sRGBEncoding;
+  return tex;
 }
 // share one facade texture per floor-count so a 200+ building city stays light
 const _facadePool={};
