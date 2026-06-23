@@ -1650,37 +1650,101 @@ const SHOP_ACCENT = {
   laundry:'#56e0ff', book:'#39ff9e', flower:'#ff8fc4', tattoo:'#ff2db5',
   barber:'#ff5b6e', street:'#56e0ff',
 };
-// Tiny canvas builder for a tinted "lit display" window pane that
-// hints at what the shop sells (silhouette of the shop's icon big
-// behind the glass).
+// Tinted "closed shopfront" pane. Two variants per shop, picked by a
+// hash of the shop name so the same shop always shows the same window:
+//   - 'shutter' : horizontal roll-up slats, partial rolled-up gap at
+//     the top, accent-colour gradient peeking through
+//   - 'grille'  : metal diamond mesh / chain-link grid, accent-colour
+//     night glow behind it, small padlock at the bottom centre
+// Emoji silhouettes (ramen bowl, basket, etc.) are gone — they read
+// weird at scale on a flat window.
 const _shopWinCache = Object.create(null);
-function makeShopWindowTex(kind, accent, icon){
-  const key = kind + '|' + accent + '|' + (icon || '');
+function makeShopWindowTex(kind, accent){
+  // Deterministic variant per shop kind (so a given shop type stays
+  // visually consistent across all its instances in the city).
+  let h = 0; for (let i = 0; i < kind.length; i++) h = ((h * 31) + kind.charCodeAt(i)) >>> 0;
+  const variant = (h % 5 < 2) ? 'grille' : 'shutter';
+  const key = kind + '|' + accent + '|' + variant;
   if (_shopWinCache[key]) return _shopWinCache[key];
+
   const W = 256, H = 384;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d');
-  // Tinted illuminated background
+
+  // Tinted "lit from behind" glow so the shutter / grille reads as a
+  // closed front of an open shop, not a flat black panel.
   const grad = c.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, accent);
-  grad.addColorStop(1, '#0a0a14');
+  grad.addColorStop(0,    accent + 'CC');
+  grad.addColorStop(0.55, accent + '55');
+  grad.addColorStop(1,    '#0a0a14');
   c.fillStyle = grad; c.fillRect(0, 0, W, H);
-  // Diagonal "light bleed" highlight
-  c.fillStyle = 'rgba(255,255,255,0.10)';
-  c.beginPath(); c.moveTo(0, 0); c.lineTo(W, 0); c.lineTo(W*0.7, H); c.lineTo(0, H*0.5); c.closePath(); c.fill();
-  // Big shop icon silhouette in white behind the glass
-  if (icon) {
-    c.fillStyle = '#0a0a14';
-    c.font = "bold 220px serif";
-    c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillText(icon, W/2, H*0.55);
-  }
-  // White frame + central mullion cross so it still reads as a window
+
+  // White outer frame (matches brick + window line weight)
   c.strokeStyle = '#fff'; c.lineWidth = 6;
   c.strokeRect(4, 4, W-8, H-8);
-  c.lineWidth = 4;
-  c.beginPath(); c.moveTo(W/2, 8); c.lineTo(W/2, H-8);
-  c.moveTo(8, H/2); c.lineTo(W-8, H/2); c.stroke();
+
+  if (variant === 'shutter') {
+    // ── Rolling shutter (closed) ─────────────────────────────────────
+    // Partial roll-up: top 14% reveals the lit shop interior; rest is
+    // the dense horizontal-slats shutter.
+    const ROLL_TOP = Math.round(H * 0.14);
+    // Slatted body
+    c.save();
+    c.beginPath(); c.rect(8, ROLL_TOP, W - 16, H - ROLL_TOP - 8); c.clip();
+    c.fillStyle = '#0a0a14';
+    c.fillRect(8, ROLL_TOP, W - 16, H - ROLL_TOP - 8);
+    c.strokeStyle = 'rgba(255,255,255,.85)'; c.lineWidth = 1.6;
+    for (let y = ROLL_TOP + 4; y < H - 10; y += 6) {
+      c.beginPath(); c.moveTo(10, y); c.lineTo(W - 10, y); c.stroke();
+      // Faint highlight just below each slat for "metal" feel
+      c.fillStyle = 'rgba(255,255,255,.05)';
+      c.fillRect(10, y + 4, W - 20, 1.5);
+    }
+    c.restore();
+    // Header bar (the roller drum)
+    c.fillStyle = '#000'; c.fillRect(6, ROLL_TOP - 6, W - 12, 6);
+    c.strokeStyle = '#fff'; c.lineWidth = 2;
+    c.strokeRect(6, ROLL_TOP - 6, W - 12, 6);
+    // Handle + keyhole near the bottom
+    c.fillStyle = '#fff'; c.fillRect(W/2 - 28, H - 24, 56, 8);
+    c.lineWidth = 2;
+    c.beginPath(); c.arc(W/2, H - 56, 5, 0, Math.PI*2); c.stroke();
+    c.beginPath(); c.moveTo(W/2, H - 56); c.lineTo(W/2, H - 46); c.stroke();
+  } else {
+    // ── Security grille (diamond mesh + frame) ───────────────────────
+    c.save();
+    c.beginPath(); c.rect(8, 8, W - 16, H - 16); c.clip();
+    c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1.2;
+    const STEP = 16;
+    // Diagonal cross-hatch
+    for (let i = -H; i < W + H; i += STEP) {
+      c.beginPath(); c.moveTo(i, 0); c.lineTo(i + H, H); c.stroke();
+      c.beginPath(); c.moveTo(i, H); c.lineTo(i + H, 0); c.stroke();
+    }
+    // Thick vertical bars every ~32 px so it reads as bars, not paint
+    c.strokeStyle = '#fff'; c.lineWidth = 3;
+    for (let x = 24; x < W - 8; x += 32) {
+      c.beginPath(); c.moveTo(x, 8); c.lineTo(x, H - 8); c.stroke();
+    }
+    // Horizontal cross-rail near the top and bottom
+    c.beginPath(); c.moveTo(8, 40);     c.lineTo(W - 8, 40);     c.stroke();
+    c.beginPath(); c.moveTo(8, H - 56); c.lineTo(W - 8, H - 56); c.stroke();
+    c.restore();
+    // Padlock at the bottom centre
+    const px = W/2, py = H - 28;
+    c.strokeStyle = '#fff'; c.lineWidth = 3; c.lineCap = 'round';
+    c.beginPath(); c.arc(px, py - 14, 9, Math.PI, 0); c.stroke();
+    c.fillStyle = '#000'; c.fillRect(px - 12, py - 6, 24, 18);
+    c.strokeStyle = '#fff'; c.lineWidth = 2.5;
+    c.strokeRect(px - 12, py - 6, 24, 18);
+    c.fillStyle = '#fff'; c.fillRect(px - 1.2, py + 1, 2.4, 6);
+  }
+
+  // Central mullion cross so it still reads as a window pane
+  c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(W/2, 8); c.lineTo(W/2, H - 8);
+  c.moveTo(8, H/2); c.lineTo(W - 8, H/2); c.stroke();
+
   const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
   _shopWinCache[key] = tex;
   return tex;
@@ -1699,10 +1763,11 @@ function makeStorefront(G,b,cx,cz,bw,fz){
   const stripeMat=new THREE.MeshBasicMaterial({color:accent});
   const stripe=new THREE.Mesh(new THREE.BoxGeometry(w,0.06,0.06),stripeMat);
   stripe.position.set(cx,2.88,z+1.10);stripe.rotation.x=-0.22;G.add(stripe);
-  // Two ILLUMINATED display windows flanking the door (tinted glow +
-  // big shop-icon silhouette inside).
+  // Two ILLUMINATED display windows flanking the door, now sporting a
+  // rolling shutter or security grille (deterministic per shop kind)
+  // instead of the previous emoji-silhouette displays.
   let winTex;
-  try { winTex = makeShopWindowTex(s.kind, accent, s.icon || '★'); } catch (_) {}
+  try { winTex = makeShopWindowTex(s.kind, accent); } catch (_) {}
   const winMat = winTex
     ? new THREE.MeshBasicMaterial({ map: winTex, toneMapped: false })
     : new THREE.MeshBasicMaterial({ color: 0x111122 });
