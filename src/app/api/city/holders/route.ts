@@ -58,7 +58,6 @@ export async function GET() {
         admin
           .from("city_tokens")
           .select("token_id, owner, image_url")
-          .not("image_url", "is", null)
           .limit(5000),
         admin
           .from("city_sync_state")

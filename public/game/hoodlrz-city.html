@@ -347,28 +347,19 @@
   <div class="card">
     <div class="logo">hOodlrz<small>C I T Y &nbsp;&nbsp;<span style="color:#ff2db5;border:1px solid #ff2db5;padding:1px 5px;font-size:9px;letter-spacing:.18em;margin-right:6px">BETA</span>&nbsp;·&nbsp; T H E&nbsp; B L O C K</small><div class="ul"></div></div>
     <p class="lore">
-      Year <b>2089</b>. The old internet collapsed into <b>THE BLOCK</b> · a hand-inked, black-and-white
-      on-chain city where every <b>wallet is a tower</b> and every <b>Hoodlrz NFT is a soul</b> on its floors.
-    </p>
-    <p class="lore">
-      You're a new holder. Streets run on <b>Hoodz</b>. <span class="g">Oracles</span> whisper the legend of the
-      <span class="g">GENESIS HOODLR</span> (#0000). Hunt the <span class="g">gangs</span> · hit them and they drop Hoodz ·
-      crack <span class="g">key-locked vaults</span>, and stay clear of the <span class="g">police</span> while you're holding.
+      Welcome to <b>THE BLOCK</b> · a hand-inked on-chain city where every <b>wallet is a tower</b> and every <b>Hoodlrz NFT is a soul</b>. Explore, find the <b>GENESIS HOODLR</b>, dodge the police.
     </p>
     <div class="ctrls">
       <div><span>Move</span><kbd>WASD / ZQSD</kbd></div>
       <div><span>Look</span><kbd>Mouse</kbd></div>
       <div><span>Sprint</span><kbd>Shift</kbd></div>
-      <div><span>Crouch</span><kbd>C / Ctrl</kbd></div>
       <div><span>Jump</span><kbd>Space</kbd></div>
       <div><span>Fire</span><kbd>Left Click</kbd></div>
-      <div><span>Interact / Talk</span><kbd>E</kbd></div>
-      <div><span>Journal</span><kbd>J</kbd></div>
-      <div><span>Search tower</span><kbd>F</kbd></div>
-      <div><span>Pause / Settings</span><kbd>Esc</kbd></div>
-      <div><span>Goal</span><kbd>Find Genesis</kbd></div>
+      <div><span>Interact</span><kbd>E</kbd></div>
+      <div><span>Search</span><kbd>F</kbd></div>
+      <div><span>Free cursor</span><kbd>Esc</kbd></div>
     </div>
-    <p class="lore" style="color:#fff;font-weight:700"><span class="g">hOodlrz holders only.</span> Connect the wallet that holds your Hoodlrz NFT to enter The Block.</p>
+    <p class="lore" style="color:#fff;font-weight:700"><span class="g">hOodlrz holders only.</span> Connect the wallet that holds your Hoodlrz NFT.</p>
     <button id="play">CONNECT WALLET TO ENTER</button>
     <div id="gateStat" class="gatestat"></div>
     <div class="hint">Press <b>F</b> to search your tower · connect a wallet to free-mint found NFTs. Blue-green glow = pick up · red-magenta = danger.</div>
@@ -933,20 +924,36 @@ function setupSecrets(){
   genesisBuilding=secrets[0].b;
 }
 function makeRoadTexture(span){
-  const R=1024, cv=document.createElement('canvas'); cv.width=cv.height=R; const ctx=cv.getContext('2d');
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,R,R);
+  const R=2048, cv=document.createElement('canvas'); cv.width=cv.height=R; const ctx=cv.getContext('2d');
+  // Base asphalt: dark grey, not pure black, with a subtle noise grain.
+  ctx.fillStyle='#0e0e14'; ctx.fillRect(0,0,R,R);
+  const grain=ctx.createImageData(R,R), gd=grain.data;
+  for(let i=0;i<gd.length;i+=4){
+    const n=(Math.random()*22)|0;
+    gd[i]=22+n;gd[i+1]=22+n;gd[i+2]=26+n;gd[i+3]=255;
+  }
+  ctx.putImageData(grain,0,0);
   const w2px=x=>((x+span/2)/span)*R;
   const lanes=[]; for(let k=-(GRID+1);k<=GRID+1;k++)lanes.push((k+0.5)*LOT);
-  ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=4; ctx.setLineDash([20,22]);
+  // Solid white lane edges
+  ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.lineWidth=8;
   for(const L of lanes){ if(Math.abs(L)>span/2)continue; const p=w2px(L);
     ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,R);ctx.stroke();
     ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(R,p);ctx.stroke(); }
+  // Dashed centre lines
+  ctx.strokeStyle='rgba(255,205,80,.85)'; ctx.lineWidth=5; ctx.setLineDash([46,46]);
+  for(const L of lanes){ if(Math.abs(L)>span/2)continue; const p=w2px(L);
+    ctx.beginPath();ctx.moveTo(p+18,0);ctx.lineTo(p+18,R);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,p+18);ctx.lineTo(R,p+18);ctx.stroke(); }
   ctx.setLineDash([]);
-  // crosswalks at lane crossings
-  ctx.fillStyle='rgba(230,230,240,.5)';
+  // High-contrast white crosswalks at every intersection
+  ctx.fillStyle='rgba(245,245,250,.92)';
   for(const Lx of lanes)for(const Lz of lanes){ if(Math.abs(Lx)>span/2||Math.abs(Lz)>span/2)continue;
-    const x=w2px(Lx),y=w2px(Lz); for(let m=0;m<5;m++)ctx.fillRect(x-20+m*9,y-3,5,16); }
-  const t=new THREE.CanvasTexture(cv); t.anisotropy=4; t.encoding=THREE.sRGBEncoding; return t;
+    const x=w2px(Lx),y=w2px(Lz);
+    for(let m=0;m<7;m++)ctx.fillRect(x-42+m*12,y-7,8,30);
+    for(let m=0;m<7;m++)ctx.fillRect(x-7,y-42+m*12,30,8);
+  }
+  const t=new THREE.CanvasTexture(cv); t.anisotropy=8; t.encoding=THREE.sRGBEncoding; return t;
 }
 let slabTex=null;
 function getSlabTex(){
@@ -2860,7 +2867,7 @@ function updateEntities(dt,t){
     const nx=ped.position.x+Math.sin(u.heading)*u.speed*dt, nz=ped.position.z+Math.cos(u.heading)*u.speed*dt;
     if(blockedAt(nx,nz)){u.heading+=2.4;}else{ped.position.x=nx;ped.position.z=nz;}
     ped.position.y+=(groundY(ped.position.x,ped.position.z)-ped.position.y)*Math.min(1,12*dt);
-    ped.rotation.y=u.heading; animChar(ped,dt,true,u.speed*3.4);}
+    if(!u.slump)ped.rotation.y=u.heading; animChar(ped,dt,u.speed>0.1,u.speed*3.4);}
   for(const o of oracles){const h=o.userData.halo;if(h){h.position.y=2.95+Math.sin(t*1.6+o.position.x)*0.09;h.rotation.z+=dt*0.7;if(o.userData.haloGlow){o.userData.haloGlow.position.y=h.position.y;o.userData.haloGlow.material.opacity=0.3+0.15*(0.5+0.5*Math.sin(t*2.2));}}}
   for(const s of secrets){if(s.crown){s.crown.rotation.z+=dt*0.8;}
     if(s.found&&s.marker){s.marker.visible=true;s.marker.rotation.y+=dt*1.5;s.marker.scale.setScalar(1+Math.sin(t*4)*0.25);}}
@@ -3265,50 +3272,70 @@ window.addEventListener('load',boot);
     }
     const original = makeBuildingDetail;
     const texCache = {};
+    // Diagnostic counters surfaced via window.__cityNftDebug for easy inspection
+    const dbg = { wrappedCalls: 0, hadUrl: 0, addedPlanes: 0, lastUrl: null, loadedOk: 0, loadFailed: 0 };
+    window.__cityNftDebug = dbg;
+
     function loadTex(url){
       if (texCache[url]) return texCache[url];
       const loader = new THREE.TextureLoader();
       loader.crossOrigin = 'anonymous';   // allow cross-origin IPFS gateways
       const tex = loader.load(
         url,
-        (t) => { t.encoding = THREE.sRGBEncoding; t.needsUpdate = true; },
+        (t) => { t.encoding = THREE.sRGBEncoding; t.needsUpdate = true; dbg.loadedOk++; },
         undefined,
-        () => { /* image failed; the placeholder colour stays */ },
+        () => { dbg.loadFailed++; console.warn('[NFT facade] image failed:', url); },
       );
       tex.encoding = THREE.sRGBEncoding;
       texCache[url] = tex;
       return tex;
     }
+
     window.makeBuildingDetail = function(b){
       const G = original(b);
+      dbg.wrappedCalls++;
       try {
         const oc = (typeof onchain !== 'undefined') ? onchain : null;
         if (!oc || !oc.live) return G;
         const url = oc.tokenImg ? oc.tokenImg(b.tokenId) : null;
         if (!url) return G;
+        dbg.hadUrl++; dbg.lastUrl = url;
         const FH = (typeof FLOOR_H !== 'undefined') ? FLOOR_H : 3.2;
-        // Plane size: a bit narrower than the building, takes the centre slab
-        // (skip the bottom floor where the door is, skip a sliver at the top
-        // where the trim sits).
-        const planeW = Math.max(2, b.w - 1.2);
+
+        // Plane covers the front face top-to-bottom (above the door), edge-to-edge.
+        const planeW = Math.max(3, b.w - 0.6);
         const totalH = b.floors * FH;
-        const planeH = Math.max(planeW, totalH - FH - 1.4);
-        const yCenter = FH + planeH / 2 + 0.2;       // sits just above the door
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, map: loadTex(url) });
-        const plane = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
-        plane.position.set(b.x, yCenter, b.z + b.w / 2 + 0.12);
-        plane.renderOrder = 1;
-        G.add(plane);
-        // also drop a matching thin border behind to make the artwork pop
+        const planeH = Math.max(planeW, totalH - FH * 0.7);
+        const yCenter = (totalH + FH * 0.4) / 2;
+        // Slightly in FRONT of the front face (front face is at z + bw/2).
+        const zPlane = b.z + b.w / 2 + 0.18;
+
+        // Frame (black) behind the artwork so it pops against the procedural wall.
         const frame = new THREE.Mesh(
-          new THREE.PlaneGeometry(planeW + 0.28, planeH + 0.28),
-          new THREE.MeshBasicMaterial({ color: 0x000000 })
+          new THREE.PlaneGeometry(planeW + 0.4, planeH + 0.4),
+          new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })
         );
-        frame.position.set(b.x, yCenter, b.z + b.w / 2 + 0.11);
+        frame.position.set(b.x, yCenter, zPlane - 0.02);
+        frame.renderOrder = 5;
         G.add(frame);
-      } catch (err) { console.warn('NFT facade patch failed for', b.tokenId, err); }
+
+        // Artwork plane - white background so it's visible even before texture
+        // loads, then becomes the NFT image once decoded.
+        const mat = new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          map: loadTex(url),
+          side: THREE.DoubleSide,
+          toneMapped: false,
+        });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
+        plane.position.set(b.x, yCenter, zPlane);
+        plane.renderOrder = 6;
+        G.add(plane);
+        dbg.addedPlanes++;
+      } catch (err) { console.warn('[NFT facade] patch failed for', b.tokenId, err); }
       return G;
     };
+    console.log('[NFT facade] patch installed. inspect window.__cityNftDebug');
   }
 
   /* ---- Extra search feedback when the wallet isn't even a holder ---- */

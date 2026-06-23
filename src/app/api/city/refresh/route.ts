@@ -44,7 +44,36 @@ interface AlchemyNFT {
     cachedUrl?: string;
     originalUrl?: string;
     pngUrl?: string;
+    thumbnailUrl?: string;
   };
+  media?: { gateway?: string; raw?: string; thumbnail?: string }[];
+  metadata?: { image?: string };
+  rawMetadata?: { image?: string };
+  tokenUri?: { gateway?: string; raw?: string };
+}
+
+function pickImageUrl(n: AlchemyNFT): string | null {
+  const candidates = [
+    n.image?.cachedUrl,
+    n.image?.originalUrl,
+    n.image?.pngUrl,
+    n.image?.thumbnailUrl,
+    n.media?.[0]?.gateway,
+    n.media?.[0]?.raw,
+    n.media?.[0]?.thumbnail,
+    n.metadata?.image,
+    n.rawMetadata?.image,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 4) {
+      // Convert ipfs:// to a public gateway
+      if (c.startsWith("ipfs://")) {
+        return "https://ipfs.io/ipfs/" + c.replace(/^ipfs:\/\//, "").replace(/^ipfs\//, "");
+      }
+      return c;
+    }
+  }
+  return null;
 }
 
 interface PullResult {
@@ -98,8 +127,7 @@ async function pull(alchemyKey: string): Promise<PullResult> {
       const raw = String(n.tokenId ?? "");
       const id = parseInt(raw, raw.startsWith("0x") ? 16 : 10);
       if (isNaN(id)) continue;
-      const url =
-        n.image?.cachedUrl ?? n.image?.originalUrl ?? n.image?.pngUrl ?? null;
+      const url = pickImageUrl(n);
       tokens.push({ token_id: id, owner: tokenOwner[id] ?? null, image_url: url });
     }
     pageKey = data.pageKey;
