@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import PFPViewer from "@/components/ui/PFPViewer";
 import { createClient } from "@/lib/supabase/client";
-import { HOODLRZ_NFT_ADDRESS, HOODLRZ_CHAIN_ID, CURRENT_CHAIN, isMainnet } from "@/lib/web3/config";
+import {
+  HOODLRZ_NFT_ADDRESS,
+  HOODLRZ_STREET_ADDRESS,
+  HOODLRZ_CHAIN_ID,
+  CURRENT_CHAIN,
+  isMainnet,
+} from "@/lib/web3/config";
 import { HOODLRZ_NFT_ABI } from "@/lib/web3/abi";
 
 interface AccountInfo {
@@ -20,10 +26,16 @@ interface EthNft {
   seed?: string; // tokenSeed from contract (for PFPViewer)
 }
 
+interface StreetNft {
+  tokenId: number;
+  image: string | null;
+}
+
 export default function MyCollectionPage() {
   const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [ethNfts, setEthNfts] = useState<EthNft[]>([]);
+  const [streetNfts, setStreetNfts] = useState<StreetNft[]>([]);
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [ethLoading, setEthLoading] = useState(false);
@@ -88,6 +100,16 @@ export default function MyCollectionPage() {
 
       setEthAddress(addr);
 
+      // Street NFTs live in the city_tokens cache (Alchemy-backed, refreshed
+      // every 30 min). They're chain-agnostic from the wallet's perspective -
+      // we don't need MetaMask to be on mainnet for this lookup to work.
+      fetch(`/api/hoodlrz/by-owner?wallet=${encodeURIComponent(addr)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (data && Array.isArray(data.tokens)) setStreetNfts(data.tokens);
+        })
+        .catch(() => {});
+
       const { BrowserProvider, Contract } = await import("ethers");
       // Use "any" to prevent NETWORK_ERROR if chain was recently switched
       const provider = new BrowserProvider(eth as import("ethers").Eip1193Provider, "any");
@@ -150,6 +172,25 @@ export default function MyCollectionPage() {
     const timer = setTimeout(() => fetchEthNfts(false), 300);
     return () => clearTimeout(timer);
   }, [fetchEthNfts, authed]);
+
+  // Street NFTs can also be fetched off the wallet-login email so users who
+  // signed in via wallet but haven't unlocked MetaMask yet still see them.
+  useEffect(() => {
+    if (!authed || !account?.email?.endsWith("@wallet.hoodlrz.com")) return;
+    const addr = account.email.replace("@wallet.hoodlrz.com", "");
+    if (!/^0x[a-fA-F0-9]{40}$/.test(addr)) return;
+    let cancelled = false;
+    fetch(`/api/hoodlrz/by-owner?wallet=${encodeURIComponent(addr)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data && Array.isArray(data.tokens)) setStreetNfts(data.tokens);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [authed, account]);
 
   /* Loading / redirect */
   if (authed === null || loading || ethLoading) {
@@ -241,13 +282,23 @@ export default function MyCollectionPage() {
 
         {/* Stats */}
         <div className="flex items-center justify-between border-t border-[var(--border)] pt-4 mt-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
-              On-Chain NFTs
-            </span>
-            <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
-              {ethNfts.length}
-            </span>
+          <div className="flex items-center gap-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                On-Chain
+              </span>
+              <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
+                {ethNfts.length}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                Street
+              </span>
+              <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
+                {streetNfts.length}
+              </span>
+            </div>
           </div>
 
           {/* Refresh button */}
@@ -339,6 +390,63 @@ export default function MyCollectionPage() {
         </>
       )}
 
+      {/* ── Hoodlrz Street NFTs (legacy ERC-721 on mainnet) ── */}
+      {streetNfts.length > 0 && (
+        <>
+          <h2 className="mt-10 font-hoodlrz text-xl font-bold tracking-wider text-foreground flex items-center gap-2">
+            <span className="inline-block w-3 h-3 bg-[#ff2db5]" />
+            Hoodlrz Street
+            <span className="text-[10px] font-normal uppercase tracking-widest text-muted">
+              · mainnet
+            </span>
+          </h2>
+
+          <p className="mt-2 text-xs text-muted">
+            Your Hoodlrz Street NFTs ({streetNfts.length}). Tap a card to open it on OpenSea.
+          </p>
+
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 sm:gap-6">
+            {streetNfts.map((nft) => (
+              <a
+                key={nft.tokenId}
+                href={`https://opensea.io/assets/ethereum/${HOODLRZ_STREET_ADDRESS}/${nft.tokenId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group flex flex-col gap-2 transition-transform hover:scale-[1.02]"
+              >
+                <div className="relative aspect-square bg-[var(--surface)] overflow-hidden border border-[#ff2db5]/30">
+                  {nft.image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={nft.image}
+                      alt={`Hoodlrz #${nft.tokenId}`}
+                      loading="lazy"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const el = e.currentTarget;
+                        el.style.display = "none";
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="font-hoodlrz text-xl font-bold text-[#ff2db5]">
+                        #{nft.tokenId}
+                      </span>
+                    </div>
+                  )}
+                  <span className="absolute top-1.5 left-1.5 bg-[#ff2db5] text-black text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5">
+                    Street
+                  </span>
+                </div>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted">
+                  Hoodlrz #{String(nft.tokenId).padStart(4, "0")}
+                </span>
+              </a>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* ── Wrong chain warning ── */}
       {wrongChain && (
         <div className="mt-10 border border-amber-500/40 bg-amber-500/10 p-4 text-center">
@@ -348,13 +456,15 @@ export default function MyCollectionPage() {
           <p className="text-xs text-muted mt-1">
             Your wallet is connected to a different chain. Please switch to{" "}
             <strong className="text-foreground">{CURRENT_CHAIN.name}</strong>{" "}
-            in MetaMask to see your Hoodlrz NFTs, then click Refresh.
+            in MetaMask to see your full-on-chain Hoodlrz, then click Refresh.
+            Your Hoodlrz Street NFTs above are read from our cache and don&apos;t
+            require any network switch.
           </p>
         </div>
       )}
 
       {/* ── Empty state ── */}
-      {ethNfts.length === 0 && !wrongChain && (
+      {ethNfts.length === 0 && streetNfts.length === 0 && !wrongChain && (
         <div className="mt-20 flex flex-col items-center gap-6 text-center">
           <div className="w-20 h-20 border border-[var(--border)] flex items-center justify-center">
             <svg
