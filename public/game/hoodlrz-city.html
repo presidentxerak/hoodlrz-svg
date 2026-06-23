@@ -50,10 +50,17 @@
 
   /* top-left stats */
   #stats{position:absolute;left:20px;top:18px;display:flex;flex-direction:column;gap:10px}
-  .panel-bg{background:rgba(8,8,16,.92);border:1px solid rgba(255,255,255,.18);
+  .panel-bg{background:rgba(8,8,16,.96);border:1px solid rgba(255,255,255,.22);
     border-radius:12px;backdrop-filter:blur(14px)}
-  /* Full-screen dimmer behind any open modal so the world isn't read through it */
-  #shop,#panel,#journal{box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 0 100vmax rgba(2,2,8,.65)!important}
+  /* Full-screen dimmer behind any open modal so the world isn't read
+     through it. z-index 90 lifts the modals above the touch HUD (12),
+     mobile scrim (54) and mobile drawer (55) so they're always the
+     topmost interactive layer. Forced text color so item names and
+     headers never disappear into the background. */
+  #shop,#panel,#journal{z-index:90!important;color:#fff;
+    box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 0 100vmax rgba(2,2,8,.65)!important}
+  #shop .who,#shop .sub,#shop .shead,#shop .meta b{color:#fff!important}
+  #shop .item .meta span{color:rgba(255,255,255,.65)!important}
   .chip{padding:9px 13px;min-width:184px}
   .chip .k{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut)}
   .bar{height:10px;border-radius:6px;background:rgba(255,255,255,.1);margin-top:7px;overflow:hidden}
@@ -3975,6 +3982,30 @@ window.addEventListener('unhandledrejection',(ev)=>{
     /* Touch HUD: keep the joystick + action stack visible, push bottom
        hint chip out of the way so it doesn't compete with the buttons. */
     #touch{top:38px!important}   /* leave room for the top strip */
+
+    /* Modals on mobile: full-width, comfortable padding, scrollable.
+       The previous defaults gave us a 92vw modal but inner padding +
+       wide .item rows could push icons / text off-screen. */
+    #shop, #panel, #journal{
+      width:min(420px,94vw)!important;
+      max-height:calc(100vh - 80px)!important;
+      padding:14px!important;
+      top:50%!important;
+      left:50%!important;
+      transform:translate(-50%,-50%)!important;
+    }
+    #shop .shead{flex-wrap:wrap;gap:8px}
+    #shop .shead .bal{margin-left:auto}
+    #shop .item{padding:10px 2px;gap:8px}
+    #shop .item .ico{width:36px;height:36px;font-size:20px}
+    #shop .item .meta b{font-size:13px;display:block}
+    #shop .item .meta span{font-size:10.5px}
+    #shop .buy{padding:8px 10px;font-size:12px}
+    #shopClose,#panel button[aria-label="close"]{
+      width:36px;height:36px;min-width:36px;display:grid;place-items:center;
+      background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.3);
+      color:#fff;font-size:18px;cursor:pointer;border-radius:6px
+    }
   }
 </style>
 
