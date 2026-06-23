@@ -606,13 +606,176 @@ const lineMat=new THREE.LineBasicMaterial({color:WHITE});
 const inkMat=()=>new THREE.MeshBasicMaterial({color:0x000000});           // unlit black fill
 function edges(m,thr){const e=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,thr==null?18:thr),lineMat);m.add(e);return m;}
 function inkBox(w,h,d,x,y,z){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),inkMat());m.position.set(x,y,z);edges(m);return m;}
-let brickTex=null;
-function getBrickTex(){if(brickTex)return brickTex;const R=256,cv=document.createElement('canvas');cv.width=cv.height=R;const c=cv.getContext('2d');
-  c.fillStyle='#000';c.fillRect(0,0,R,R);c.strokeStyle='#ffffff';c.lineWidth=3;c.lineCap='round';
-  const rows=8,rh=R/rows;
-  for(let r=0;r<rows;r++){const y=r*rh;c.beginPath();c.moveTo(0,y);c.lineTo(R,y);c.stroke();
-    const off=(r%2)?R/6:0;for(let x=off;x<R+off;x+=R/3){c.beginPath();c.moveTo(x,y);c.lineTo(x,y+rh);c.stroke();}}
-  brickTex=new THREE.CanvasTexture(cv);brickTex.wrapS=brickTex.wrapT=THREE.RepeatWrapping;brickTex.encoding=THREE.sRGBEncoding;return brickTex;}
+// ============================================================
+//  Interior wall textures · 512px hand-inked tilers (B&W)
+// ============================================================
+// Each builder draws a tileable wall pattern at 512x512 so the lines
+// stay crisp at close range. We cache one texture per pattern, then
+// pick which pattern an interior uses based on a hash of its address
+// so every holder's room reads as a different style.
+const _wallTexCache = Object.create(null);
+function _wallCanvas(){
+  const R = 512;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = R;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#000'; c.fillRect(0, 0, R, R);
+  c.strokeStyle = '#fff'; c.lineWidth = 4; c.lineCap = 'round'; c.lineJoin = 'round';
+  return { cv, c, R };
+}
+function _wallTex(cv){
+  const t = new THREE.CanvasTexture(cv);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.encoding = THREE.sRGBEncoding;
+  t.anisotropy = 8;
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  return t;
+}
+// 1. Brick - running bond
+function _buildBrickTex(){
+  const { cv, c, R } = _wallCanvas();
+  const rows = 12, rh = R / rows;
+  for (let r = 0; r < rows; r++) {
+    const y = r * rh;
+    c.beginPath(); c.moveTo(0, y); c.lineTo(R, y); c.stroke();
+    const off = (r % 2) ? R / 6 : 0;
+    for (let x = off; x < R + off; x += R / 3) {
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + rh); c.stroke();
+    }
+  }
+  return _wallTex(cv);
+}
+// 2. Concrete blocks - larger rectangular blocks
+function _buildConcreteTex(){
+  const { cv, c, R } = _wallCanvas();
+  c.lineWidth = 3;
+  const rows = 6, rh = R / rows;
+  for (let r = 0; r < rows; r++) {
+    const y = r * rh;
+    c.beginPath(); c.moveTo(0, y); c.lineTo(R, y); c.stroke();
+    const off = (r % 2) ? R / 4 : 0;
+    for (let x = off; x < R + off; x += R / 2) {
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + rh); c.stroke();
+    }
+  }
+  // a few specks of grain
+  c.fillStyle = 'rgba(255,255,255,.18)';
+  for (let i = 0; i < 80; i++) {
+    c.fillRect((Math.random() * R) | 0, (Math.random() * R) | 0, 2, 2);
+  }
+  return _wallTex(cv);
+}
+// 3. Square tiles - small grid, like a subway-tile bathroom
+function _buildTileTex(){
+  const { cv, c, R } = _wallCanvas();
+  c.lineWidth = 2.5;
+  const n = 8, s = R / n;
+  for (let i = 0; i <= n; i++) {
+    const p = i * s;
+    c.beginPath(); c.moveTo(p, 0); c.lineTo(p, R); c.stroke();
+    c.beginPath(); c.moveTo(0, p); c.lineTo(R, p); c.stroke();
+  }
+  return _wallTex(cv);
+}
+// 4. Wood planks - vertical
+function _buildWoodTex(){
+  const { cv, c, R } = _wallCanvas();
+  c.lineWidth = 3;
+  const planks = 5, pw = R / planks;
+  for (let i = 0; i <= planks; i++) {
+    const x = i * pw;
+    c.beginPath(); c.moveTo(x, 0); c.lineTo(x, R); c.stroke();
+  }
+  // wood grain (subtle vertical lines per plank)
+  c.lineWidth = 1; c.strokeStyle = 'rgba(255,255,255,.35)';
+  for (let p = 0; p < planks; p++) {
+    const cx = p * pw + pw / 2;
+    for (let g = -1; g <= 1; g += 1) {
+      c.beginPath();
+      const x = cx + g * 12;
+      c.moveTo(x, 0);
+      for (let y = 0; y < R; y += 24) c.lineTo(x + Math.sin(y * 0.04 + p) * 3, y);
+      c.stroke();
+    }
+  }
+  // a knot or two
+  c.strokeStyle = '#fff'; c.lineWidth = 2;
+  for (let i = 0; i < 3; i++) {
+    const x = (i * 0.31 + 0.2) * R, y = (i * 0.27 + 0.4) * R;
+    c.beginPath(); c.ellipse(x, y, 6, 8, 0, 0, Math.PI * 2); c.stroke();
+  }
+  return _wallTex(cv);
+}
+// 5. Metal grid / industrial - rivets at intersections
+function _buildMetalTex(){
+  const { cv, c, R } = _wallCanvas();
+  c.lineWidth = 3;
+  const n = 4, s = R / n;
+  for (let i = 0; i <= n; i++) {
+    const p = i * s;
+    c.beginPath(); c.moveTo(p, 0); c.lineTo(p, R); c.stroke();
+    c.beginPath(); c.moveTo(0, p); c.lineTo(R, p); c.stroke();
+  }
+  c.fillStyle = '#fff';
+  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) {
+    c.beginPath(); c.arc(i * s, j * s, 4, 0, Math.PI * 2); c.fill();
+  }
+  return _wallTex(cv);
+}
+// 6. Graffiti brick - bricks + a tag in the middle
+function _buildGraffitiTex(){
+  const { cv, c, R } = _wallCanvas();
+  c.lineWidth = 3;
+  const rows = 12, rh = R / rows;
+  c.strokeStyle = 'rgba(255,255,255,.7)';
+  for (let r = 0; r < rows; r++) {
+    const y = r * rh;
+    c.beginPath(); c.moveTo(0, y); c.lineTo(R, y); c.stroke();
+    const off = (r % 2) ? R / 6 : 0;
+    for (let x = off; x < R + off; x += R / 3) {
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + rh); c.stroke();
+    }
+  }
+  // tag scribble on top
+  c.strokeStyle = '#fff'; c.lineWidth = 6; c.lineCap = 'round';
+  const cx = R / 2, cy = R * 0.55;
+  c.beginPath();
+  c.moveTo(cx - 100, cy);
+  c.bezierCurveTo(cx - 70, cy - 40, cx - 30, cy + 30, cx, cy - 20);
+  c.bezierCurveTo(cx + 30, cy - 40, cx + 60, cy + 20, cx + 100, cy);
+  c.stroke();
+  c.lineWidth = 4;
+  c.font = "bold 38px 'Hoodlrz', sans-serif";
+  c.fillStyle = '#fff';
+  c.textAlign = 'center';
+  c.fillText('hOodlrz', cx, cy + 50);
+  return _wallTex(cv);
+}
+const _WALL_BUILDERS = [
+  _buildBrickTex,     // 0
+  _buildConcreteTex,  // 1
+  _buildTileTex,      // 2
+  _buildWoodTex,      // 3
+  _buildMetalTex,     // 4
+  _buildGraffitiTex,  // 5
+];
+function getWallTexFor(b){
+  // Hash b.short to pick a deterministic style per building.
+  const s = (b && b.short) ? b.short : 'default';
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) >>> 0;
+  const idx = h % _WALL_BUILDERS.length;
+  if (!_wallTexCache[idx]) _wallTexCache[idx] = _WALL_BUILDERS[idx]();
+  return _wallTexCache[idx];
+}
+// Back-compat: callers still expecting getBrickTex() get the original brick.
+let brickTex = null;
+function getBrickTex(){
+  if (brickTex) return brickTex;
+  brickTex = _buildBrickTex();
+  return brickTex;
+}
 // ===== chart gradients (animated) : collect = blue→green, danger = red→magenta =====
 const GRAD={collect:[new THREE.Color(0x2d8bff),new THREE.Color(0x2dffa6)],danger:[new THREE.Color(0xff1f4d),new THREE.Color(0xff2db5)]};
 const gradMat={
@@ -2778,7 +2941,11 @@ function buildInterior(b){
   interior={hw,hd,b,roomH,galleryH,exit:new THREE.Vector3(IC.x,INTERIOR_Y,IC.z-hd+1.5),
     terminal:new THREE.Vector3(IC.x,INTERIOR_Y,IC.z+hd-2),counter:null,elevator:null,vault:null,highlight:null,floorLabel:null};
   interiorBounds={minX:IC.x-hw,maxX:IC.x+hw,minZ:IC.z-hd,maxZ:IC.z+hd};
-  const brick=()=>new THREE.MeshBasicMaterial({color:0xffffff,map:getBrickTex()});
+  // Each holder's interior gets its own wall pattern picked from a deterministic
+  // hash of their address, so successive visits show the same style for the
+  // same tower but the city as a whole varies room to room.
+  const wallMap=getWallTexFor(b);
+  const brick=()=>new THREE.MeshBasicMaterial({color:0xffffff,map:wallMap});
   // shell · black floor with white grid, brick walls, black ceiling
   const floor=new THREE.Mesh(new THREE.BoxGeometry(hw*2,0.4,hd*2),new THREE.MeshBasicMaterial({color:0,map:getSlabTex()}));
   floor.position.set(IC.x,INTERIOR_Y-0.2,IC.z);G.add(floor);
@@ -2871,39 +3038,44 @@ function decorateInterior(G,hw,hd,roomH,b){
   // rug (white outline) centred on the floor
   const rug=new THREE.Mesh(new THREE.RingGeometry(1.6,1.9,4),new THREE.MeshBasicMaterial({color:WHITE,side:THREE.DoubleSide}));
   rug.rotation.x=-Math.PI/2;rug.rotation.z=Math.PI/4;rug.position.set(IC.x,INTERIOR_Y+0.03,IC.z);G.add(rug);
-  // sofa against the front wall (seat + backrest), correctly on the floor
-  G.add(edges(mesh(2.8,0.55,1.0,inkMat(),IC.x,INTERIOR_Y+0.28,IC.z-hd+1.4)));
-  G.add(edges(mesh(2.8,0.8,0.25,inkMat(),IC.x,INTERIOR_Y+0.68,IC.z-hd+1.0)));
-  addInteriorCollider(IC.x, 0, IC.z-hd+1.2, 1.5, 0.7);   // single AABB covers seat+back
-  // potted plants in the two front corners
+  // ============================================================
+  //  Furniture layout - everything stays OUT of the entry corridor
+  //  (a 3-unit-wide strip down the centreline from the exit door
+  //  to the wallet terminal). Side walls and back wall only.
+  // ============================================================
+  // L-shaped sofa against the LEFT wall, facing the gallery (rotated 90°)
+  G.add(edges(mesh(1.0,0.55,2.8,inkMat(),IC.x-hw+0.85,INTERIOR_Y+0.28,IC.z+0.4)));   // seat
+  G.add(edges(mesh(0.25,0.8,2.8,inkMat(),IC.x-hw+0.4, INTERIOR_Y+0.68,IC.z+0.4)));   // backrest
+  addInteriorCollider(IC.x-hw+0.7, 0, IC.z+0.4, 0.7, 1.5);
+  // coffee table in front of the sofa (still on the LEFT side)
+  G.add(edges(mesh(0.8,0.1,1.4,inkMat(),IC.x-hw+1.9,INTERIOR_Y+0.55,IC.z+0.4)));
+  for(const bz of[-0.4,0.1,0.6]){const bot=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.45,7),inkMat());bot.position.set(IC.x-hw+1.9,INTERIOR_Y+0.83,IC.z+bz);edges(bot,40);G.add(bot);}
+  addInteriorCollider(IC.x-hw+1.9, 0, IC.z+0.4, 0.5, 0.8);
+  // potted plants tucked into the BACK corners so they don't block the entry
   for(const sx of[-1,1]){
-    G.add(edges(mesh(0.5,0.6,0.5,inkMat(),IC.x+sx*(hw-1),INTERIOR_Y+0.3,IC.z-hd+1.2)));
-    const leaf=new THREE.Mesh(new THREE.IcosahedronGeometry(0.6,0),inkMat());leaf.position.set(IC.x+sx*(hw-1),INTERIOR_Y+1.15,IC.z-hd+1.2);edges(leaf,30);G.add(leaf);
-    addInteriorCollider(IC.x+sx*(hw-1), 0, IC.z-hd+1.2, 0.5, 0.5);
+    G.add(edges(mesh(0.5,0.6,0.5,inkMat(),IC.x+sx*(hw-0.8),INTERIOR_Y+0.3,IC.z+hd-1.0)));
+    const leaf=new THREE.Mesh(new THREE.IcosahedronGeometry(0.6,0),inkMat());leaf.position.set(IC.x+sx*(hw-0.8),INTERIOR_Y+1.15,IC.z+hd-1.0);edges(leaf,30);G.add(leaf);
+    addInteriorCollider(IC.x+sx*(hw-0.8), 0, IC.z+hd-1.0, 0.5, 0.5);
   }
-  // DJ booth against the LEFT wall (turntables as white discs) · only when not a shop
+  // DJ booth against the LEFT wall at the BACK (not in the entry path)
   if(!b.shop){
-    const bz=IC.z+1.5;
+    const bz=IC.z+hd-1.8;
     G.add(edges(mesh(2.4,0.9,0.9,inkMat(),IC.x-hw+1.4,INTERIOR_Y+0.45,bz)));
     for(const dx of[-0.55,0.55]){const tt=new THREE.Mesh(new THREE.RingGeometry(0.22,0.3,16),new THREE.MeshBasicMaterial({color:WHITE,side:THREE.DoubleSide}));
       tt.rotation.x=-Math.PI/2;tt.position.set(IC.x-hw+1.4+dx,INTERIOR_Y+0.92,bz);G.add(tt);}
     addInteriorCollider(IC.x-hw+1.4, 0, bz, 1.4, 0.6);
   }
-  // framed B&W music posters on the LEFT wall (flush against wall, no collider)
-  for(let i=0;i<2;i++){const z=IC.z-hd*0.45+i*hd*0.5;
+  // framed music posters on the LEFT wall (flush, no collider)
+  for(let i=0;i<2;i++){const z=IC.z-hd*0.35+i*hd*0.45;
     G.add(edges(mesh(0.08,2.0,1.5,inkMat(),IC.x-hw+0.2,INTERIOR_Y+2.2,z)));
     const p=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.8),new THREE.MeshBasicMaterial({map:makeMusicPoster()}));
     p.position.set(IC.x-hw+0.27,INTERIOR_Y+2.2,z);p.rotation.y=Math.PI/2;G.add(p);}
-  // coffee table + bottles in front of the sofa
-  G.add(edges(mesh(1.6,0.1,0.8,inkMat(),IC.x,INTERIOR_Y+0.55,IC.z-hd+2.7)));
-  for(const bx of[-0.5,-0.1,0.4]){const bot=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.45,7),inkMat());bot.position.set(IC.x+bx,INTERIOR_Y+0.83,IC.z-hd+2.7);edges(bot,40);G.add(bot);}
-  addInteriorCollider(IC.x, 0, IC.z-hd+2.7, 0.9, 0.5);
-  // wall screen / TV on the back wall (flush, no collider needed)
+  // wall TV on the BACK-right corner (flush, no collider)
   G.add(edges(mesh(2.6,1.5,0.12,new THREE.MeshBasicMaterial({color:0x0c0c0c}),IC.x+hw*0.35,INTERIOR_Y+2.4,IC.z+hd-0.32)));
   const scan=new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.34),gradMat.collect);scan.position.set(IC.x+hw*0.35,INTERIOR_Y+2.4,IC.z+hd-0.25);G.add(scan);
-  // stacked crates in a corner
-  for(let i=0;i<3;i++){const c=mesh(0.9,0.9,0.9,inkMat(),IC.x-hw+1.2,INTERIOR_Y+0.45+i*0.92,IC.z-hd+4.2+(i%2)*0.2);G.add(edges(c));}
-  addInteriorCollider(IC.x-hw+1.2, 0, IC.z-hd+4.3, 0.55, 0.55);
+  // stacked crates in the BACK-LEFT corner
+  for(let i=0;i<3;i++){const c=mesh(0.9,0.9,0.9,inkMat(),IC.x-hw+1.2,INTERIOR_Y+0.45+i*0.92,IC.z+hd-3.5+(i%2)*0.2);G.add(edges(c));}
+  addInteriorCollider(IC.x-hw+1.2, 0, IC.z+hd-3.4, 0.55, 0.55);
   // ceiling pendant lights — three lamps casting a soft circle on the floor below
   for(const lx of[-1,0,1]){
     const cord=mesh(0.04,1.0,0.04,inkMat(),IC.x+lx*hw*0.4,INTERIOR_Y+roomH-0.6,IC.z);G.add(cord);
