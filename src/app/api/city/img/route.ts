@@ -221,7 +221,7 @@ async function resolveOwnerImage(wallet: string): Promise<string | null> {
   const allIds = new Set<number>();
   for (const r of cached ?? []) allIds.add(r.token_id as number);
   for (const t of live) allIds.add(t.tokenId);
-  for (const id of allIds) {
+  for (const id of Array.from(allIds)) {
     const url = await resolveTokenImage(id);
     if (url) return url;
   }
