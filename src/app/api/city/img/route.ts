@@ -19,6 +19,7 @@
 import { NextRequest } from "next/server";
 import { JsonRpcProvider, Contract } from "ethers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchNFTsForOwner, fetchNFTMetadata } from "@/lib/hoodlrz/alchemy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -132,8 +133,9 @@ async function fetchMetadataJson(uri: string): Promise<{ image?: string } | null
   return null;
 }
 
-// Resolve a token id to its image URL: cache-first, then live tokenURI fetch.
-// Writes the resolved URL back to city_tokens so the next call is instant.
+// Resolve a token id to its image URL: cache-first, then Alchemy live,
+// then on-chain tokenURI + IPFS metadata as the slowest fallback. Writes
+// the resolved URL back to city_tokens so the next call is instant.
 async function resolveTokenImage(tokenId: number): Promise<string | null> {
   const admin = createAdminClient();
   const { data } = await admin
@@ -142,6 +144,20 @@ async function resolveTokenImage(tokenId: number): Promise<string | null> {
     .eq("token_id", tokenId)
     .maybeSingle();
   if (data?.image_url) return data.image_url as string;
+
+  // 1. Fast path: Alchemy
+  const alch = await fetchNFTMetadata(tokenId);
+  if (alch?.imageUrl) {
+    await admin
+      .from("city_tokens")
+      .upsert(
+        { token_id: tokenId, image_url: alch.imageUrl, updated_at: new Date().toISOString() },
+        { onConflict: "token_id" },
+      );
+    return alch.imageUrl;
+  }
+
+  // 2. Slow path: tokenURI off the contract + IPFS metadata
   try {
     const provider = await getRpcProvider();
     const contract = new Contract(CONTRACT, ERC721_ABI, provider);
@@ -150,33 +166,63 @@ async function resolveTokenImage(tokenId: number): Promise<string | null> {
     const meta = await fetchMetadataJson(uri);
     if (!meta?.image) return null;
     const image = String(meta.image);
-    // Persist for the next visitor.
     await admin
       .from("city_tokens")
-      .upsert({ token_id: tokenId, image_url: image, updated_at: new Date().toISOString() }, { onConflict: "token_id" });
+      .upsert(
+        { token_id: tokenId, image_url: image, updated_at: new Date().toISOString() },
+        { onConflict: "token_id" },
+      );
     return image;
   } catch {
     return null;
   }
 }
 
-// Find an imageable token for a wallet: walk every token the wallet owns
-// and return the first one we can resolve to an actual image.
+// Find an imageable token for a wallet. Order of escalation:
+//   1. Cached image_url on any of their cached tokens
+//   2. Alchemy getNFTsForOwner (live) - finds tokens missing from the
+//      cache + gives us their image URLs in one round-trip
+//   3. Live tokenURI + IPFS metadata per token (slowest)
+// Every path that succeeds also writes the result back so subsequent
+// requests hit the cache.
 async function resolveOwnerImage(wallet: string): Promise<string | null> {
+  const lower = wallet.toLowerCase();
   const admin = createAdminClient();
-  const { data } = await admin
+
+  const { data: cached } = await admin
     .from("city_tokens")
     .select("token_id, image_url")
-    .eq("owner", wallet.toLowerCase())
+    .eq("owner", lower)
     .order("token_id", { ascending: true });
-  if (!data || data.length === 0) return null;
-  // 1. First pass: cached URL on any of their tokens
-  for (const row of data) {
+
+  // 1. Any cached row with an image
+  for (const row of cached ?? []) {
     if (row.image_url) return row.image_url as string;
   }
-  // 2. Second pass: live-resolve each token until one works
-  for (const row of data) {
-    const url = await resolveTokenImage(row.token_id as number);
+
+  // 2. Live Alchemy - guarantees we see EVERY token the wallet owns
+  //    (the bulk refresh sometimes misses some). Upsert results so
+  //    /api/hoodlrz/by-owner sees them too.
+  const live = await fetchNFTsForOwner(wallet);
+  if (live.length > 0) {
+    const rows = live.map((t) => ({
+      token_id: t.tokenId,
+      owner: lower,
+      image_url: t.imageUrl,
+      updated_at: new Date().toISOString(),
+    }));
+    await admin.from("city_tokens").upsert(rows, { onConflict: "token_id" });
+    for (const t of live) {
+      if (t.imageUrl) return t.imageUrl;
+    }
+  }
+
+  // 3. Slow per-token live resolve on whatever ids we now have
+  const allIds = new Set<number>();
+  for (const r of cached ?? []) allIds.add(r.token_id as number);
+  for (const t of live) allIds.add(t.tokenId);
+  for (const id of allIds) {
+    const url = await resolveTokenImage(id);
     if (url) return url;
   }
   return null;

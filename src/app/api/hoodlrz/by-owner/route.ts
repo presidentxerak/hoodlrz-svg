@@ -8,18 +8,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { HOODLRZ_STREET_ADDRESS } from "@/lib/web3/config";
+import { fetchNFTsForOwner } from "@/lib/hoodlrz/alchemy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 interface OwnedToken {
   tokenId: number;
-  image: string | null;
-}
-
-interface TokenRow {
-  token_id: number;
-  image_url: string | null;
+  image: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -30,12 +26,15 @@ export async function GET(request: NextRequest) {
       { status: 400 },
     );
   }
+  const lower = raw.toLowerCase();
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin
+
+    // 1. What the cache knows
+    const { data: cached, error } = await admin
       .from("city_tokens")
-      .select("token_id, image_url")
-      .eq("owner", raw.toLowerCase())
+      .select("token_id")
+      .eq("owner", lower)
       .order("token_id", { ascending: true });
     if (error) {
       return NextResponse.json(
@@ -43,15 +42,47 @@ export async function GET(request: NextRequest) {
         { status: 500 },
       );
     }
-    // Route every image through /api/city/img?token=N. The proxy is
-    // cache-first + on-demand-resolves any token whose image_url is still
-    // null in the cache. Result: every NFT in the holder's wallet grid
-    // either renders an image or 404s (very rare) - never sits as a
-    // permanently-broken IPFS link in the client.
-    const tokens: OwnedToken[] = (data ?? []).map((t: TokenRow) => ({
-      tokenId: t.token_id,
-      image: "/api/city/img?token=" + t.token_id,
-    }));
+
+    // 2. Cross-check with city_holders.token_count - if the cache has fewer
+    //    tokens than the holder actually owns we hit Alchemy live for the
+    //    full list, upsert the diff, and return the merged set. This keeps
+    //    the wallet grid in sync even between cron refreshes (and patches
+    //    over holders whose tokens were never enumerated correctly).
+    const { data: holderRow } = await admin
+      .from("city_holders")
+      .select("token_count")
+      .eq("wallet", lower)
+      .maybeSingle();
+
+    const ids = new Set<number>();
+    for (const t of cached ?? []) ids.add(t.token_id as number);
+
+    const expected = holderRow?.token_count ?? null;
+    if (expected !== null && ids.size < expected) {
+      const live = await fetchNFTsForOwner(lower);
+      if (live.length > 0) {
+        await admin.from("city_tokens").upsert(
+          live.map((t) => ({
+            token_id: t.tokenId,
+            owner: lower,
+            image_url: t.imageUrl,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: "token_id" },
+        );
+        for (const t of live) ids.add(t.tokenId);
+      }
+    }
+
+    // Route every image through /api/city/img?token=N. The proxy handles
+    // cache, Alchemy live fallback, IPFS rotation and edge caching, so
+    // every thumbnail either renders an image or 404s.
+    const tokens: OwnedToken[] = Array.from(ids)
+      .sort((a, b) => a - b)
+      .map((tokenId) => ({
+        tokenId,
+        image: "/api/city/img?token=" + tokenId,
+      }));
     return NextResponse.json({
       tokens,
       count: tokens.length,
