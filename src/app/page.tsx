@@ -56,7 +56,7 @@ function Hero() {
 
       <div className="relative z-10 flex flex-col items-center gap-6 max-w-2xl text-center">
         <h1 className="font-hoodlrz text-[40px] font-bold leading-none tracking-wider text-white sm:text-[72px]">
-          HOODLRZ
+          hOodlrz
         </h1>
         <p className="font-hoodlrz max-w-3xl text-center text-2xl font-bold leading-tight tracking-wider text-white sm:text-4xl md:text-5xl">
           Own the identity. Collect the culture.

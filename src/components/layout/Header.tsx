@@ -71,7 +71,7 @@ export default function Header() {
             />
             <div className="flex flex-col leading-none">
               <span className="font-hoodlrz text-xl font-bold tracking-wider text-foreground sm:text-2xl">
-                HOODLRZ
+                hOodlrz
               </span>
               <span className="text-[8px] uppercase tracking-[0.2em] text-muted">
                 by Xerak

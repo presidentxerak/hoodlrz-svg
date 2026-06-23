@@ -50,8 +50,10 @@
 
   /* top-left stats */
   #stats{position:absolute;left:20px;top:18px;display:flex;flex-direction:column;gap:10px}
-  .panel-bg{background:rgba(11,10,31,.66);border:1px solid rgba(255,255,255,.09);
-    border-radius:12px;backdrop-filter:blur(8px)}
+  .panel-bg{background:rgba(8,8,16,.92);border:1px solid rgba(255,255,255,.18);
+    border-radius:12px;backdrop-filter:blur(14px)}
+  /* Full-screen dimmer behind any open modal so the world isn't read through it */
+  #shop,#panel,#journal{box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 0 100vmax rgba(2,2,8,.65)!important}
   .chip{padding:9px 13px;min-width:184px}
   .chip .k{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--mut)}
   .bar{height:10px;border-radius:6px;background:rgba(255,255,255,.1);margin-top:7px;overflow:hidden}
@@ -925,35 +927,69 @@ function setupSecrets(){
 }
 function makeRoadTexture(span){
   const R=2048, cv=document.createElement('canvas'); cv.width=cv.height=R; const ctx=cv.getContext('2d');
-  // Base asphalt: dark grey, not pure black, with a subtle noise grain.
-  ctx.fillStyle='#0e0e14'; ctx.fillRect(0,0,R,R);
+  // Sidewalk-grey base. Streets get painted darker on top so they read as
+  // streets, not the whole ground plane.
+  ctx.fillStyle='#1c1c24'; ctx.fillRect(0,0,R,R);
   const grain=ctx.createImageData(R,R), gd=grain.data;
   for(let i=0;i<gd.length;i+=4){
-    const n=(Math.random()*22)|0;
-    gd[i]=22+n;gd[i+1]=22+n;gd[i+2]=26+n;gd[i+3]=255;
+    const n=(Math.random()*8)|0;
+    gd[i]=26+n; gd[i+1]=26+n; gd[i+2]=32+n; gd[i+3]=255;
   }
   ctx.putImageData(grain,0,0);
   const w2px=x=>((x+span/2)/span)*R;
+  const u2px=u=>(u/span)*R;
+  const ROAD_HW=(LOT-SLAB)/2;
+  const roadHalfPx=u2px(ROAD_HW);
   const lanes=[]; for(let k=-(GRID+1);k<=GRID+1;k++)lanes.push((k+0.5)*LOT);
-  // Solid white lane edges
-  ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.lineWidth=8;
-  for(const L of lanes){ if(Math.abs(L)>span/2)continue; const p=w2px(L);
-    ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,R);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(R,p);ctx.stroke(); }
-  // Dashed centre lines
-  ctx.strokeStyle='rgba(255,205,80,.85)'; ctx.lineWidth=5; ctx.setLineDash([46,46]);
-  for(const L of lanes){ if(Math.abs(L)>span/2)continue; const p=w2px(L);
-    ctx.beginPath();ctx.moveTo(p+18,0);ctx.lineTo(p+18,R);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,p+18);ctx.lineTo(R,p+18);ctx.stroke(); }
-  ctx.setLineDash([]);
-  // High-contrast white crosswalks at every intersection
-  ctx.fillStyle='rgba(245,245,250,.92)';
-  for(const Lx of lanes)for(const Lz of lanes){ if(Math.abs(Lx)>span/2||Math.abs(Lz)>span/2)continue;
-    const x=w2px(Lx),y=w2px(Lz);
-    for(let m=0;m<7;m++)ctx.fillRect(x-42+m*12,y-7,8,30);
-    for(let m=0;m<7;m++)ctx.fillRect(x-7,y-42+m*12,30,8);
+  // Asphalt strips (visibly darker than the sidewalk grey).
+  ctx.fillStyle='#080810';
+  for(const L of lanes){
+    if(Math.abs(L)>span/2)continue;
+    const p=w2px(L);
+    ctx.fillRect(p-roadHalfPx,0,roadHalfPx*2,R);
+    ctx.fillRect(0,p-roadHalfPx,R,roadHalfPx*2);
   }
-  const t=new THREE.CanvasTexture(cv); t.anisotropy=8; t.encoding=THREE.sRGBEncoding; return t;
+  // Solid white kerb / edge lines on each side of every road.
+  ctx.strokeStyle='#f1f1f6'; ctx.lineWidth=4; ctx.lineCap='butt';
+  for(const L of lanes){
+    if(Math.abs(L)>span/2)continue;
+    const c=w2px(L), p1=c-roadHalfPx+3, p2=c+roadHalfPx-3;
+    ctx.beginPath();ctx.moveTo(p1,0);ctx.lineTo(p1,R);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(p2,0);ctx.lineTo(p2,R);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,p1);ctx.lineTo(R,p1);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,p2);ctx.lineTo(R,p2);ctx.stroke();
+  }
+  // Yellow dashed centre line down the middle of every road.
+  ctx.strokeStyle='#ffd84d'; ctx.lineWidth=3; ctx.setLineDash([30,30]);
+  for(const L of lanes){
+    if(Math.abs(L)>span/2)continue;
+    const p=w2px(L);
+    ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,R);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(R,p);ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  // Crosswalks: short white stripes parallel to traffic, drawn just inside
+  // each kerb at every intersection.
+  ctx.fillStyle='#f8f8fb';
+  const nStripes=6, sGap=2;
+  const sWidth=(roadHalfPx*2 - (nStripes+1)*sGap)/nStripes;
+  const sLen=roadHalfPx*0.55;
+  for(const Lx of lanes)for(const Lz of lanes){
+    if(Math.abs(Lx)>span/2||Math.abs(Lz)>span/2)continue;
+    const xc=w2px(Lx),yc=w2px(Lz);
+    for(let m=0;m<nStripes;m++){
+      const sx=xc-roadHalfPx+sGap+m*(sWidth+sGap);
+      ctx.fillRect(sx, yc-roadHalfPx-sLen+2, sWidth, sLen);   // approach from north
+      ctx.fillRect(sx, yc+roadHalfPx-2,       sWidth, sLen);   // approach from south
+      const sy=yc-roadHalfPx+sGap+m*(sWidth+sGap);
+      ctx.fillRect(xc-roadHalfPx-sLen+2, sy, sLen, sWidth);   // approach from west
+      ctx.fillRect(xc+roadHalfPx-2,       sy, sLen, sWidth);   // approach from east
+    }
+  }
+  const t=new THREE.CanvasTexture(cv);
+  t.anisotropy=16; t.encoding=THREE.sRGBEncoding;
+  t.magFilter=THREE.LinearFilter; t.minFilter=THREE.LinearMipmapLinearFilter;
+  return t;
 }
 let slabTex=null;
 function getSlabTex(){
@@ -2691,7 +2727,7 @@ function goToJail(){
   syncCamera();
   for(const cop of cops)cop.userData.bust=0; sfx.jail();
   startJailTimer();
-  const bb=$('jailBail');if(bb)bb.textContent='PAY '+BAIL_HOODZ+' HOODZ · GET OUT NOW  (you have '+state.hoodz+')';
+  const bb=$('jailBail');if(bb){const c=Math.min(BAIL_HOODZ,state.hoodz);bb.textContent=(c?'PAY '+c+' HOODZ':'GO FREE')+' · GET OUT NOW';}
   $('jail').style.display='flex';
   if(document.pointerLockElement)document.exitPointerLock();
 }
@@ -2709,12 +2745,10 @@ function startJailTimer(){
   jailTick=setInterval(()=>{ if(updateJailClock()<=0) releaseFromJail(); },1000);
 }
 function payBail(){
-  if(state.hoodz>=BAIL_HOODZ){
-    state.hoodz-=BAIL_HOODZ; updateHUD(); flashVal('hoodzVal','green'); sfx.vault();
-    toast('Bail paid · '+BAIL_HOODZ+' Hoodz','gold'); releaseFromJail();
-  }else{
-    sfx.hurt(); toast('Not enough Hoodz for bail · you have '+state.hoodz+'/'+BAIL_HOODZ,'warn');
-  }
+  const cost=Math.min(BAIL_HOODZ,state.hoodz);
+  state.hoodz-=cost; updateHUD(); flashVal('hoodzVal','green'); sfx.vault();
+  toast(cost?'Bail paid · '+cost+' Hoodz':'Released · no Hoodz to seize','gold');
+  releaseFromJail();
 }
 function releaseFromJail(){
   clearInterval(jailTick);jailTick=null;
@@ -2731,15 +2765,17 @@ function getEaten(){
   if(state.eaten)return;
   state.eaten=true; state.eatenUntil=Date.now()+600*1000; sfx.down(); sfx.hurt();
   spawnBurst(player.pos.clone().setY(1),0xffffff,30);
-  const bb=$('lakeBail');if(bb)bb.textContent='PAY '+BAIL_HOODZ+' HOODZ · RESPAWN NOW  (you have '+state.hoodz+')';
+  const bb=$('lakeBail');if(bb){const c=Math.min(BAIL_HOODZ,state.hoodz);bb.textContent=(c?'PAY '+c+' HOODZ':'GO FREE')+' · RESPAWN NOW';}
   updateLakeClock();
   clearInterval(lakeTick);lakeTick=setInterval(()=>{if(updateLakeClock()<=0)reviveFromLake();},1000);
   $('lake').style.display='flex';
   if(document.pointerLockElement)document.exitPointerLock();
 }
 function lakeBail(){
-  if(state.hoodz>=BAIL_HOODZ){state.hoodz-=BAIL_HOODZ;updateHUD();flashVal('hoodzVal','green');sfx.vault();toast('Respawned · '+BAIL_HOODZ+' Hoodz','gold');reviveFromLake();}
-  else{sfx.hurt();toast('Not enough Hoodz · you have '+state.hoodz+'/'+BAIL_HOODZ,'warn');}
+  const cost=Math.min(BAIL_HOODZ,state.hoodz);
+  state.hoodz-=cost;updateHUD();flashVal('hoodzVal','green');sfx.vault();
+  toast(cost?'Respawned · '+cost+' Hoodz':'Respawned · no Hoodz to seize','gold');
+  reviveFromLake();
 }
 function reviveFromLake(){
   clearInterval(lakeTick);lakeTick=null;
@@ -3103,7 +3139,15 @@ window.addEventListener('load',boot);
         '</div>';
       el.addEventListener('click', () => {
         closeHolders();
-        try { if (typeof findBuilding === 'function') findBuilding(wallet); } catch(_) {}
+        try {
+          const bs = (typeof buildings !== 'undefined') ? buildings : [];
+          const target = bs.find((bb) => bb && bb.tokenId === i);
+          if (target && typeof window.teleportToBuilding === 'function') {
+            window.teleportToBuilding(target);
+          } else if (typeof findBuilding === 'function') {
+            findBuilding(wallet);
+          }
+        } catch(_) {}
       });
       list.appendChild(el);
       shown++;
@@ -3216,9 +3260,15 @@ window.addEventListener('load',boot);
         const dd = Math.hypot(x - d.x, y - d.y);
         if (dd < d.r && dd < bestD) { bestD = dd; best = d; }
       }
-      if (best && typeof findBuilding === 'function') {
+      if (best && best.b) {
         closeHolders();
-        try { findBuilding(best.b.addr || best.b.short || ''); } catch (_) {}
+        try {
+          if (typeof window.teleportToBuilding === 'function') {
+            window.teleportToBuilding(best.b);
+          } else if (typeof findBuilding === 'function') {
+            findBuilding(best.b.addr || best.b.short || '');
+          }
+        } catch (_) {}
       }
     });
     window.addEventListener('resize', () => { if (mapMode) drawHoldersMap(); });
@@ -3265,21 +3315,30 @@ window.addEventListener('load',boot);
   /* ---- Real NFT image on the building facade ----
      We wrap makeBuildingDetail so every per-tower detail group gets
      a textured plane on the front carrying the holder's actual NFT.
-     The plane stays black until the texture is loaded (lazy, async). */
+     The plane stays white until the texture finishes loading.
+
+     Two key fixes vs. the previous version:
+      1. The detail meshes around the spawn plaza are built BEFORE
+         onchain.live flips true, so they originally never got a plane.
+         We sweep all buildings once on first frame after onchain.live
+         (and once more after the first image actually loads, so any
+         lazy fetch result is reflected).
+      2. We expose `teleportToBuilding(b)` so the holders list / map
+         clicks can warp the player to the door of a tower instead of
+         just pinging it from across the city. */
   function patchFacades(){
     if (typeof THREE === 'undefined' || typeof makeBuildingDetail !== 'function' || typeof FLOOR_H === 'undefined') {
       return setTimeout(patchFacades, 300);
     }
     const original = makeBuildingDetail;
     const texCache = {};
-    // Diagnostic counters surfaced via window.__cityNftDebug for easy inspection
-    const dbg = { wrappedCalls: 0, hadUrl: 0, addedPlanes: 0, lastUrl: null, loadedOk: 0, loadFailed: 0 };
+    const dbg = { wrappedCalls: 0, hadUrl: 0, addedPlanes: 0, lastUrl: null, loadedOk: 0, loadFailed: 0, sweeps: 0 };
     window.__cityNftDebug = dbg;
 
     function loadTex(url){
       if (texCache[url]) return texCache[url];
       const loader = new THREE.TextureLoader();
-      loader.crossOrigin = 'anonymous';   // allow cross-origin IPFS gateways
+      loader.crossOrigin = 'anonymous';
       const tex = loader.load(
         url,
         (t) => { t.encoding = THREE.sRGBEncoding; t.needsUpdate = true; dbg.loadedOk++; },
@@ -3302,15 +3361,12 @@ window.addEventListener('load',boot);
         dbg.hadUrl++; dbg.lastUrl = url;
         const FH = (typeof FLOOR_H !== 'undefined') ? FLOOR_H : 3.2;
 
-        // Plane covers the front face top-to-bottom (above the door), edge-to-edge.
         const planeW = Math.max(3, b.w - 0.6);
         const totalH = b.floors * FH;
         const planeH = Math.max(planeW, totalH - FH * 0.7);
         const yCenter = (totalH + FH * 0.4) / 2;
-        // Slightly in FRONT of the front face (front face is at z + bw/2).
         const zPlane = b.z + b.w / 2 + 0.18;
 
-        // Frame (black) behind the artwork so it pops against the procedural wall.
         const frame = new THREE.Mesh(
           new THREE.PlaneGeometry(planeW + 0.4, planeH + 0.4),
           new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })
@@ -3319,8 +3375,6 @@ window.addEventListener('load',boot);
         frame.renderOrder = 5;
         G.add(frame);
 
-        // Artwork plane - white background so it's visible even before texture
-        // loads, then becomes the NFT image once decoded.
         const mat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           map: loadTex(url),
@@ -3331,10 +3385,65 @@ window.addEventListener('load',boot);
         plane.position.set(b.x, yCenter, zPlane);
         plane.renderOrder = 6;
         G.add(plane);
+        G.userData = G.userData || {};
+        G.userData.nftFacade = true;
         dbg.addedPlanes++;
       } catch (err) { console.warn('[NFT facade] patch failed for', b.tokenId, err); }
       return G;
     };
+
+    function reDetailAll(){
+      if (typeof buildings === 'undefined' || typeof scene === 'undefined' || typeof updateBuildingDetail !== 'function') return;
+      let cleared = 0;
+      for (const b of buildings) {
+        if (!b || !b._detail) continue;
+        // Skip the ones we already upgraded so we don't churn.
+        if (b._detail.userData && b._detail.userData.nftFacade) continue;
+        scene.remove(b._detail);
+        try { if (typeof disposeGroup === 'function') disposeGroup(b._detail); } catch (_) {}
+        b._detail = null;
+        cleared++;
+      }
+      if (cleared) {
+        updateBuildingDetail(true);
+        dbg.sweeps++;
+        console.log('[NFT facade] swept', cleared, 'pre-existing detail meshes; sweep #', dbg.sweeps);
+      }
+    }
+
+    // Watchdog: once onchain.live is true AND we have at least one image,
+    // sweep the existing detail meshes so the spawn-area towers pick up
+    // their planes. Run a second sweep ~3s later in case lazy art arrived.
+    let firstSwept = false, secondSwept = false;
+    const watchdog = setInterval(() => {
+      const oc = (typeof onchain !== 'undefined') ? onchain : null;
+      if (!oc || !oc.live) return;
+      const imgCount = oc.images ? Object.keys(oc.images).length : 0;
+      if (imgCount === 0) return;
+      if (!firstSwept) { reDetailAll(); firstSwept = true; return; }
+      if (!secondSwept) { setTimeout(() => { reDetailAll(); secondSwept = true; clearInterval(watchdog); }, 3000); }
+    }, 700);
+
+    // Teleport helper used by the holders list + map.
+    window.teleportToBuilding = function (b) {
+      if (!b || typeof player === 'undefined') return;
+      // Stand ~5m south of the front door (door faces +z by construction).
+      const tx = b.x;
+      const tz = b.z + b.w / 2 + 5;
+      const y = (typeof groundY === 'function' ? groundY(tx, tz) : 0) + (typeof PLAYER_EYE !== 'undefined' ? PLAYER_EYE : 2);
+      player.pos.set(tx, y, tz);
+      player.yaw = 0;   // looking down -z, straight at the door
+      player.pitch = 0;
+      player.vy = 0;
+      if (player.vel && player.vel.set) player.vel.set(0, 0, 0);
+      if (typeof syncCamera === 'function') syncCamera();
+      // Detail the destination immediately (otherwise the player would
+      // stare at a procedural cube until the next 8-frame tick).
+      if (typeof updateBuildingDetail === 'function') updateBuildingDetail(true);
+      if (typeof pingBuilding === 'function') pingBuilding(b);
+      if (typeof toast === 'function') toast('Warped to ' + (b.short || b.addr || 'tower'), 'win');
+    };
+
     console.log('[NFT facade] patch installed. inspect window.__cityNftDebug');
   }
 
