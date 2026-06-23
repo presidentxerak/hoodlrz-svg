@@ -42,27 +42,37 @@ export default function CityPage() {
   return (
     <>
       {/*
-        Position the iframe with top + bottom anchors only - no height
-        calc. The browser then computes a height equal to the visible
-        viewport minus the header offset, regardless of how it resolves
-        100dvh / 100vh. This is what made the iframe render at the wrong
-        size inside MetaMask's WebView before.
+        Option 3: a fixed-positioned wrapper acts as the iframe's
+        containing block. The wrapper anchors itself to the viewport
+        (top: 3.5rem; bottom: 0; left/right: 0). The iframe then
+        simply fills 100% of that wrapper - no calc, no fixed
+        positioning quirk, no dependency on dvh/100vh resolution by
+        the browser. The wrapper guarantees the iframe takes every
+        pixel of the visible area below the sticky header on every
+        browser, every viewport unit interpretation.
       */}
-      <iframe
-        src="/game/hoodlrz-city.html"
-        title="hOodlrz CITY (Beta)"
+      <div
         style={{
           position: "fixed",
           top: "3.5rem",
           left: 0,
           right: 0,
           bottom: 0,
-          width: "100%",
-          border: 0,
-          display: "block",
+          zIndex: 1,
         }}
-        allow="fullscreen; gamepad; accelerometer; microphone; clipboard-read; clipboard-write"
-      />
+      >
+        <iframe
+          src="/game/hoodlrz-city.html"
+          title="hOodlrz CITY (Beta)"
+          style={{
+            width: "100%",
+            height: "100%",
+            border: 0,
+            display: "block",
+          }}
+          allow="fullscreen; gamepad; accelerometer; microphone; clipboard-read; clipboard-write"
+        />
+      </div>
       {showMm && (
         <MmPrompt
           universalLink={universalLink}
