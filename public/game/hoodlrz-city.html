@@ -3923,10 +3923,19 @@ window.addEventListener('load',boot);
 
     // Resolve a URL to its candidate fetch list. ipfs:// URLs become a
     // 6-gateway rotation; HTTPS URLs already on a known IPFS gateway also
-    // get the alternate gateways queued. A non-IPFS HTTPS URL is returned
-    // as-is.
+    // get the alternate gateways queued. The LAST entry is always our
+    // server-side /api/city/img proxy: it tries the same gateways from
+    // Vercel (no CORS), caches in the edge CDN for 7 days, and acts as
+    // the safety net when the player's network blocks every public
+    // gateway directly.
     function urlCandidates(url){
       if (!url) return [];
+      // If the URL is already a proxy URL (`/api/city/img?owner=...` or
+      // `?token=...`) the proxy itself owns the gateway rotation, so we
+      // just hit it once and let its 7-day edge cache do its job.
+      const isProxy = typeof url === 'string' && /\/api\/city\/img(\?|$)/.test(url);
+      if (isProxy) return [url];
+
       const GW = [
         'https://ipfs.io/ipfs/',
         'https://cloudflare-ipfs.com/ipfs/',
@@ -3935,16 +3944,27 @@ window.addEventListener('load',boot);
         'https://ipfs.4everland.io/ipfs/',
         'https://dweb.link/ipfs/',
       ];
+      let direct = [];
       if (typeof url === 'string' && url.startsWith('ipfs://')) {
         const path = url.replace(/^ipfs:\/\//, '').replace(/^ipfs\//, '');
-        return GW.map((g) => g + path);
-      }
-      if (typeof url === 'string' && /\/ipfs\//.test(url)) {
-        // Pull out the IPFS path so we can try every gateway
+        direct = GW.map((g) => g + path);
+      } else if (typeof url === 'string' && /\/ipfs\//.test(url)) {
         const m = url.match(/\/ipfs\/(.+)$/);
-        if (m && m[1]) return [url, ...GW.map((g) => g + m[1]).filter((u) => u !== url)];
+        if (m && m[1]) direct = [url, ...GW.map((g) => g + m[1]).filter((u) => u !== url)];
+        else direct = [url];
+      } else if (url) {
+        direct = [url];
       }
-      return url ? [url] : [];
+      // Append the server-side proxy as the final fallback. It will only be
+      // hit if every direct attempt failed/timed out, so the common path
+      // (cache HIT on a direct CDN) stays fast.
+      try {
+        const proxyOrigin = (window.top && window.top.location && window.top.location.origin) || window.location.origin;
+        direct.push(proxyOrigin + '/api/city/img?u=' + encodeURIComponent(url));
+      } catch (_) {
+        direct.push('/api/city/img?u=' + encodeURIComponent(url));
+      }
+      return direct;
     }
     // Race one Image() load against a 7s timeout so a single slow gateway
     // doesn't stall the whole chain. Returns true on success, false on

@@ -34,12 +34,6 @@ interface HolderRow {
   token_count: number;
 }
 
-interface TokenRow {
-  token_id: number;
-  owner: string | null;
-  image_url: string | null;
-}
-
 export async function GET() {
   if (cache && Date.now() - cache.at < CACHE_TTL_MS) {
     return NextResponse.json(cache.payload);
@@ -48,17 +42,13 @@ export async function GET() {
   try {
     const admin = createAdminClient();
 
-    const [{ data: holdersData, error: hErr }, { data: tokensData, error: tErr }, { data: stateData }] =
+    const [{ data: holdersData, error: hErr }, { data: stateData }] =
       await Promise.all([
         admin
           .from("city_holders")
           .select("wallet, token_count")
           .order("token_count", { ascending: false })
           .limit(2000),
-        admin
-          .from("city_tokens")
-          .select("token_id, owner, image_url")
-          .limit(5000),
         admin
           .from("city_sync_state")
           .select("last_run")
@@ -67,27 +57,21 @@ export async function GET() {
       ]);
 
     if (hErr) throw hErr;
-    if (tErr) throw tErr;
 
     const holders = (holdersData ?? []) as HolderRow[];
-    const tokens = (tokensData ?? []) as TokenRow[];
 
     // Sorted owners (largest first).
     const owners = holders.map((h) => h.wallet);
 
-    // Map owner wallet -> one image URL (first token we see for them).
-    const ownerImage: Record<string, string> = {};
-    for (const t of tokens) {
-      if (!t.owner || !t.image_url) continue;
-      if (!ownerImage[t.owner]) ownerImage[t.owner] = t.image_url;
-    }
-
-    // The game wants images keyed by *ownerIndex* (position in `owners`),
-    // not by wallet. Build that map.
+    // Every owner ALWAYS gets an image URL via /api/city/img?owner=<addr>.
+    // The proxy resolves cache-first, falls back to live tokenURI + IPFS
+    // metadata fetch, and the result is served from Vercel's edge CDN with
+    // a 7-day immutable cache. This guarantees every holder tower in the
+    // game ends up with a real NFT on its facade - even tokens whose
+    // metadata wasn't reachable during the last refresh.
     const images: Record<string, string> = {};
     owners.forEach((wallet, i) => {
-      const img = ownerImage[wallet];
-      if (img) images[String(i)] = img;
+      images[String(i)] = "/api/city/img?owner=" + encodeURIComponent(wallet);
     });
 
     const payload: HoldersPayload = {

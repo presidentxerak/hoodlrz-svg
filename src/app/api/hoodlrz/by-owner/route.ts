@@ -43,9 +43,14 @@ export async function GET(request: NextRequest) {
         { status: 500 },
       );
     }
+    // Route every image through /api/city/img?token=N. The proxy is
+    // cache-first + on-demand-resolves any token whose image_url is still
+    // null in the cache. Result: every NFT in the holder's wallet grid
+    // either renders an image or 404s (very rare) - never sits as a
+    // permanently-broken IPFS link in the client.
     const tokens: OwnedToken[] = (data ?? []).map((t: TokenRow) => ({
       tokenId: t.token_id,
-      image: t.image_url,
+      image: "/api/city/img?token=" + t.token_id,
     }));
     return NextResponse.json({
       tokens,
