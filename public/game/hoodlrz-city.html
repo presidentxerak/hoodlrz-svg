@@ -336,22 +336,10 @@
   .gatestat.ok{color:#2dffa6}
   .gatestat.bad{color:#ff2db5}
 
-  /* Gate card centered when the viewport has room, top-aligned with an
-     internal scroll otherwise. align-items:center + max-height:94vh used
-     to clip the card top above the viewport in some embedding contexts
-     (MetaMask iOS WebView, deep iframes) - the player would see only the
-     logo with no scroll to recover. The trick: align-items:flex-start +
-     margin:auto on the card. Auto margins fill the spare cross-axis
-     space when the card is shorter than the overlay (= visual centering),
-     and collapse to 0 when the card is taller (= card sticks to the top
-     so #start scrolls). */
-  #start{align-items:flex-start!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;padding:18px 8px!important}
-  #start .card{max-height:none!important;overflow:visible!important;margin:auto!important}
-
   /* Compact gate for short viewports / mobile - keeps the CONNECT WALLET
      button visible without forcing the user to scroll inside the card. */
   @media (max-height:760px),(max-width:640px){
-    #start .card{padding:18px 22px}
+    #start .card{padding:18px 22px;max-height:96vh}
     .logo{font-size:clamp(36px,7vw,70px)!important;line-height:.9}
     .logo small{margin:8px 0 0!important;font-size:10px!important;letter-spacing:.35em!important}
     .lore{margin-top:10px!important;font-size:12.5px!important;line-height:1.5!important}
