@@ -495,7 +495,6 @@
     <button id="searchBtn">FIND</button>
   </div>
   <button id="walletBtn">CONNECT WALLET</button>
-  <button id="shotBtn" title="Screenshot (P)">📷</button>
   <button id="faqBtn" title="Rules &amp; FAQ">FAQ</button>
   <span id="chainStat">procedural city</span>
 </div>
@@ -527,7 +526,7 @@
       <p>The Block is alive: citizens, oracles, gangs, plus <b>stray dogs and cats</b>, night workers and junkies wandering the blocks. Talk to anyone with <kbd>E</kbd>; some know more than they should.</p>
 
       <h3>Screenshots</h3>
-      <p>Press <kbd>P</kbd> (or the 📷 button) anytime to save a PNG screenshot of your view.</p>
+      <p>Press <kbd>P</kbd> anytime to save a PNG screenshot of your view.</p>
 
       <h3>Gangs</h3>
       <p>Hostile hooded hOodlrz that roam The Block. They turn aggressive when you get close and will chase and hit you. On the radar they show as <b>magenta</b> squares.</p>
@@ -2271,7 +2270,6 @@ function initWalletUI(){
   // FAQ / rules
   const fb=$('faqBtn'),fc=$('faqClose'),sf=$('startFaq'),fq=$('faq');
   if(fb)fb.addEventListener('click',()=>toggleFaq(true));
-  const shotB=$('shotBtn');if(shotB)shotB.addEventListener('click',()=>takeScreenshot());
   const shopX=$('shopClose');if(shopX)shopX.addEventListener('click',()=>closeShop());
   if(fc)fc.addEventListener('click',()=>toggleFaq(false));
   if(sf)sf.addEventListener('click',()=>toggleFaq(true));
@@ -2561,6 +2559,7 @@ function nearestInteractable(){const p=player.pos;let best=null,bd=4.2;
     const check=(v,kind)=>{if(!v)return;const d=p.distanceTo(v);if(d<bd2){bd2=d;b2={kind};}};
     check(interior.exit,'exit'); check(interior.terminal,'terminal'); check(interior.counter,'shop');
     check(interior.elevator,'elevator'); check(interior.vault,'vault'); check(interior.bonus,'bonus');
+    check(interior.dj,'dj');
     return b2;}
   for(const o of oracles){const d=p.distanceTo(o.position);if(d<bd){bd=d;best={obj:o};}}
   if(dealer){const d=p.distanceTo(dealer.position);if(d<bd){bd=d;best={obj:dealer};}}
@@ -2573,6 +2572,7 @@ function tryInteract(){if(state.panelOpen){closePanel();return;} if(state.journa
   if(nearTarget.kind==='shop'){talkToOwner(state.inside);return;}
   if(nearTarget.kind==='vault'){openVault(state.inside);return;}
   if(nearTarget.kind==='elevator'){const f=state.floor%state.inside.floors+1;setFloor(f);toast('Elevator · Floor '+f,'win');return;}
+  if(nearTarget.kind==='dj'){openDjPanel();return;}
   if(nearTarget.kind==='bonus'){const b=state.inside,L=b.loot;
     if(L.kind==='key'){state.keys.add(L.keyId);sfx.key();addJournal('Hidden key found','A '+L.keyId.replace('key_','')+' key, stashed inside '+b.short+'.');toast('🔑 Hidden '+L.keyId.replace('key_','')+' key found','gold');}
     else if(L.kind==='hoodz'){state.hoodz+=L.amt;updateHUD();flashVal('hoodzVal','green');sfx.pickup();toast('Hoodz stash · +'+L.amt+' Hoodz','win');}
@@ -2644,6 +2644,59 @@ const ITEMS={
 };
 const DEALER_STOCK={name:'DEALER',stock:['health','armor','energy']};
 let currentShop=null;
+
+// DJ booth: lets the player request one of the Hoodlrz house tracks from the
+// in-game playlist. We don't ship audio files yet, so the "track" is a short
+// procedural beat sequence driven by the existing SFX synth, tinted per
+// genre, plus a NOW PLAYING toast. Replace beatLoop with real audio later.
+const DJ_TRACKS = [
+  { artist: 'VØID KING',     title: 'BLACKLIGHT REIGN',    genre: 'TECHNO', bpm: 132, key: 'A min' },
+  { artist: 'LIL CIPHER',    title: 'WALLET WORD',          genre: 'RAP',    bpm: 88,  key: 'D min' },
+  { artist: 'NEON WIDOW',    title: 'GHOST IN THE HAZE',    genre: 'ELECTRO',bpm: 124, key: 'F# min' },
+  { artist: 'BASS GHOST',    title: 'TOWER #0000',          genre: 'TECHNO', bpm: 138, key: 'C min' },
+  { artist: 'MC HEXA',       title: 'HOLDERS UP',           genre: 'RAP',    bpm: 92,  key: 'A min' },
+  { artist: 'SYNTH WOLF',    title: 'CHROMA PHANTOM',       genre: 'ELECTRO',bpm: 128, key: 'G min' },
+  { artist: 'DJ NULLBYTE',   title: 'HOOD HOUSE 808',       genre: 'HOUSE',  bpm: 124, key: 'B min' },
+  { artist: 'YUNG PIXEL',    title: 'COP STATIC',           genre: 'TRAP',   bpm: 70,  key: 'E min' },
+  { artist: 'GLITCH SAINT',  title: 'GENESIS HOODLR',       genre: 'TECHNO', bpm: 140, key: 'D min' },
+];
+let djPlayingTimer = null;
+function djStop(){
+  if(djPlayingTimer){clearInterval(djPlayingTimer);djPlayingTimer=null;}
+}
+function djPlay(track){
+  djStop();
+  if(!sfx||!sfx.tone){toast('Now playing: '+track.title+' · '+track.artist,'gold');return;}
+  const bpm=track.bpm||120, step=60/bpm/2;
+  let beat=0;
+  toast('🎧 NOW PLAYING · '+track.title+' · '+track.artist+' ('+track.genre+')','gold');
+  djPlayingTimer=setInterval(()=>{
+    beat++;
+    // Kick on 1, snare on 2, hat on every 8th (rough four-on-the-floor)
+    if(beat%4===1) sfx.tone(60,  0.18, 'sine',     0.18, 80);   // kick
+    if(beat%4===3) sfx.tone(220, 0.06, 'triangle', 0.14, 220);  // snare-ish
+    if(beat%2===0) sfx.tone(8000,0.02, 'square',   0.05, 80);   // hat
+    // Track length ~ 16 seconds (16 bars at ~32 beats with this step)
+    if(beat>32) djStop();
+  }, step*1000);
+}
+function openDjPanel(){
+  const list=DJ_TRACKS.map((t,i)=>
+    `<button class="actbtn" onclick="djPlay(window.__DJ_TRACKS[${i}])"
+            style="margin:4px 0;text-align:left;padding:10px 12px;display:block;width:100%">
+       <b>${t.title}</b><br>
+       <span style="font-size:10px;letter-spacing:.1em;opacity:.7">
+         ${t.artist} · ${t.genre} · ${t.bpm} BPM
+       </span>
+     </button>`
+  ).join('');
+  window.__DJ_TRACKS = DJ_TRACKS;
+  openPanel('citizen','♪','DJ BOOTH',
+    'Resident DJ · '+(state.inside&&state.inside.shop?state.inside.shop.name:'Club'),
+    '"Pick a track, holder. I\'ll spin it." Stops automatically after ~16 bars.',
+    'Tap a track to play',
+    {action:list});
+}
 function talkToOwner(b){
   const s=b.shop; if(!s)return;
   if(!s._tipLogged){s._tipLogged=true;addJournal(s.owner+' · '+s.name,s.tip);refreshObjective&&refreshObjective();}
@@ -2709,6 +2762,7 @@ function enterBuilding(b){
   syncCamera(); updateHUD();
 }
 function exitInterior(){
+  if(typeof djStop==='function')djStop();
   if(interiorGroup){scene.remove(interiorGroup);interiorGroup.traverse(o=>{if(o.material&&o.material.map&&o.material.map!==null&&o.userData.dispose)o.material.map.dispose();});interiorGroup=null;}
   state.inside=null;
   if(player.saved){player.pos.set(player.saved.x,groundY(player.saved.x,player.saved.z)+PLAYER_EYE,player.saved.z);player.yaw=player.saved.yaw;}
@@ -2935,7 +2989,22 @@ function decorateShopInterior(G,hw,hd,roomH,b){
     for(let i=0;i<3;i++)disc(1.4-i*0.4,X,Y+0.04,Z,true);
     const ball=new THREE.Mesh(new THREE.IcosahedronGeometry(0.5,1),new THREE.MeshBasicMaterial({color:WHITE,wireframe:true}));ball.position.set(X,Y+roomH-1.4,Z);G.add(ball);
     for(const sx of[-1,1]){ob(1.0,2.2,0.9,X+sx*(hw-1.2),Y+1.1,Z-hd+3);ob(1.0,1.2,0.9,X+sx*(hw-1.2),Y+0.6,Z-hd+5);}
-    ob(2.6,1.0,1.0,X-1,Y+0.5,Z+hd-2.6);for(const dx of[-0.6,0.6])disc(0.3,X-1+dx,Y+1.02,Z+hd-2.6,true);
+    // DJ booth at the back wall: counter + 2 turntables on top + a DJ
+    // voxel character behind it. The booth and the DJ register as a single
+    // interactable "dj" the player can press E on to request a track.
+    const djZ=Z+hd-2.6, djX=X-1;
+    ob(2.6,1.0,1.0,djX,Y+0.5,djZ);
+    for(const dx of[-0.6,0.6])disc(0.3,djX+dx,Y+1.02,djZ,true);
+    addInteriorCollider(djX, 0, djZ, 1.3, 0.6);
+    if (typeof makeVoxelChar === 'function') {
+      const dj = makeVoxelChar({face:1});
+      dj.position.set(djX, Y, djZ+0.4);
+      dj.rotation.y = Math.PI;   // face the player (the dance floor is south)
+      G.add(dj);
+      addInteriorCollider(djX, 0, djZ+0.4, 0.5, 0.5);
+    }
+    G.add(makeFloatingLabel('DJ BOOTH · E to request a track','#ffffff',new THREE.Vector3(djX, Y+roomH-1.2, djZ)));
+    interior.dj = new THREE.Vector3(djX, Y, djZ - 1.2);
   } else if(k==='market'||k==='grocery'){
     const dep=Math.min(hd*1.2,8);
     for(let a=0;a<2;a++){const ax=X-1.8+a*2.6;ob(1.2,1.8,dep,ax,Y+0.9,Z);for(let s=1;s<4;s++)wd(1.25,0.04,dep,ax,Y+0.45*s+0.2,Z);}
@@ -4138,20 +4207,23 @@ window.addEventListener('load',boot);
       modal.querySelector('#settingsClose').addEventListener('click', close);
       modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
 
-      // Button in the top ops bar
+      // Button in the top ops bar - placed FIRST so it is the leftmost
+      // control in the in-game header, visible from the moment the player
+      // enters and never hidden behind other modals.
       const ops = document.getElementById('ops');
       if (ops) {
         const btn = document.createElement('button');
         btn.id = 'settingsBtn';
         btn.type = 'button';
-        btn.textContent = '⚙';
+        btn.innerHTML = '⚙ <span style="font-size:11px;letter-spacing:.16em;margin-left:4px">SETTINGS</span>';
         btn.title = 'Settings';
         btn.addEventListener('click', () => {
           try { if (document.pointerLockElement) document.exitPointerLock(); } catch (_) {}
           modal.classList.add('show');
         });
-        // place at the end of the row
-        ops.appendChild(btn);
+        // Insert at the start of the row, in front of the search box.
+        if (ops.firstChild) ops.insertBefore(btn, ops.firstChild);
+        else ops.appendChild(btn);
       }
     }
     build();

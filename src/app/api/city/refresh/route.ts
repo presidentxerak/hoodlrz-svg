@@ -22,6 +22,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { JsonRpcProvider, Contract, Interface } from "ethers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -32,6 +33,154 @@ export const maxDuration = 60;
 const CONTRACT =
   process.env.HOODLRZ_CONTRACT ?? "0xdde5f965f9d80da49c5cb2951d046156f26ebfa2";
 const NETWORK = process.env.ALCHEMY_NETWORK ?? "eth-mainnet";
+
+const RPC_URLS: string[] = [
+  "https://cloudflare-eth.com",
+  "https://rpc.ankr.com/eth",
+  "https://eth.llamarpc.com",
+  "https://1rpc.io/eth",
+  "https://eth.drpc.org",
+];
+const IPFS_GATEWAYS = [
+  "https://ipfs.io/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://nftstorage.link/ipfs/",
+];
+const ERC721_ABI = [
+  { inputs: [{ name: "tokenId", type: "uint256" }], name: "tokenURI", outputs: [{ type: "string" }], stateMutability: "view", type: "function" },
+] as const;
+const MULTICALL3_ADDRESS = "0xcA11bde05977b3631167028862bE2a173976CA11";
+const MULTICALL3_ABI = [
+  {
+    inputs: [
+      {
+        components: [
+          { name: "target", type: "address" },
+          { name: "allowFailure", type: "bool" },
+          { name: "callData", type: "bytes" },
+        ],
+        name: "calls",
+        type: "tuple[]",
+      },
+    ],
+    name: "aggregate3",
+    outputs: [
+      {
+        components: [
+          { name: "success", type: "bool" },
+          { name: "returnData", type: "bytes" },
+        ],
+        name: "returnData",
+        type: "tuple[]",
+      },
+    ],
+    stateMutability: "payable",
+    type: "function",
+  },
+] as const;
+
+async function getRpcProvider(): Promise<JsonRpcProvider> {
+  for (const url of RPC_URLS) {
+    try {
+      const p = new JsonRpcProvider(url);
+      await p.getBlockNumber();
+      return p;
+    } catch {
+      /* try next */
+    }
+  }
+  throw new Error("All RPCs failed");
+}
+function resolveIpfsToHttp(uri: string | null | undefined, gIdx = 0): string | null {
+  if (!uri || typeof uri !== "string") return null;
+  if (uri.startsWith("ipfs://")) {
+    return IPFS_GATEWAYS[gIdx % IPFS_GATEWAYS.length] + uri.replace(/^ipfs:\/\//, "").replace(/^ipfs\//, "");
+  }
+  if (uri.startsWith("ar://")) return "https://arweave.net/" + uri.replace(/^ar:\/\//, "");
+  return uri;
+}
+async function fetchMetadataJson(uri: string): Promise<{ image?: string } | null> {
+  for (let g = 0; g < IPFS_GATEWAYS.length; g++) {
+    const target = resolveIpfsToHttp(uri, g);
+    if (!target) return null;
+    try {
+      const res = await fetch(target, { cache: "force-cache" });
+      if (!res.ok) continue;
+      const text = await res.text();
+      return JSON.parse(text);
+    } catch {
+      if (!uri.startsWith("ipfs://")) return null;
+    }
+  }
+  return null;
+}
+function decodeDataUri(uri: string): { image?: string } | null {
+  if (!uri.startsWith("data:")) return null;
+  try {
+    const comma = uri.indexOf(",");
+    const head = uri.slice(0, comma);
+    const body = uri.slice(comma + 1);
+    const json = head.includes(";base64") ? Buffer.from(body, "base64").toString("utf8") : decodeURIComponent(body);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Direct-from-chain image fetch. For tokens Alchemy fails to return an
+ * image for, we read tokenURI off the contract and fetch the metadata
+ * JSON ourselves through up to 3 IPFS gateways. Same logic as
+ * /api/hoodlrz/collection so the source of truth is identical.
+ */
+async function fetchTokenImagesDirect(tokenIds: number[]): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  if (tokenIds.length === 0) return out;
+  const provider = await getRpcProvider();
+  const iface = new Interface(ERC721_ABI);
+  const multicall = new Contract(MULTICALL3_ADDRESS, MULTICALL3_ABI, provider);
+  // Multicall tokenURI in chunks of 200
+  const uris = new Map<number, string>();
+  const CHUNK = 200;
+  for (let i = 0; i < tokenIds.length; i += CHUNK) {
+    const slice = tokenIds.slice(i, i + CHUNK);
+    const calls = slice.map((id) => ({
+      target: CONTRACT,
+      allowFailure: true,
+      callData: iface.encodeFunctionData("tokenURI", [id]),
+    }));
+    try {
+      const res = await multicall.aggregate3.staticCall(calls);
+      res.forEach((r: { success: boolean; returnData: string }, k: number) => {
+        if (!r.success) return;
+        try {
+          const decoded = iface.decodeFunctionResult("tokenURI", r.returnData)[0] as string;
+          if (decoded) uris.set(slice[k], decoded);
+        } catch {
+          /* skip */
+        }
+      });
+    } catch (err) {
+      console.warn(`[direct] multicall chunk ${i / CHUNK} failed:`, (err as Error).message);
+    }
+  }
+  // Fetch metadata JSON in parallel batches
+  const ids = Array.from(uris.keys());
+  const BATCH = 16;
+  for (let i = 0; i < ids.length; i += BATCH) {
+    const slice = ids.slice(i, i + BATCH);
+    await Promise.all(
+      slice.map(async (id) => {
+        const uri = uris.get(id)!;
+        const meta = uri.startsWith("data:") ? decodeDataUri(uri) : await fetchMetadataJson(uri);
+        if (!meta?.image) return;
+        const httpImage = resolveIpfsToHttp(meta.image);
+        if (httpImage) out.set(id, httpImage);
+      }),
+    );
+  }
+  return out;
+}
 
 interface AlchemyOwner {
   ownerAddress?: string;
@@ -197,6 +346,41 @@ async function refresh() {
 
   const { holders, tokens } = await pull(alchemyKey);
 
+  // ── Direct-RPC fallback ────────────────────────────────────────────────
+  // Anything Alchemy didn't return an image for, fetch via the contract's
+  // tokenURI directly + parse the IPFS metadata JSON ourselves. We also
+  // PRESERVE any image_url already in city_tokens, so successive refreshes
+  // don't undo a previously-resolved image. Net effect: every token in the
+  // table ends up with an image as soon as it has resolved once.
+  const { data: prevRows } = await admin
+    .from("city_tokens")
+    .select("token_id, image_url")
+    .not("image_url", "is", null);
+  const prevImage = new Map<number, string>();
+  for (const r of prevRows ?? []) {
+    if (r.image_url) prevImage.set(r.token_id as number, r.image_url as string);
+  }
+  // Keep existing images for tokens whose new pull came back empty.
+  for (const t of tokens) {
+    if (!t.image_url && prevImage.has(t.token_id)) {
+      t.image_url = prevImage.get(t.token_id) ?? null;
+    }
+  }
+  // Tokens we STILL don't have an image for: try the direct RPC path.
+  const stillMissing = tokens.filter((t) => !t.image_url).map((t) => t.token_id);
+  if (stillMissing.length > 0) {
+    try {
+      const direct = await fetchTokenImagesDirect(stillMissing);
+      for (const t of tokens) {
+        if (!t.image_url && direct.has(t.token_id)) {
+          t.image_url = direct.get(t.token_id) ?? null;
+        }
+      }
+    } catch (err) {
+      console.warn("[refresh] direct-RPC fallback failed:", (err as Error).message);
+    }
+  }
+
   const holderRows = Object.entries(holders).map(([wallet, token_count]) => ({
     wallet,
     token_count,
@@ -221,16 +405,17 @@ async function refresh() {
     if (error) throw error;
   }
 
+  const tokensWithImage = tokens.filter((t) => !!t.image_url).length;
   await admin.from("city_sync_state").upsert({
     id: true,
     last_run: runAt,
     holder_count: holderRows.length,
     token_count: tokens.length,
     ok: true,
-    note: "",
+    note: `${tokensWithImage}/${tokens.length} tokens have images`,
   });
 
-  return { holders: holderRows.length, tokens: tokens.length, runAt };
+  return { holders: holderRows.length, tokens: tokens.length, tokensWithImage, runAt };
 }
 
 function authorised(request: NextRequest): boolean {
