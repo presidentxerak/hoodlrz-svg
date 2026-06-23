@@ -390,7 +390,8 @@
     <div class="mrow"><span>Hoodz packets</span><b id="mHoodzVal">0</b></div>
     <div class="mrow"><span>$HOOD wallet</span><b id="mCashVal">0</b></div>
     <div class="mrow"><span>Secret souls</span><b id="mSecVal">0/3</b></div>
-    <div class="mrow"><span>Vault NFTs</span><b id="mVaultVal">0/3</b></div>
+    <div class="mrow"><span>Vault NFTs <i style="opacity:.55;font-size:10px">· need keys</i></span><b id="mVaultVal">0/3</b></div>
+    <div class="mrow"><span>Keys collected</span><b id="mKeys">—</b></div>
 
     <div class="mh">Objective</div>
     <div class="mrow" style="display:block"><div id="mObjText" style="font-size:12px;line-height:1.45;color:#fff">Find the three Oracles across The Block.</div></div>
@@ -3065,11 +3066,36 @@ function renderShop(){
   $('shopBody').innerHTML=h;
   $('shopBody').querySelectorAll('.buy').forEach(btn=>btn.addEventListener('click',()=>buyItem(btn.dataset.k)));
 }
-function buyItem(key){const it=ITEMS[key];
-  if(state.hoodz<it.price){toast('Not enough Hoodz','warn');return;}
-  state.hoodz-=it.price; state.inventory[key]=(state.inventory[key]||0)+1;
-  if(it.use)it.use();
-  updateHUD(); flashVal('hoodzVal','hot'); toast('Bought '+it.name,'win'); renderShop();
+function buyItem(key){
+  // Anti-double-tap guard: mobile sometimes fires touchstart + click and
+  // a fast double-tap on the BUY button used to charge twice. We lock the
+  // shop for 350ms after every purchase so the player can't lose extra
+  // Hoodz from an accidental second click.
+  if (buyItem._lock && Date.now() - buyItem._lock < 350) return;
+  buyItem._lock = Date.now();
+  try {
+    const it = ITEMS[key];
+    if (!it) { toast('Item unavailable','warn'); return; }
+    if (state.hoodz < it.price) { toast('Not enough Hoodz','warn'); return; }
+    state.hoodz -= it.price;
+    state.inventory[key] = (state.inventory[key]||0) + 1;
+    try { if (it.use) it.use(); } catch (useErr) {
+      // Use-side-effect failed (rare). Refund the player so they don't
+      // lose Hoodz for a glitched item.
+      state.hoodz += it.price;
+      state.inventory[key] = Math.max(0, (state.inventory[key]||1) - 1);
+      console.warn('[buyItem] use() threw, refunded:', useErr);
+      toast('Item glitch · refunded','warn');
+      return;
+    }
+    updateHUD();
+    flashVal('hoodzVal','hot');
+    toast('Bought '+it.name,'win');
+    renderShop();
+  } catch (err) {
+    console.error('[buyItem] failed:', err);
+    toast('Purchase error · try again','warn');
+  }
 }
 function closeShop(){state.shopOpen=false;$('shop').style.display='none';
   if(talkingNPC){talkingNPC.userData.talking=false;talkingNPC=null;}
@@ -3535,6 +3561,19 @@ function updateHUD(){$('hpFill').style.width=Math.max(0,state.hp)+'%';$('cashVal
   const elCash=document.getElementById('mCashVal'); if(elCash)elCash.textContent=state.cash.toLocaleString('en-US');
   const elSec=document.getElementById('mSecVal'); if(elSec)elSec.textContent=state.secretsFound+'/3';
   const elVault=document.getElementById('mVaultVal'); if(elVault)elVault.textContent=state.vaultsFound+'/3';
+  const elKeys=document.getElementById('mKeys');
+  if(elKeys){
+    if(state.keys&&state.keys.size){
+      const k=[];
+      if(state.keys.has('key_gold'))k.push('🟡gold');
+      if(state.keys.has('key_cyan'))k.push('🔵cyan');
+      if(state.keys.has('key_red'))k.push('🔴red');
+      elKeys.textContent=k.join(' ');
+      elKeys.style.fontSize='11px';
+    } else {
+      elKeys.textContent='—';
+    }
+  }
 }
 function addCash(n){state.cash+=n;updateHUD();flashVal('cashVal','gold');}
 function flashVal(id,kind){const el=$(id);if(!el)return;const cls=kind==='gold'?'vflash-g':kind==='red'?'vflash-r':'vflash-green';el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),700);}
@@ -3715,6 +3754,20 @@ function boot(){
   Promise.race([fl,new Promise(r=>setTimeout(r,1500))]).then(build).catch(build);
 }
 window.addEventListener('load',boot);
+// Surface any uncaught error to the player + the console rather than
+// silently freezing. Helps diagnose mysterious "error code N" reports.
+window.addEventListener('error',(ev)=>{
+  const m=ev&&ev.error&&ev.error.message||ev.message||'unknown error';
+  console.error('[city] unhandled error:',ev.error||ev);
+  try{ if(typeof toast==='function') toast('Bug · '+m.slice(0,60),'warn'); }catch(_){}
+});
+window.addEventListener('unhandledrejection',(ev)=>{
+  const r=ev&&ev.reason;
+  const code=(r&&(r.code!=null))?(' (code '+r.code+')'):'';
+  const m=(r&&(r.message||String(r)))||'promise rejected';
+  console.error('[city] unhandled rejection:',r);
+  try{ if(typeof toast==='function') toast('Bug · '+(m+code).slice(0,72),'warn'); }catch(_){}
+});
 </script>
 
 <!-- ============================================================
