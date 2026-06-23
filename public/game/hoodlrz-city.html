@@ -336,10 +336,18 @@
   .gatestat.ok{color:#2dffa6}
   .gatestat.bad{color:#ff2db5}
 
+  /* Make the gate occupy the entire iframe (no max-width card, no
+     padding around it). The overlay itself scrolls if the content is
+     taller than the viewport. Content is still horizontally centred
+     by max-width on the inner column. */
+  #start{align-items:stretch!important;justify-content:stretch!important;padding:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch}
+  #start .card{width:100%!important;max-width:none!important;min-height:100%!important;max-height:none!important;border:0!important;overflow:visible!important;background:rgba(0,0,0,.78)!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;padding:32px 24px!important;box-sizing:border-box!important}
+  #start .card > *{max-width:720px;width:100%}
+
   /* Compact gate for short viewports / mobile - keeps the CONNECT WALLET
      button visible without forcing the user to scroll inside the card. */
   @media (max-height:760px),(max-width:640px){
-    #start .card{padding:18px 22px;max-height:96vh}
+    #start .card{padding:18px 22px!important;justify-content:flex-start!important}
     .logo{font-size:clamp(36px,7vw,70px)!important;line-height:.9}
     .logo small{margin:8px 0 0!important;font-size:10px!important;letter-spacing:.35em!important}
     .lore{margin-top:10px!important;font-size:12.5px!important;line-height:1.5!important}
