@@ -17,7 +17,7 @@
 //    resolved the global cost per subsequent view is ~one HEAD request.
 
 import { NextRequest } from "next/server";
-import { JsonRpcProvider, Contract, Interface } from "ethers";
+import { JsonRpcProvider, Contract } from "ethers";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
