@@ -143,6 +143,48 @@ async function pull(alchemyKey: string): Promise<PullResult> {
     pageKey = data.pageKey;
   } while (pageKey);
 
+  // 3) Per-owner fallback. getNFTsForContract sometimes returns null images
+  //    (Alchemy spam-classifies the metadata, the IPFS gateway timed out
+  //    server-side, etc.). For any holder we still don't have an image for,
+  //    hit getNFTsForOwner directly so the facade in the game has a card.
+  //    Concurrent batches keep us inside Vercel's 60s maxDuration even with
+  //    1000+ holders.
+  const holdersWithImage = new Set<string>();
+  for (const t of tokens) {
+    if (t.owner && t.image_url) holdersWithImage.add(t.owner);
+  }
+  const missing = Object.keys(holders).filter((w) => !holdersWithImage.has(w));
+  const CONCURRENCY = 24;
+  for (let i = 0; i < missing.length; i += CONCURRENCY) {
+    const slice = missing.slice(i, i + CONCURRENCY);
+    await Promise.all(
+      slice.map(async (wallet) => {
+        try {
+          const u = new URL(`${base}/getNFTsForOwner`);
+          u.searchParams.set("owner", wallet);
+          u.searchParams.append("contractAddresses[]", CONTRACT);
+          u.searchParams.set("withMetadata", "true");
+          u.searchParams.set("pageSize", "5");
+          const res = await fetch(u, { cache: "no-store" });
+          if (!res.ok) return;
+          const data = (await res.json()) as { ownedNfts?: AlchemyNFT[] };
+          for (const n of data.ownedNfts ?? []) {
+            const raw = String(n.tokenId ?? "");
+            const id = parseInt(raw, raw.startsWith("0x") ? 16 : 10);
+            if (isNaN(id)) continue;
+            const url = pickImageUrl(n);
+            if (!url) continue;
+            tokens.push({ token_id: id, owner: wallet, image_url: url });
+            holdersWithImage.add(wallet);
+            return;
+          }
+        } catch {
+          /* swallow - the holder simply won't have an image this round */
+        }
+      }),
+    );
+  }
+
   return { holders, tokens };
 }
 

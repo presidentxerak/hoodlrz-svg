@@ -2376,9 +2376,25 @@ const kb=()=>keys['KeyS']||keys['ArrowDown'];
 const kl=()=>keys['KeyA']||keys['ArrowLeft']||keys['KeyQ'];
 const kr=()=>keys['KeyD']||keys['ArrowRight'];
 function collide(nx,nz){
-  if(state.inside){const r=PLAYER_R,b=interiorBounds;
-    player.pos.x=Math.max(b.minX+r,Math.min(b.maxX-r,nx));
-    player.pos.z=Math.max(b.minZ+r,Math.min(b.maxZ-r,nz));return;}
+  if(state.inside){
+    const r=PLAYER_R,b=interiorBounds;
+    // Wall clamp first (axis-aligned room bounds)
+    const clampedX=Math.max(b.minX+r,Math.min(b.maxX-r,nx));
+    const clampedZ=Math.max(b.minZ+r,Math.min(b.maxZ-r,nz));
+    // Then resolve against furniture / shelves / counters per-axis so the
+    // player slides along an obstacle instead of stopping dead.
+    let x=player.pos.x, z=player.pos.z;
+    const hitInside=(px,pz)=>{
+      for(const c of interiorColliders){
+        if(Math.abs(px-c.x)<c.hw+r&&Math.abs(pz-c.z)<c.hd+r)return true;
+      }
+      return false;
+    };
+    if(!hitInside(clampedX,z)) x=clampedX;
+    if(!hitInside(x,clampedZ)) z=clampedZ;
+    player.pos.x=x; player.pos.z=z;
+    return;
+  }
   let x=player.pos.x,z=player.pos.z; const lim=GRID*LOT/2+LOT*0.6;
   const hit=(px,pz)=>{if(Math.abs(px)>lim||Math.abs(pz)>lim)return true;
     for(const c of colliders)if(Math.abs(px-c.x)<c.hw+PLAYER_R&&Math.abs(pz-c.z)<c.hd+PLAYER_R)return true;return false;};
@@ -2675,7 +2691,16 @@ function closeShop(){state.shopOpen=false;$('shop').style.display='none';
    INTERIORS · walk into buildings; gallery height tracks floor count
 =================================================================== */
 const IC=new THREE.Vector3(700,INTERIOR_Y,700);
-let interiorGroup=null, interior=null, interiorBounds=null;
+let interiorGroup=null, interior=null, interiorBounds=null, interiorColliders=[];
+// Register an AABB collider for an interior prop. Called by every
+// decorate* helper so the player no longer clips through sofas, plants,
+// shelves, crates, counters, etc. Hand-rolled because three.js doesn't
+// have a per-object collision system and the room is small enough that
+// a flat list is fine to scan every frame.
+function addInteriorCollider(x,y,z,hw,hd){
+  interiorColliders.push({x,z,hw,hd});
+}
+function clearInteriorColliders(){ interiorColliders.length=0; }
 function enterBuilding(b){
   player.saved={x:player.pos.x,z:player.pos.z,yaw:player.yaw};
   buildInterior(b); state.inside=b;
@@ -2691,6 +2716,7 @@ function exitInterior(){
 }
 function buildInterior(b){
   if(interiorGroup)scene.remove(interiorGroup);
+  clearInteriorColliders();
   const G=new THREE.Group(); interiorGroup=G;
   const clamp=(v,a,z)=>Math.max(a,Math.min(z,v));
   const hw=clamp(b.w/2+2.5,6,8.5), hd=clamp(b.floors*1.1+6,8,12);
@@ -2754,12 +2780,15 @@ function buildInterior(b){
     const keep=makeVoxelChar({face:0});keep.position.set(IC.x+hw-1,INTERIOR_Y,IC.z);keep.rotation.y=-Math.PI/2;G.add(keep);
     G.add(makeFloatingLabel('SHOP · '+b.shop.name+' · '+b.shop.owner,'#ffffff',new THREE.Vector3(IC.x+hw-1.9,INTERIOR_Y+2.4,IC.z)));
     for(let i=0;i<3;i++)G.add(edges(mesh(0.4,1.8,2.4,inkMat(),IC.x+hw-0.8,INTERIOR_Y+0.9,IC.z-2.6+i*2.6)));
+    addInteriorCollider(IC.x+hw-1.9, 0, IC.z, 1.5, 0.7);   // counter
+    addInteriorCollider(IC.x+hw-0.8, 0, IC.z,   0.4, 4.0);  // back shelves
   }
   if(b.vault){
     interior.vault=new THREE.Vector3(IC.x-hw+2.2,INTERIOR_Y,IC.z);
     const door=new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,0.5,24),inkMat());door.rotation.x=Math.PI/2;door.position.set(IC.x-hw+0.6,INTERIOR_Y+1.8,IC.z);G.add(door);edges(door,40);
     const dial=new THREE.Mesh(new THREE.TorusGeometry(0.55,0.08,8,18),new THREE.MeshBasicMaterial({color:WHITE}));dial.position.set(IC.x-hw+0.42,INTERIOR_Y+1.8,IC.z);G.add(dial);
     G.add(makeFloatingLabel(b.vault.found?'VAULT · OPEN':'VAULT · LOCKED','#ffffff',new THREE.Vector3(IC.x-hw+1.1,INTERIOR_Y+3.3,IC.z)));
+    addInteriorCollider(IC.x-hw+0.6, 0, IC.z, 1.3, 1.3);
   }
   if(b.floors>1){
     const ex=IC.x+hw-1.2, ez=IC.z-hd+3;
@@ -2774,7 +2803,11 @@ function buildInterior(b){
     ind.position.set(ex,INTERIOR_Y+3.0,ez+1.12);G.add(ind);interior.elevInd=ind;
     const call=new THREE.Mesh(new THREE.RingGeometry(.12,.2,12),gradMat.collect);call.position.set(ex+1.35,INTERIOR_Y+1.4,ez+1.0);G.add(call);
     G.add(makeFloatingLabel('ELEVATOR · E to change floor','#2dffa6',new THREE.Vector3(ex,INTERIOR_Y+roomH-0.6,ez)));
+    addInteriorCollider(ex, 0, ez, 1.2, 1.1);
   }
+  // Wallet terminal in front of the gallery (registered as a small collider
+  // so the player has to stop in front of it to interact instead of walking through).
+  addInteriorCollider(IC.x, 0, IC.z+hd-2, 0.5, 0.5);
   G.add(new THREE.AmbientLight(0xffffff,1.0));
   scene.add(G);
   setFloor(1);
@@ -2787,10 +2820,12 @@ function decorateInterior(G,hw,hd,roomH,b){
   // sofa against the front wall (seat + backrest), correctly on the floor
   G.add(edges(mesh(2.8,0.55,1.0,inkMat(),IC.x,INTERIOR_Y+0.28,IC.z-hd+1.4)));
   G.add(edges(mesh(2.8,0.8,0.25,inkMat(),IC.x,INTERIOR_Y+0.68,IC.z-hd+1.0)));
+  addInteriorCollider(IC.x, 0, IC.z-hd+1.2, 1.5, 0.7);   // single AABB covers seat+back
   // potted plants in the two front corners
   for(const sx of[-1,1]){
     G.add(edges(mesh(0.5,0.6,0.5,inkMat(),IC.x+sx*(hw-1),INTERIOR_Y+0.3,IC.z-hd+1.2)));
     const leaf=new THREE.Mesh(new THREE.IcosahedronGeometry(0.6,0),inkMat());leaf.position.set(IC.x+sx*(hw-1),INTERIOR_Y+1.15,IC.z-hd+1.2);edges(leaf,30);G.add(leaf);
+    addInteriorCollider(IC.x+sx*(hw-1), 0, IC.z-hd+1.2, 0.5, 0.5);
   }
   // DJ booth against the LEFT wall (turntables as white discs) · only when not a shop
   if(!b.shop){
@@ -2798,8 +2833,9 @@ function decorateInterior(G,hw,hd,roomH,b){
     G.add(edges(mesh(2.4,0.9,0.9,inkMat(),IC.x-hw+1.4,INTERIOR_Y+0.45,bz)));
     for(const dx of[-0.55,0.55]){const tt=new THREE.Mesh(new THREE.RingGeometry(0.22,0.3,16),new THREE.MeshBasicMaterial({color:WHITE,side:THREE.DoubleSide}));
       tt.rotation.x=-Math.PI/2;tt.position.set(IC.x-hw+1.4+dx,INTERIOR_Y+0.92,bz);G.add(tt);}
+    addInteriorCollider(IC.x-hw+1.4, 0, bz, 1.4, 0.6);
   }
-  // framed B&W music posters on the LEFT wall
+  // framed B&W music posters on the LEFT wall (flush against wall, no collider)
   for(let i=0;i<2;i++){const z=IC.z-hd*0.45+i*hd*0.5;
     G.add(edges(mesh(0.08,2.0,1.5,inkMat(),IC.x-hw+0.2,INTERIOR_Y+2.2,z)));
     const p=new THREE.Mesh(new THREE.PlaneGeometry(1.3,1.8),new THREE.MeshBasicMaterial({map:makeMusicPoster()}));
@@ -2807,11 +2843,13 @@ function decorateInterior(G,hw,hd,roomH,b){
   // coffee table + bottles in front of the sofa
   G.add(edges(mesh(1.6,0.1,0.8,inkMat(),IC.x,INTERIOR_Y+0.55,IC.z-hd+2.7)));
   for(const bx of[-0.5,-0.1,0.4]){const bot=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.09,0.45,7),inkMat());bot.position.set(IC.x+bx,INTERIOR_Y+0.83,IC.z-hd+2.7);edges(bot,40);G.add(bot);}
-  // wall screen / TV on the back wall
+  addInteriorCollider(IC.x, 0, IC.z-hd+2.7, 0.9, 0.5);
+  // wall screen / TV on the back wall (flush, no collider needed)
   G.add(edges(mesh(2.6,1.5,0.12,new THREE.MeshBasicMaterial({color:0x0c0c0c}),IC.x+hw*0.35,INTERIOR_Y+2.4,IC.z+hd-0.32)));
   const scan=new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.34),gradMat.collect);scan.position.set(IC.x+hw*0.35,INTERIOR_Y+2.4,IC.z+hd-0.25);G.add(scan);
   // stacked crates in a corner
   for(let i=0;i<3;i++){const c=mesh(0.9,0.9,0.9,inkMat(),IC.x-hw+1.2,INTERIOR_Y+0.45+i*0.92,IC.z-hd+4.2+(i%2)*0.2);G.add(edges(c));}
+  addInteriorCollider(IC.x-hw+1.2, 0, IC.z-hd+4.3, 0.55, 0.55);
   // ceiling pendant lights — three lamps casting a soft circle on the floor below
   for(const lx of[-1,0,1]){
     const cord=mesh(0.04,1.0,0.04,inkMat(),IC.x+lx*hw*0.4,INTERIOR_Y+roomH-0.6,IC.z);G.add(cord);
@@ -2834,6 +2872,7 @@ function decorateInterior(G,hw,hd,roomH,b){
       G.add(sp);
     }
   }
+  addInteriorCollider(shelfX, 0, IC.z-hd+2.4, 0.4, 0.9);
   // hanging cable string-of-bulbs above the back wall (party lights)
   const sl=10;
   for(let i=0;i<sl;i++){
@@ -3045,6 +3084,7 @@ function reviveFromLake(){
 }
 function buildJailCell(){
   if(interiorGroup)scene.remove(interiorGroup);
+  clearInteriorColliders();
   const G=new THREE.Group();interiorGroup=G;const hw=4.5,hd=4.5,roomH=5;
   interiorBounds={minX:IC.x-hw,maxX:IC.x+hw,minZ:IC.z-hd,maxZ:IC.z+hd};
   interior={hw,hd,exit:null,terminal:null,counter:null,elevator:null,vault:null};
@@ -3682,15 +3722,45 @@ window.addEventListener('load',boot);
       return { side, yCenter };
     }
 
+    // Hand-inked Hoodlr placeholder for holders whose image cache is empty
+    // or fails to load. Looks like the inside of the brick tag - black card,
+    // white silhouette of a Hoodlr, wallet short below. Shared as a single
+    // canvas reused for every facade so it costs ~one texture total.
+    let _placeholderTex = null;
+    function makePlaceholderTexture(){
+      if (_placeholderTex) return _placeholderTex;
+      const R = 512;
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = R;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#000'; ctx.fillRect(0, 0, R, R);
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 5;
+      ctx.strokeRect(8, 8, R - 16, R - 16);
+      if (typeof drawHoodlr === 'function') {
+        const s = R * 0.7;
+        try { drawHoodlr(ctx, (R - s) / 2, (R - s) / 2 - 16, s, (typeof rng === 'function' ? rng : Math.random)); } catch (_) {}
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font = "bold 36px 'Hoodlrz', 'Arial Black', sans-serif";
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('hOodlrz', R / 2, R - 60);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.anisotropy = 8;
+      _placeholderTex = tex;
+      return tex;
+    }
+
     window.makeBuildingDetail = function(b){
       const G = original(b);
       dbg.wrappedCalls++;
       try {
         const oc = (typeof onchain !== 'undefined') ? onchain : null;
+        // For non-holder buildings (dev/preview without an Alchemy cache),
+        // skip the facade card entirely.
         if (!oc || !oc.live) return G;
         const url = oc.tokenImg ? oc.tokenImg(b.tokenId) : null;
-        if (!url) return G;
-        dbg.hadUrl++; dbg.lastUrl = url;
+        if (url) { dbg.hadUrl++; dbg.lastUrl = url; }
         const FH = (typeof FLOOR_H !== 'undefined') ? FLOOR_H : 3.2;
 
         const { side, yCenter } = planeDimsFor(b, FH);
@@ -3714,21 +3784,15 @@ window.addEventListener('load',boot);
         border.renderOrder = 7;
         G.add(border);
 
-        // Artwork plane - square, magnified-nearest so pixel art stays crisp.
-        const tex = loadTex(url, (ok) => {
-          // Every gateway failed: hide backing + plane so the window facade
-          // shows through instead of a blank white card on the front.
-          if (!ok) {
-            backing.visible = false;
-            border.visible = false;
-            plane.visible = false;
-          }
-        });
-        tex.magFilter = THREE.NearestFilter;
-        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        // Artwork plane - starts with the inked Hoodlr placeholder so EVERY
+        // holder tower has a card on its front (even before art loads, even
+        // if Alchemy never returned an image for that token). When the real
+        // NFT loads we swap the texture; when every gateway truly fails the
+        // placeholder stays visible.
+        const placeholder = makePlaceholderTexture();
         const mat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
-          map: tex,
+          map: placeholder,
           side: THREE.DoubleSide,
           toneMapped: false,
         });
@@ -3739,6 +3803,18 @@ window.addEventListener('load',boot);
         G.userData = G.userData || {};
         G.userData.nftFacade = true;
         dbg.addedPlanes++;
+
+        if (url) {
+          const realTex = loadTex(url, (ok) => {
+            if (ok) {
+              realTex.magFilter = THREE.NearestFilter;
+              realTex.minFilter = THREE.LinearMipmapLinearFilter;
+              mat.map = realTex;
+              mat.needsUpdate = true;
+            }
+            // !ok -> keep the placeholder, no blank card
+          });
+        }
       } catch (err) { console.warn('[NFT facade] patch failed for', b.tokenId, err); }
       return G;
     };
