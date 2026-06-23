@@ -3567,17 +3567,30 @@ window.addEventListener('load',boot);
       }
       return out;
     }
-    function loadTex(url){
-      if (texCache[url]) return texCache[url];
+    // Called with (true) when a candidate finally loaded, (false) when every
+     // gateway in the chain failed. We use this to hide the placeholder plane
+     // so the building's window facade can show through instead of a white card.
+    function loadTex(url, onResolved){
+      if (texCache[url]) {
+        // Cached texture - we still need to fire the resolver based on the
+        // cached outcome so newly-added planes for the same URL get hidden
+        // when the texture is known-bad.
+        const cached = texCache[url];
+        setTimeout(() => onResolved && onResolved(cached.__hoodlrzOk !== false), 0);
+        return cached;
+      }
       const tex = new THREE.Texture();
       tex.encoding = THREE.sRGBEncoding;
+      tex.__hoodlrzOk = null;
       texCache[url] = tex;
       const candidates = urlCandidates(url);
       let attempt = 0;
       const tryNext = () => {
         if (attempt >= candidates.length) {
           dbg.loadFailed++;
+          tex.__hoodlrzOk = false;
           console.warn('[NFT facade] all gateways failed for', url);
+          onResolved && onResolved(false);
           return;
         }
         const u = candidates[attempt++];
@@ -3586,7 +3599,9 @@ window.addEventListener('load',boot);
         img.onload = () => {
           tex.image = img;
           tex.needsUpdate = true;
+          tex.__hoodlrzOk = true;
           dbg.loadedOk++;
+          onResolved && onResolved(true);
         };
         img.onerror = () => {
           console.warn('[NFT facade] gateway failed:', u);
@@ -3644,7 +3659,15 @@ window.addEventListener('load',boot);
         G.add(border);
 
         // Artwork plane - square, magnified-nearest so pixel art stays crisp.
-        const tex = loadTex(url);
+        const tex = loadTex(url, (ok) => {
+          // Every gateway failed: hide backing + plane so the window facade
+          // shows through instead of a blank white card on the front.
+          if (!ok) {
+            backing.visible = false;
+            border.visible = false;
+            plane.visible = false;
+          }
+        });
         tex.magFilter = THREE.NearestFilter;
         tex.minFilter = THREE.LinearMipmapLinearFilter;
         const mat = new THREE.MeshBasicMaterial({

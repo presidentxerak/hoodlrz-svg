@@ -53,25 +53,35 @@ interface AlchemyNFT {
 }
 
 function pickImageUrl(n: AlchemyNFT): string | null {
-  const candidates = [
-    n.image?.cachedUrl,
+  // Prefer the canonical ipfs:// URI when one is available. We keep it raw
+  // so the browser-side TextureLoader can rotate through three public
+  // gateways (ipfs.io, cloudflare-ipfs, nftstorage) instead of being
+  // stuck with whatever Alchemy resolved it to once and forever.
+  const ipfs = [
+    n.metadata?.image,
+    n.rawMetadata?.image,
+    n.media?.[0]?.raw,
+    n.tokenUri?.raw,
+  ];
+  for (const c of ipfs) {
+    if (typeof c === "string" && c.startsWith("ipfs://")) return c;
+  }
+  // Otherwise fall back to a stable HTTPS URL. Order matters: originalUrl
+  // is usually the IPFS gateway view (rotatable on the client),
+  // cachedUrl is fastest but flakier when Alchemy evicts a token, pngUrl
+  // is a deterministic snapshot of the first GIF frame.
+  const http = [
     n.image?.originalUrl,
+    n.image?.cachedUrl,
     n.image?.pngUrl,
     n.image?.thumbnailUrl,
     n.media?.[0]?.gateway,
-    n.media?.[0]?.raw,
     n.media?.[0]?.thumbnail,
     n.metadata?.image,
     n.rawMetadata?.image,
   ];
-  for (const c of candidates) {
-    if (typeof c === "string" && c.length > 4) {
-      // Convert ipfs:// to a public gateway
-      if (c.startsWith("ipfs://")) {
-        return "https://ipfs.io/ipfs/" + c.replace(/^ipfs:\/\//, "").replace(/^ipfs\//, "");
-      }
-      return c;
-    }
+  for (const c of http) {
+    if (typeof c === "string" && c.length > 4) return c;
   }
   return null;
 }
