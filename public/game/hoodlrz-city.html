@@ -410,6 +410,7 @@
     </div>
 
     <div class="mh">Quick actions</div>
+    <button class="mact" id="mJournalBtn"><span class="mi">📓</span>Journal · clues &amp; leads</button>
     <button class="mact" id="mHoldersBtn"><span class="mi">👥</span>Holders directory</button>
     <button class="mact" id="mWalletBtn"><span class="mi">🔗</span>Connect wallet (optional)</button>
     <div class="mwallet" id="mWalletAddr"></div>
@@ -4040,6 +4041,78 @@ window.addEventListener('unhandledrejection',(ev)=>{
        hint chip out of the way so it doesn't compete with the buttons. */
     #touch{top:38px!important}   /* leave room for the top strip */
 
+    /* ════════════════════════════════════════════════════════════
+       Touch button overhaul. The default desktop CSS pins each
+       button to its own absolute coords inside an L-shaped 188px
+       wrapper, which on a phone reads as random buttons everywhere.
+       On mobile we kill those absolute coords and stack the action
+       buttons in a single thumb-reachable column at the bottom-
+       right, colour-coded by role: red-pink FIRE biggest at the
+       very bottom, cyan E above it, white JUMP, yellow RUN at the
+       top. Pause / journal floating buttons go away - those are
+       in the ☰ drawer now. Joystick stays bottom-left and shrinks
+       so it doesn't fight the buttons for space.
+       ════════════════════════════════════════════════════════════ */
+    #tPause, #tJournal { display: none !important; }
+
+    #joy{
+      left: 18px !important; bottom: 18px !important;
+      width: 108px !important; height: 108px !important;
+    }
+    #joyKnob{ width: 44px !important; height: 44px !important; }
+
+    /* Re-flow the buttons into a clean column */
+    #tbtns{
+      right: 14px !important; bottom: 14px !important;
+      width: auto !important; height: auto !important;
+      display: flex !important;
+      flex-direction: column-reverse !important;     /* FIRE at the bottom of the stack */
+      align-items: flex-end !important;
+      gap: 10px !important;
+      pointer-events: none !important;
+    }
+    /* Override the desktop per-button absolute coords */
+    #tFire, #tJump, #tAct, #tSprint{
+      position: relative !important;
+      right: auto !important; bottom: auto !important;
+      margin: 0 !important;
+    }
+    /* Visual hierarchy: biggest + most-coloured = FIRE */
+    #tFire{
+      width: 78px !important; height: 78px !important;
+      font-size: 14px !important;
+      border: 2px solid #ff2db5 !important;
+      color: #fff !important;
+      background: rgba(255,45,181,.18) !important;
+      box-shadow: 0 0 18px rgba(255,45,181,.25);
+    }
+    #tAct{
+      width: 64px !important; height: 64px !important;
+      font-size: 18px !important;
+      border: 2px solid #56e0ff !important;
+      color: #56e0ff !important;
+      background: rgba(86,224,255,.12) !important;
+    }
+    #tJump{
+      width: 56px !important; height: 56px !important;
+      font-size: 12px !important;
+      border: 2px solid rgba(255,255,255,.55) !important;
+      color: #fff !important;
+      background: rgba(255,255,255,.08) !important;
+    }
+    #tSprint{
+      width: 50px !important; height: 50px !important;
+      font-size: 10px !important;
+      border: 2px solid rgba(255,216,77,.65) !important;
+      color: #ffd84d !important;
+      background: rgba(255,216,77,.10) !important;
+    }
+    #tSprint.on{
+      background: rgba(57,255,158,.25) !important;
+      border-color: var(--acid) !important;
+      color: var(--acid) !important;
+    }
+
     /* Modals on mobile: full-width, comfortable padding, scrollable.
        The previous defaults gave us a 92vw modal but inner padding +
        wide .item rows could push icons / text off-screen. */
@@ -5240,6 +5313,14 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (si) si.addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(); });
 
     // Holders
+    // Journal (replaces the floating 📓 button we hid on mobile)
+    const jb = document.getElementById('mJournalBtn');
+    if (jb) jb.addEventListener('click', () => {
+      hide();
+      if (typeof window.toggleJournal === 'function') window.toggleJournal();
+      else if (typeof toggleJournal === 'function') toggleJournal();
+    });
+
     const hb = document.getElementById('mHoldersBtn');
     if (hb) hb.addEventListener('click', () => {
       hide();
