@@ -1027,56 +1027,65 @@ function setupSecrets(){
   }
   genesisBuilding=secrets[0].b;
 }
-function makeRoadTexture(span){
-  const R=2048, cv=document.createElement('canvas'); cv.width=cv.height=R; const ctx=cv.getContext('2d');
-  // Hand-inked aesthetic to match the brick walls: pure black surface with
-  // crisp white outlines for everything (kerbs, lane line, crosswalks).
+// One tile = one LOT in world space (= 30 units). The texture tiles via
+// THREE.RepeatWrapping across the whole ground plane, which gives us 16x
+// the pixel density of the previous "one big stretched bitmap" approach.
+// Result: the white outlines stay as crisp as the brick + window lines
+// instead of melting into a blur when you stand right on top of them.
+function makeRoadCellTexture(){
+  const R=2048;
+  const cv=document.createElement('canvas'); cv.width=cv.height=R;
+  const ctx=cv.getContext('2d');
   ctx.fillStyle='#000'; ctx.fillRect(0,0,R,R);
-  const w2px=x=>((x+span/2)/span)*R;
-  const u2px=u=>(u/span)*R;
-  const ROAD_HW=(LOT-SLAB)/2;
-  const roadHalfPx=u2px(ROAD_HW);
-  const lanes=[]; for(let k=-(GRID+1);k<=GRID+1;k++)lanes.push((k+0.5)*LOT);
-  // Inner kerb outline along each side of every road (white).
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=4; ctx.lineCap='butt';
-  for(const L of lanes){
-    if(Math.abs(L)>span/2)continue;
-    const c=w2px(L), p1=c-roadHalfPx+2, p2=c+roadHalfPx-2;
-    ctx.beginPath();ctx.moveTo(p1,0);ctx.lineTo(p1,R);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(p2,0);ctx.lineTo(p2,R);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,p1);ctx.lineTo(R,p1);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,p2);ctx.lineTo(R,p2);ctx.stroke();
-  }
-  // Dashed white centre line — no colour, just ink.
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=3; ctx.setLineDash([26,26]);
-  for(const L of lanes){
-    if(Math.abs(L)>span/2)continue;
-    const p=w2px(L);
-    ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,R);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(R,p);ctx.stroke();
-  }
+  const ppu=R/LOT;
+  const halfRoadPx=Math.round((LOT-SLAB)/2*ppu);
+  const LO=R/2-halfRoadPx, HI=R/2+halfRoadPx;   // inner kerb edges
+  // Inner kerb outlines around each of the four slab quadrants. Same line
+  // weight as the brick + window outlines so the city reads as one drawing.
+  ctx.strokeStyle='#fff'; ctx.lineWidth=7; ctx.lineCap='butt';
+  ctx.beginPath();
+  ctx.moveTo(LO,0);  ctx.lineTo(LO,LO);   ctx.moveTo(LO,HI); ctx.lineTo(LO,R);
+  ctx.moveTo(HI,0);  ctx.lineTo(HI,LO);   ctx.moveTo(HI,HI); ctx.lineTo(HI,R);
+  ctx.moveTo(0,LO);  ctx.lineTo(LO,LO);   ctx.moveTo(HI,LO); ctx.lineTo(R,LO);
+  ctx.moveTo(0,HI);  ctx.lineTo(LO,HI);   ctx.moveTo(HI,HI); ctx.lineTo(R,HI);
+  ctx.stroke();
+  // Dashed white centre lines down the middle of each road (the cross).
+  ctx.strokeStyle='#fff'; ctx.lineWidth=4; ctx.setLineDash([46,46]);
+  ctx.beginPath(); ctx.moveTo(R/2,0); ctx.lineTo(R/2,R); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,R/2); ctx.lineTo(R,R/2); ctx.stroke();
   ctx.setLineDash([]);
-  // Crosswalks — short stripes drawn as white outlines (not solids) to keep
-  // the inked look consistent with bricks/slabs.
-  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
-  const nStripes=5, sGap=3;
-  const sWidth=(roadHalfPx*2 - (nStripes+1)*sGap)/nStripes;
-  const sLen=roadHalfPx*0.55;
-  for(const Lx of lanes)for(const Lz of lanes){
-    if(Math.abs(Lx)>span/2||Math.abs(Lz)>span/2)continue;
-    const xc=w2px(Lx),yc=w2px(Lz);
-    for(let m=0;m<nStripes;m++){
-      const sx=xc-roadHalfPx+sGap+m*(sWidth+sGap);
-      ctx.strokeRect(sx, yc-roadHalfPx-sLen+2, sWidth, sLen);
-      ctx.strokeRect(sx, yc+roadHalfPx-2,       sWidth, sLen);
-      const sy=yc-roadHalfPx+sGap+m*(sWidth+sGap);
-      ctx.strokeRect(xc-roadHalfPx-sLen+2, sy, sLen, sWidth);
-      ctx.strokeRect(xc+roadHalfPx-2,       sy, sLen, sWidth);
-    }
+  // Crosswalks at the four entrances to the intersection. Drawn as outlined
+  // rectangles so they match the inked window / brick treatment exactly.
+  ctx.strokeStyle='#fff'; ctx.lineWidth=4;
+  const cwDepth=Math.round(halfRoadPx*0.55);     // how far into the road
+  const cwInset=12, nStripes=5, sGap=10;
+  const roadSpan=HI-LO;
+  const sW=(roadSpan-(nStripes+1)*sGap-2*cwInset)/nStripes;
+  for(let i=0;i<nStripes;i++){
+    // Position along the road direction (across the intersection)
+    const along=LO+cwInset+sGap+i*(sW+sGap);
+    // Four approaches: top, bottom, left, right of the intersection square
+    ctx.strokeRect(along,            LO-cwDepth-2,      sW,      cwDepth); // top
+    ctx.strokeRect(along,            HI+2,              sW,      cwDepth); // bottom
+    ctx.strokeRect(LO-cwDepth-2,     along,             cwDepth, sW);      // left
+    ctx.strokeRect(HI+2,             along,             cwDepth, sW);      // right
   }
   const t=new THREE.CanvasTexture(cv);
+  t.wrapS=t.wrapT=THREE.RepeatWrapping;
   t.anisotropy=16; t.encoding=THREE.sRGBEncoding;
   t.magFilter=THREE.LinearFilter; t.minFilter=THREE.LinearMipmapLinearFilter;
+  return t;
+}
+// Back-compat shim (signature kept so existing callers don't break) - the
+// span argument is now used purely to compute how many times the tile must
+// repeat across the ground plane.
+function makeRoadTexture(span){
+  const t=makeRoadCellTexture();
+  const tiles=Math.ceil(span/LOT)+1;
+  t.repeat.set(tiles,tiles);
+  // Centre the tile pattern on world origin so the cross intersection sits
+  // exactly between four lots, not on top of one.
+  t.offset.set(-0.5,-0.5);
   return t;
 }
 let slabTex=null;
@@ -1225,6 +1234,34 @@ function buildBuildingInstances(){
   scene.add(outline);buildingInstances.push(outline);
 }
 // Close-up detail (address sign, door, storefront, rooftop) built only for towers near the player
+// Big black-and-white sign that runs along the top of a tower, readable
+// from the street. We use the holder pseudonym when one is known (some
+// well-known wallets eventually get a name attached) and fall back to
+// the short wallet address otherwise.
+const _bigSignCache=Object.create(null);
+function makeBigWalletSign(text){
+  if(_bigSignCache[text])return _bigSignCache[text];
+  const W=1024,H=192;
+  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=8; ctx.strokeRect(8,8,W-16,H-16);
+  // Auto-size the text so a longer wallet still fits across the band.
+  let fs=120;
+  ctx.font='bold '+fs+"px 'Hoodlrz', 'Arial Black', sans-serif";
+  while(ctx.measureText(text).width>W-60&&fs>40){
+    fs-=8;
+    ctx.font='bold '+fs+"px 'Hoodlrz', 'Arial Black', sans-serif";
+  }
+  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(text,W/2,H/2+4);
+  const tex=new THREE.CanvasTexture(cv);
+  tex.encoding=THREE.sRGBEncoding; tex.anisotropy=16;
+  const mat=new THREE.MeshBasicMaterial({map:tex,toneMapped:false,side:THREE.DoubleSide});
+  _bigSignCache[text]=mat;
+  return mat;
+}
+
 function makeBuildingDetail(b){
   const G=new THREE.Group();
   const cx=b.x,cz=b.z,bw=b.w,h=b.floors*FLOOR_H,fz=cz+bw/2+0.06;
@@ -1232,6 +1269,25 @@ function makeBuildingDetail(b){
   trim.position.set(cx,h+.5,cz);edges(trim);G.add(trim);
   const sign=new THREE.Mesh(new THREE.PlaneGeometry(bw*0.6,1.4),makeWalletSign(b.short,b.floors,0xffffff));
   sign.position.set(cx,4.75,cz+bw/2+0.08);G.add(sign);
+  // BIG wallet sign on all four sides of the top of the tower so the
+  // holder's address is legible from anywhere in the block.
+  const bigText=(b.pseudo||b.short||'').toString();
+  if(bigText){
+    const bigMat=makeBigWalletSign(bigText);
+    const bigW=bw*0.92, bigH=bw*0.22, bigY=h-bigH*0.65;
+    const off=bw/2+0.06;
+    const faces=[
+      {x:cx,         z:cz+off, ry:0},
+      {x:cx,         z:cz-off, ry:Math.PI},
+      {x:cx+off,     z:cz,     ry:Math.PI/2},
+      {x:cx-off,     z:cz,     ry:-Math.PI/2},
+    ];
+    for(const f of faces){
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(bigW,bigH),bigMat);
+      m.position.set(f.x,bigY,f.z); m.rotation.y=f.ry;
+      G.add(m);
+    }
+  }
   const door=new THREE.Mesh(new THREE.BoxGeometry(2.4,3.1,0.2),inkMat());
   door.position.set(cx,1.85,fz);edges(door);G.add(door);
   const lintel=new THREE.Mesh(new THREE.BoxGeometry(2.7,0.12,0.16),new THREE.MeshBasicMaterial({color:WHITE}));
