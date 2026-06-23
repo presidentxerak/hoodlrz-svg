@@ -6399,11 +6399,28 @@ window.addEventListener('unhandledrejection',(ev)=>{
     function spawnBibendum(){
       if (bibendum) return;
       bibendum = makeBibendum();
-      // Spawn at a corner of the city so the player notices him roaming in.
-      const x = (typeof LOT !== 'undefined') ? LOT * 3 : 90;
-      const z = (typeof LOT !== 'undefined') ? LOT * 3 : 90;
+      // Spawn ON a road lane. Lanes are at (k+0.5)*LOT for integer k -
+      // same grid the city's roads + sidewalks are aligned to. We snap
+      // the spawn position so he starts walking straight down a street
+      // instead of through a building.
+      const snapLane = (v) => Math.round(v / LOT - 0.5) * LOT + LOT * 0.5;
+      const x = snapLane(LOT * 3);
+      const z = snapLane(LOT * 3);
       bibendum.position.set(x, 0, z);
+      // Random starting axis + direction
+      const u = bibendum.userData;
+      u.axis = Math.random() < 0.5 ? 'x' : 'z';
+      u.dir = Math.random() < 0.5 ? 1 : -1;
+      u.lastIntersection = 0;
+      u.heading = headingFor(u.axis, u.dir);
+      bibendum.rotation.y = u.heading;
       scene.add(bibendum);
+    }
+    function headingFor(axis, dir){
+      // sin(yaw)=movement on X, cos(yaw)=movement on Z (matches the
+      // game's convention). Cardinal directions only.
+      if (axis === 'x') return dir > 0 ?  Math.PI/2 : -Math.PI/2;
+      return dir > 0 ? 0 : Math.PI;
     }
     function damageBibendum(dmg){
       if (!bibendum) return;
@@ -6472,18 +6489,57 @@ window.addEventListener('unhandledrejection',(ev)=>{
         return;
       }
 
-      u.turnT -= dt;
-      if (u.turnT <= 0) { u.heading += (Math.random() * 1.4 - 0.7); u.turnT = 4 + Math.random() * 5; }
+      // ── Street-locked movement ──────────────────────────────────────
+      // Bibendum walks ONLY along road centrelines (lanes at (k+0.5)*LOT).
+      // axis = 'x'|'z' tells which direction he's currently going; the
+      // OTHER coordinate stays snapped on its lane. At every intersection
+      // he gets a small chance to turn 90° onto the perpendicular lane,
+      // otherwise he goes straight through. End of city or shark lake
+      // = U-turn instead of mowing through a building.
+      const lim = GRID * LOT / 2 - 5;
+      const step = u.speed * dt;
+      let nx = bibendum.position.x;
+      let nz = bibendum.position.z;
+      if (u.axis === 'x') nx += u.dir * step;
+      else                nz += u.dir * step;
 
-      const lim = (typeof GRID !== 'undefined' && typeof LOT !== 'undefined') ? GRID * LOT / 2 - 5 : 200;
-      const nx = bibendum.position.x + Math.sin(u.heading) * u.speed * dt;
-      const nz = bibendum.position.z + Math.cos(u.heading) * u.speed * dt;
-      const lake = (typeof lakeBounds !== 'undefined') ? lakeBounds : null;
+      const lake = lakeBounds;
       const inLake = lake && nx > lake.minX - 4 && nx < lake.maxX + 4 && nz > lake.minZ - 4 && nz < lake.maxZ + 4;
-      if (Math.abs(nx) < lim && Math.abs(nz) < lim && !inLake) {
-        bibendum.position.x = nx; bibendum.position.z = nz;
+      if (Math.abs(nx) >= lim || Math.abs(nz) >= lim || inLake) {
+        // Hit a hard limit - U-turn.
+        u.dir *= -1;
+        u.heading = headingFor(u.axis, u.dir);
       } else {
-        u.heading += Math.PI;
+        bibendum.position.x = nx;
+        bibendum.position.z = nz;
+
+        // Snap the "other" axis to its lane so he never drifts even by a
+        // pixel into the sidewalk. Lanes are at (k+0.5)*LOT.
+        const snap = (v) => Math.round(v / LOT - 0.5) * LOT + LOT * 0.5;
+        if (u.axis === 'x') bibendum.position.z = snap(bibendum.position.z);
+        else                bibendum.position.x = snap(bibendum.position.x);
+
+        // Are we at an intersection (the moving axis just aligned with
+        // another lane)?
+        const movingPos = u.axis === 'x' ? bibendum.position.x : bibendum.position.z;
+        const nearestLane = snap(movingPos);
+        if (Math.abs(movingPos - nearestLane) < step + 0.05) {
+          // Avoid re-triggering inside the same intersection — needs a few
+          // steps before allowing the next turn check.
+          const now = performance.now();
+          if (now - u.lastIntersection > 250) {
+            u.lastIntersection = now;
+            if (Math.random() < 0.35) {
+              // Turn 90° (50/50 left vs right). Snap the moving-axis pos
+              // to the exact lane so the corner is sharp.
+              if (u.axis === 'x') bibendum.position.x = nearestLane;
+              else                bibendum.position.z = nearestLane;
+              u.axis = (u.axis === 'x') ? 'z' : 'x';
+              u.dir = Math.random() < 0.5 ? 1 : -1;
+              u.heading = headingFor(u.axis, u.dir);
+            }
+          }
+        }
       }
       bibendum.rotation.y = u.heading;
 
