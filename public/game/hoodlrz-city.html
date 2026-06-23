@@ -4212,13 +4212,12 @@ window.addEventListener('load',boot);
   function isMobileUA(){
     return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   }
+  // ALWAYS deep-link to the production host. If we sent users to whatever
+  // preview URL they were on, MetaMask would land them on a Vercel-SSO-
+  // protected page instead of the dapp.
+  const PROD_HOST = 'hoodlrz.com';
   function buildDeepLink(){
-    let host = location.host, path = '/city';
-    try {
-      const t = window.top && window.top.location;
-      if (t && t.host) { host = t.host; path = t.pathname || '/city'; }
-    } catch (_) {}
-    return 'https://metamask.app.link/dapp/' + host + path;
+    return 'https://metamask.app.link/dapp/' + PROD_HOST + '/city';
   }
   function showMobileWalletPrompt(){
     const old = document.getElementById('mmPrompt');
@@ -4227,14 +4226,9 @@ window.addEventListener('load',boot);
     //  - universal link (works best on Safari, can be eaten by iframes in Chrome iOS)
     //  - custom scheme (works when MetaMask is installed, no fallback)
     //  - the bare URL the user can paste into MM's in-app browser
-    let host = location.host, path = '/city';
-    try {
-      const t = window.top && window.top.location;
-      if (t && t.host) { host = t.host; path = t.pathname || '/city'; }
-    } catch (_) {}
-    const universal = 'https://metamask.app.link/dapp/' + host + path;
-    const scheme = 'metamask://dapp/' + host + path;
-    const bare = 'https://' + host + path;
+    const universal = 'https://metamask.app.link/dapp/' + PROD_HOST + '/city';
+    const scheme = 'metamask://dapp/' + PROD_HOST + '/city';
+    const bare = 'https://' + PROD_HOST + '/city';
 
     const overlay = document.createElement('div');
     overlay.id = 'mmPrompt';
@@ -4412,6 +4406,23 @@ window.addEventListener('load',boot);
     // addEventListener('click', gateEnter) AFTER we've reassigned the
     // local gateEnter variable above. Both the click listener and the
     // window.gateEnter export point at newGate from that moment on.
+
+    // Defense-in-depth: re-bind the #play click handler in case the
+    // original boot()'s addEventListener already fired with a stale
+    // function reference (e.g. cached HTML from before this patch).
+    const reBind = () => {
+      const btn = document.getElementById('play');
+      if (!btn) return setTimeout(reBind, 200);
+      const clone = btn.cloneNode(true);
+      btn.parentNode.replaceChild(clone, btn);
+      clone.addEventListener('click', newGate);
+      console.log('[GATE] strict v2 active · wallet required · server-verified');
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', reBind);
+    } else {
+      reBind();
+    }
   }
 
   /* ---- Holder check fallback. The local onchain.owners list can be

@@ -13,13 +13,23 @@
 
 import { useEffect, useState } from "react";
 
+// Production canonical host. The MetaMask deep-link MUST point here
+// (not at the Vercel preview URL `hoodlrz-j1mj-…vercel.app` the user
+// happens to be on), otherwise MetaMask hits the Vercel SSO auth wall
+// because preview deployments are protected by default.
+const PROD_HOST = "hoodlrz.com";
+
+// Cache-busting query string for the game iframe. Build-time constant so
+// every deploy invalidates the iframe HTML, defeating browsers that
+// aggressively cache the static file across deploys.
+const BUILD_ID =
+  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 8) ??
+  String(Date.now());
+
 export default function CityPage() {
   const [showMm, setShowMm] = useState(false);
-  const [host, setHost] = useState("hoodlrz.com");
 
   useEffect(() => {
-    setHost(window.location.host);
-
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const hasEthereum =
       typeof (window as unknown as { ethereum?: unknown }).ethereum !==
@@ -35,9 +45,12 @@ export default function CityPage() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  const universalLink = `https://metamask.app.link/dapp/${host}/city`;
-  const schemeLink = `metamask://dapp/${host}/city`;
-  const bareUrl = `https://${host}/city`;
+  // ALWAYS deep-link to the production host. If we used
+  // window.location.host the user on the preview URL would land back
+  // on a SSO-protected preview deployment inside MetaMask.
+  const universalLink = `https://metamask.app.link/dapp/${PROD_HOST}/city`;
+  const schemeLink = `metamask://dapp/${PROD_HOST}/city`;
+  const bareUrl = `https://${PROD_HOST}/city`;
 
   return (
     <>
@@ -54,7 +67,7 @@ export default function CityPage() {
         }}
       >
         <iframe
-          src="/game/hoodlrz-city.html"
+          src={`/game/hoodlrz-city.html?v=${BUILD_ID}`}
           title="hOodlrz CITY (Beta)"
           style={{
             width: "100%",
