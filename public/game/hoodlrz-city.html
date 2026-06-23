@@ -374,6 +374,44 @@
 
 <div id="hud">
   <div id="dmg"></div>
+
+  <!-- Mobile-only top bar + side drawer. Hidden on desktop via CSS. -->
+  <div id="mTopBar">
+    <div class="mhp" title="Health"><i id="mHpFill"></i></div>
+    <div class="mc" title="Hoodz"><b id="mHoodz">0</b><i>HOODZ</i></div>
+    <button id="mMenuBtn" class="mbtn" aria-label="Menu">☰</button>
+  </div>
+  <div id="mScrim"></div>
+  <aside id="mDrawer" aria-label="Game menu">
+    <button class="mclose" id="mDrawerClose" aria-label="Close">✕</button>
+
+    <div class="mh">Status</div>
+    <div class="mrow"><span>Health</span><b id="mHpVal">100</b></div>
+    <div class="mrow"><span>Hoodz packets</span><b id="mHoodzVal">0</b></div>
+    <div class="mrow"><span>$HOOD wallet</span><b id="mCashVal">0</b></div>
+    <div class="mrow"><span>Secret souls</span><b id="mSecVal">0/3</b></div>
+    <div class="mrow"><span>Vault NFTs</span><b id="mVaultVal">0/3</b></div>
+
+    <div class="mh">Objective</div>
+    <div class="mrow" style="display:block"><div id="mObjText" style="font-size:12px;line-height:1.45;color:#fff">Find the three Oracles across The Block.</div></div>
+
+    <div class="mh">Find a tower</div>
+    <div class="msearch">
+      <input id="mSearchInput" type="text" placeholder="wallet 0x… / floors" autocomplete="off" spellcheck="false">
+      <button id="mSearchBtn">GO</button>
+    </div>
+
+    <div class="mh">Quick actions</div>
+    <button class="mact" id="mHoldersBtn"><span class="mi">👥</span>Holders directory</button>
+    <button class="mact" id="mWalletBtn"><span class="mi">🔗</span>Connect wallet (optional)</button>
+    <div class="mwallet" id="mWalletAddr"></div>
+    <button class="mact" id="mSettingsBtn"><span class="mi">⚙</span>Settings</button>
+    <button class="mact" id="mFaqBtn"><span class="mi">?</span>Rules &amp; FAQ</button>
+
+    <div class="mh">Wallet status</div>
+    <div class="mwallet" id="mChainStat">procedural city</div>
+  </aside>
+
   <div id="cross"><b class="v"></b><b class="h"></b></div>
   <div id="lock"><span></span><span></span><span></span><span></span><em>LOCK</em></div>
   <div id="hit"><b class="v"></b><b class="h"></b></div>
@@ -3391,7 +3429,17 @@ function buildJailCell(){
 function updateHUD(){$('hpFill').style.width=Math.max(0,state.hp)+'%';$('cashVal').textContent=state.cash.toLocaleString('en-US');$('hoodzVal').textContent=state.hoodz;
   if($('secVal'))$('secVal').textContent=state.secretsFound+'/3';
   if($('vaultVal'))$('vaultVal').textContent=state.vaultsFound+'/3';
-  const ty=state.weapon==='Hood Blaster'?'RANGED':'MELEE';$('weapName').innerHTML=state.weapon+' <span style="font-size:10px;letter-spacing:.12em;color:var(--mut)">· '+ty+'</span>';}
+  const ty=state.weapon==='Hood Blaster'?'RANGED':'MELEE';$('weapName').innerHTML=state.weapon+' <span style="font-size:10px;letter-spacing:.12em;color:var(--mut)">· '+ty+'</span>';
+  // Mirror into the mobile top bar + drawer (no-op when those nodes don't exist).
+  const hpPct=Math.max(0,state.hp)+'%';
+  const elHp=document.getElementById('mHpFill'); if(elHp)elHp.style.width=hpPct;
+  const elHpVal=document.getElementById('mHpVal'); if(elHpVal)elHpVal.textContent=Math.max(0,Math.round(state.hp));
+  const elHoodz=document.getElementById('mHoodz'); if(elHoodz)elHoodz.textContent=state.hoodz;
+  const elHoodzVal=document.getElementById('mHoodzVal'); if(elHoodzVal)elHoodzVal.textContent=state.hoodz;
+  const elCash=document.getElementById('mCashVal'); if(elCash)elCash.textContent=state.cash.toLocaleString('en-US');
+  const elSec=document.getElementById('mSecVal'); if(elSec)elSec.textContent=state.secretsFound+'/3';
+  const elVault=document.getElementById('mVaultVal'); if(elVault)elVault.textContent=state.vaultsFound+'/3';
+}
 function addCash(n){state.cash+=n;updateHUD();flashVal('cashVal','gold');}
 function flashVal(id,kind){const el=$(id);if(!el)return;const cls=kind==='gold'?'vflash-g':kind==='red'?'vflash-r':'vflash-green';el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),700);}
 function damage(n){state.hp=Math.max(0,state.hp-n);updateHUD();sfx.hurt();const d=$('dmg');d.classList.add('flash');setTimeout(()=>d.classList.remove('flash'),120);if(state.hp<=0)respawn();}
@@ -3625,6 +3673,79 @@ window.addEventListener('load',boot);
   @media (max-width:640px){
     #ctrlHint span{font-size:9.5px;padding:2px 5px}
     #plockHint{font-size:10px;padding:4px 8px}
+  }
+
+  /* ════════════════════════════════════════════════════════════════
+     MOBILE UI - everything below kicks in on viewports ≤760px wide.
+     Hides the desktop chip-stack + objective panel + ops bar (they
+     all overlap each other on a phone) and replaces them with:
+       - a thin top strip (HP bar + Hoodz count + ☰ menu)
+       - a side drawer (opens from the right via ☰) holding the full
+         stats, objective, search, holders, wallet, settings, FAQ
+     The joystick + action buttons (#touch) stay where they are.
+     ════════════════════════════════════════════════════════════════ */
+  #mTopBar{display:none}
+  #mDrawer{display:none}
+  @media (max-width:760px){
+    /* Desktop HUD: out of the way */
+    #stats, #obj, #weap, #ctrlHint, #plockHint, #copalert, #threat{display:none!important}
+    #mini{width:96px!important;height:96px!important;right:6px!important;top:42px!important;
+          padding:4px!important;z-index:30}
+    #mini canvas{width:88px!important;height:88px!important}
+    /* Top ops bar collapses into the mobile strip */
+    #ops{display:none!important}
+
+    /* Minimal mobile top strip (HP + Hoodz + hamburger) */
+    #mTopBar{display:flex;align-items:center;gap:8px;position:fixed;left:0;right:0;top:0;
+             height:38px;padding:0 8px;z-index:50;background:rgba(2,2,8,.82);
+             backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.12);
+             pointer-events:auto}
+    #mTopBar .mhp{flex:1;height:8px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden}
+    #mTopBar .mhp i{display:block;height:100%;width:100%;background:linear-gradient(90deg,#ff3d6e,#ffb24d);
+                    border-radius:4px;transition:width .2s}
+    #mTopBar .mc{display:inline-flex;align-items:center;gap:4px;font-family:'Consolas',monospace;
+                 font-size:12px;font-weight:800;color:#fff;padding:0 4px;white-space:nowrap}
+    #mTopBar .mc b{color:var(--acid);font-size:13px}
+    #mTopBar .mc i{font-style:normal;font-size:10px;color:var(--mut)}
+    #mTopBar .mbtn{display:grid;place-items:center;width:34px;height:30px;
+                   background:transparent;border:1px solid rgba(255,255,255,.3);color:#fff;
+                   font-size:16px;cursor:pointer;border-radius:4px}
+    #mTopBar .mbtn:active{background:rgba(255,255,255,.15)}
+
+    /* Side drawer */
+    #mDrawer{display:block;position:fixed;top:0;right:-100%;bottom:0;width:min(320px,86vw);
+             z-index:55;background:#06060e;border-left:1px solid rgba(255,255,255,.2);
+             padding:48px 14px 24px;overflow-y:auto;transition:right .22s ease;
+             box-shadow:-8px 0 30px rgba(0,0,0,.7);pointer-events:auto}
+    #mDrawer.open{right:0}
+    #mScrim{display:none;position:fixed;inset:0;z-index:54;background:rgba(0,0,0,.55);
+            pointer-events:auto}
+    #mScrim.open{display:block}
+    #mDrawer .mclose{position:absolute;top:8px;right:10px;width:36px;height:36px;border:0;
+                     background:transparent;color:#fff;font-size:20px;cursor:pointer}
+    #mDrawer .mh{font-family:'Hoodlrz',sans-serif;font-size:13px;letter-spacing:.18em;
+                 color:#fff;margin:14px 0 6px;text-transform:uppercase}
+    #mDrawer .mrow{display:flex;justify-content:space-between;align-items:baseline;
+                   padding:7px 10px;border:1px solid rgba(255,255,255,.1);margin-bottom:6px;
+                   font-size:13px;color:var(--paper)}
+    #mDrawer .mrow b{font-family:'Consolas',monospace;color:#fff}
+    #mDrawer .msearch{display:flex;margin-bottom:8px}
+    #mDrawer .msearch input{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.2);
+                            color:#fff;font-family:inherit;font-size:13px;padding:9px 10px;border-radius:0}
+    #mDrawer .msearch button{padding:9px 12px;border:1px solid #ff2db5;background:#ff2db5;color:#fff;
+                             font-weight:800;font-size:11px;letter-spacing:.06em;cursor:pointer;border-radius:0}
+    #mDrawer .mact{display:block;width:100%;padding:11px 12px;margin-bottom:6px;
+                   background:transparent;border:1px solid rgba(255,255,255,.25);color:#fff;
+                   font-family:inherit;font-weight:700;font-size:12px;letter-spacing:.06em;
+                   text-transform:uppercase;text-align:left;cursor:pointer;border-radius:0}
+    #mDrawer .mact:active{background:rgba(255,255,255,.1)}
+    #mDrawer .mact .mi{display:inline-block;width:20px;margin-right:6px;text-align:center}
+    #mDrawer .mwallet{font-family:'Consolas',monospace;font-size:11px;color:var(--mut);
+                      padding:4px 0 8px;word-break:break-all}
+
+    /* Touch HUD: keep the joystick + action stack visible, push bottom
+       hint chip out of the way so it doesn't compete with the buttons. */
+    #touch{top:38px!important}   /* leave room for the top strip */
   }
 </style>
 
@@ -4537,6 +4658,94 @@ window.addEventListener('load',boot);
     setTimeout(tryConnect, 600);
   }
 
+  /* ---- Mobile drawer wiring --------------------------------------
+         The HUD is unusable on a phone otherwise: chip stack + search
+         bar + holders + wallet + FAQ all overlap each other in the
+         middle of the screen. CSS hides those on small screens and
+         exposes a single ☰ button; this patch makes the drawer behind
+         that button actually work and wires the in-drawer controls
+         to the same handlers their desktop equivalents use.
+  */
+  function patchMobileDrawer(){
+    const open  = document.getElementById('mMenuBtn');
+    const close = document.getElementById('mDrawerClose');
+    const drawer= document.getElementById('mDrawer');
+    const scrim = document.getElementById('mScrim');
+    if (!open || !drawer || !scrim) return;
+    const show = () => { drawer.classList.add('open'); scrim.classList.add('open'); };
+    const hide = () => { drawer.classList.remove('open'); scrim.classList.remove('open'); };
+    open.addEventListener('click', show);
+    close.addEventListener('click', hide);
+    scrim.addEventListener('click', hide);
+
+    // Search
+    const si = document.getElementById('mSearchInput');
+    const sb = document.getElementById('mSearchBtn');
+    const runSearch = () => {
+      if (typeof window.findBuilding === 'function' && si) {
+        window.findBuilding(si.value);
+        hide();
+      }
+    };
+    if (sb) sb.addEventListener('click', runSearch);
+    if (si) si.addEventListener('keydown', (e) => { if (e.key === 'Enter') runSearch(); });
+
+    // Holders
+    const hb = document.getElementById('mHoldersBtn');
+    if (hb) hb.addEventListener('click', () => {
+      hide();
+      if (typeof window.openHolders === 'function') window.openHolders();
+      else {
+        const real = document.getElementById('holdersBtn');
+        if (real) real.click();
+      }
+    });
+
+    // Wallet (optional - free-mint flow)
+    const wb = document.getElementById('mWalletBtn');
+    if (wb) wb.addEventListener('click', async () => {
+      hide();
+      if (typeof window.connectWallet === 'function') {
+        try { await window.connectWallet(); } catch (_) {}
+      }
+    });
+
+    // Settings (use the existing modal)
+    const setBtn = document.getElementById('mSettingsBtn');
+    if (setBtn) setBtn.addEventListener('click', () => {
+      hide();
+      const real = document.getElementById('settingsBtn');
+      if (real) real.click();
+    });
+
+    // FAQ
+    const fb = document.getElementById('mFaqBtn');
+    if (fb) fb.addEventListener('click', () => {
+      hide();
+      const realFaq = document.getElementById('faqBtn');
+      if (realFaq) realFaq.click();
+    });
+
+    // Mirror live updates the game pushes to its desktop HUD
+    const tickMirror = () => {
+      try {
+        // Objective text
+        const objSrc = document.getElementById('objText');
+        const objDst = document.getElementById('mObjText');
+        if (objSrc && objDst && objSrc.textContent) objDst.textContent = objSrc.textContent;
+        // Wallet shortform (top bar shows the badge already, drawer mirrors it)
+        if (typeof state !== 'undefined' && state.wallet) {
+          const dst = document.getElementById('mWalletAddr');
+          if (dst) dst.textContent = '● ' + state.wallet.slice(0, 6) + '…' + state.wallet.slice(-4);
+        }
+        const cs = document.getElementById('chainStat');
+        const dst2 = document.getElementById('mChainStat');
+        if (cs && dst2) dst2.textContent = cs.textContent;
+      } catch (_) {}
+    };
+    setInterval(tickMirror, 1200);
+  }
+
   function start(){
     wireMode();
     patchFacades();
@@ -4545,6 +4754,7 @@ window.addEventListener('load',boot);
     patchHolderCheck();
     patchPauseAndSettings();
     patchMobileAutoConnect();
+    patchMobileDrawer();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
