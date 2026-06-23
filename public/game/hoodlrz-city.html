@@ -1093,9 +1093,14 @@ function buildCity(owners){
 let lakeBounds=null;const sharks=[];
 function makeWaterTex(){
   const R=512,cv=document.createElement('canvas');cv.width=cv.height=R;const c=cv.getContext('2d');
-  c.fillStyle='#05060f';c.fillRect(0,0,R,R);
-  c.strokeStyle='rgba(255,255,255,.35)';c.lineWidth=2;
+  // Deep ocean blue base.
+  c.fillStyle='#0a3a78';c.fillRect(0,0,R,R);
+  // Cyan ripples on top.
+  c.strokeStyle='rgba(86,224,255,.55)';c.lineWidth=2.4;
   for(let y=20;y<R;y+=34){c.beginPath();for(let x=0;x<=R;x+=16)c.lineTo(x,y+Math.sin(x*0.05+y)*6);c.stroke();}
+  // White highlight strokes for the "sea" feel.
+  c.strokeStyle='rgba(255,255,255,.22)';c.lineWidth=1.4;
+  for(let y=10;y<R;y+=34){c.beginPath();for(let x=0;x<=R;x+=12)c.lineTo(x,y+Math.sin(x*0.08+y+2)*3);c.stroke();}
   const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.encoding=THREE.sRGBEncoding;return t;}
 function buildLake(i0,j0,n,half){
   const cx=((i0+(n-1)/2)-half)*LOT, cz=((j0+(n-1)/2)-half)*LOT, W=n*LOT-2;
@@ -2830,6 +2835,15 @@ function setWeaponView(name){
     const bat=new THREE.Mesh(new THREE.CylinderGeometry(.04,.11,1.05,10),inkMat()); bat.position.set(.42,-.5,-.9); bat.rotation.set(-.5,0,.3); edges(bat,40);
     const tape=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.22,10),new THREE.MeshBasicMaterial({color:WHITE})); tape.position.set(.3,-.66,-.62); tape.rotation.set(-.5,0,.3);
     viewWeapon.add(bat,tape); muzzle=null;
+  }else if(name==='Bazooka'){
+    const tube=new THREE.Mesh(new THREE.CylinderGeometry(.14,.18,1.2,12),inkMat()); tube.rotation.x=Math.PI/2; tube.position.set(.42,-.4,-.9); edges(tube,40);
+    const flange=new THREE.Mesh(new THREE.CylinderGeometry(.24,.18,.2,14),inkMat()); flange.rotation.x=Math.PI/2; flange.position.set(.42,-.4,-1.5); edges(flange,40);
+    const sight=new THREE.Mesh(new THREE.BoxGeometry(.06,.2,.1),new THREE.MeshBasicMaterial({color:WHITE})); sight.position.set(.42,-.22,-.6);
+    const grip=new THREE.Mesh(new THREE.BoxGeometry(.14,.32,.16),inkMat()); grip.position.set(.42,-.6,-.6); edges(grip);
+    const handle=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,.3,8),inkMat()); handle.rotation.z=Math.PI/2; handle.position.set(.42,-.32,-.4); edges(handle,40);
+    viewWeapon.add(tube,flange,sight,grip,handle);
+    muzzle=new THREE.Mesh(new THREE.SphereGeometry(.3,10,10),new THREE.MeshBasicMaterial({color:0xff5b6e,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+    muzzle.position.set(.42,-.4,-1.7); viewWeapon.add(muzzle);
   }else{
     const fist=new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.46),inkMat()); fist.position.set(.46,-.46,-.78); edges(fist);
     const knuck=new THREE.Mesh(new THREE.BoxGeometry(.32,.08,.1),new THREE.MeshBasicMaterial({color:WHITE})); knuck.position.set(.46,-.36,-.96);
@@ -2840,6 +2854,7 @@ function onPrimary(){
   if(state.panelOpen||state.journalOpen||state.shopOpen||state.inJail||state.eaten||state.faqOpen)return;
   player.holster=1;                                   // raise weapon when firing
   if(state.weapon==='Hood Blaster')fireProjectile();
+  else if(state.weapon==='Bazooka' && typeof window.fireBazooka==='function')window.fireBazooka();
   else meleeHit();
 }
 function fireProjectile(){
@@ -2887,7 +2902,17 @@ function spawnImpact(pos,color){
 }
 function updateProjectiles(dt){
   for(let i=projectiles.length-1;i>=0;i--){
-    const p=projectiles[i],m=p.mesh; m.position.addScaledVector(p.vel,dt); p.life-=dt;
+    const p=projectiles[i],m=p.mesh;
+    // Bazooka rockets carry their own movement (dir + speed) + splash
+    // damage handler in patch 3. We just move + age them here; the splash
+    // hook deletes them once they hit something or expire.
+    if (p.isBazooka) {
+      if (p.dir && typeof p.speed === 'number') m.position.addScaledVector(p.dir, p.speed * dt);
+      else if (p.vel) m.position.addScaledVector(p.vel, dt);
+      p.life -= dt;
+      continue;
+    }
+    m.position.addScaledVector(p.vel,dt); p.life-=dt;
     let dead=p.life<=0||m.position.y<0.2;
     if(!dead)for(const g of gangs){if(g.userData.down)continue;
       if(m.position.distanceTo(g.position.clone().setY(m.position.y))<1.3){damageGang(g,2,m.position);spawnImpact(m.position,0xff3d6e);dead=true;break;}}
@@ -5003,9 +5028,437 @@ window.addEventListener('unhandledrejection',(ev)=>{
     patchPauseAndSettings();
     patchMobileAutoConnect();
     patchMobileDrawer();
+    // patchWarOnTheStreets lives in the next <script> tag (defined on
+    // window). It bootstraps itself once scene/gangs/etc. are ready, so
+    // we just kick it from here.
+    if (typeof window.patchWarOnTheStreets === 'function') window.patchWarOnTheStreets();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
+})();
+</script>
+
+<!-- ============================================================
+     PATCH 3 · War on the streets
+     Bazooka, tanks, military soldiers, giant marshmallow-man.
+============================================================ -->
+<script>
+(function(){
+  // We wait for the main scene to be up before touching anything. Most of
+  // the symbols we need (scene, gangs, projectiles, sfx, etc.) are created
+  // inside script #1 at boot time.
+  function ready(){
+    return typeof scene !== 'undefined'
+        && typeof gangs !== 'undefined'
+        && typeof projectiles !== 'undefined'
+        && typeof spawnHoodz === 'function'
+        && typeof addCash === 'function'
+        && typeof spawnBurst === 'function'
+        && typeof toast === 'function'
+        && typeof clock !== 'undefined'
+        && typeof blockedAt === 'function'
+        && typeof groundY === 'function';
+  }
+  function patchWarOnTheStreets(){
+    if (!ready()) return setTimeout(patchWarOnTheStreets, 400);
+
+    const inkMat = () => new THREE.MeshBasicMaterial({color:0x000000});
+    const WHITE = 0xffffff;
+    const tanks = [];
+    const military = [];
+    let bibendum = null;
+    window.__war = { tanks, military, getBibendum: () => bibendum };
+
+    /* ---- BAZOOKA --------------------------------------------------- */
+    // Pickup mesh: a fat tube sitting on the ground with a glow ring.
+    const bazPos = { x: LOT * 1.05, z: -LOT * 0.4 };
+    function spawnBazookaPickup(){
+      const g = new THREE.Group();
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(.18,.22,1.5,12), inkMat());
+      tube.rotation.x = Math.PI/2; tube.position.y = 1.1; g.add(tube);
+      try { if (typeof edges === 'function') edges(tube, 40); } catch (_) {}
+      const flange = new THREE.Mesh(new THREE.CylinderGeometry(.28,.2,.18,14), inkMat());
+      flange.rotation.x = Math.PI/2; flange.position.y = 1.1; flange.position.z = 0.85; g.add(flange);
+      try { if (typeof edges === 'function') edges(flange, 40); } catch (_) {}
+      const label = (typeof makeLabel === 'function') ? makeLabel('BAZOOKA','#ff5b6e',1.7) : null;
+      if (label) { label.position.y = 2; g.add(label); }
+      // Tilted to face up so it stands out from the ground.
+      g.rotation.z = 0.25;
+      g.position.set(bazPos.x, 0, bazPos.z);
+      g.userData = { type: 'weapon', name: 'Bazooka' };
+      scene.add(g);
+      if (typeof pickups !== 'undefined') pickups.push(g);
+    }
+    spawnBazookaPickup();
+
+    // Bazooka fire: a big slow rocket projectile + splash damage.
+    let bazLast = 0;
+    window.fireBazooka = function(){
+      const now = performance.now();
+      if (now - bazLast < 1400) return;   // 1.4 s reload
+      bazLast = now;
+      try { if (sfx && sfx.shoot) sfx.shoot(); } catch (_) {}
+      try { if (sfx && sfx.tone)  sfx.tone(110, 0.32, 'sawtooth', 0.28, 80); } catch (_) {}
+      const start = camera.position.clone();
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+
+      const rocket = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.2, 1, 10), inkMat());
+      body.rotation.x = Math.PI/2; rocket.add(body); try { edges(body, 40); } catch (_) {}
+      const nose = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5, 10), new THREE.MeshBasicMaterial({color:0xff5b6e}));
+      nose.position.z = -0.62; nose.rotation.x = -Math.PI/2; rocket.add(nose);
+      const trail = new THREE.Mesh(new THREE.ConeGeometry(0.4, 1.2, 8), new THREE.MeshBasicMaterial({color:0xffd84d,transparent:true,opacity:.65,blending:THREE.AdditiveBlending,depthWrite:false}));
+      trail.position.z = 0.85; trail.rotation.x = Math.PI/2; rocket.add(trail);
+
+      rocket.position.copy(start).addScaledVector(dir, 1.4);
+      const look = start.clone().addScaledVector(dir, 12);
+      rocket.lookAt(look);
+      scene.add(rocket);
+      projectiles.push({
+        mesh: rocket, dir: dir.clone(), speed: 22, life: 3, max: 3,
+        dmg: 30, splash: 8, isBazooka: true,
+      });
+
+      // Muzzle flash through the same hook as the blaster
+      try {
+        if (typeof muzzle !== 'undefined' && muzzle && muzzle.material) {
+          muzzle.material.opacity = 1;
+          setTimeout(() => { try { muzzle.material.opacity = 0; } catch (_) {} }, 90);
+        }
+      } catch (_) {}
+    };
+
+    /* ---- Splash damage hook in updateProjectiles ------------------- */
+    // We don't touch the existing fireProjectile / updateProjectiles for
+    // the blaster. Instead, every frame we walk projectiles[] ourselves
+    // and apply splash damage when an isBazooka projectile hits anything
+    // or runs out of life. The blaster's per-projectile handler still
+    // owns its own collision against gangs.
+    function explosion(center, radius){
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.2, radius, 32),
+        new THREE.MeshBasicMaterial({color:0xff5b6e,transparent:true,opacity:.75,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false})
+      );
+      ring.rotation.x = -Math.PI/2;
+      ring.position.copy(center); ring.position.y = 0.4;
+      scene.add(ring);
+      let t = 0;
+      const tick = () => {
+        t += 0.06;
+        ring.scale.setScalar(1 + t * 1.5);
+        ring.material.opacity = Math.max(0, 0.75 - t);
+        if (t < 1) requestAnimationFrame(tick);
+        else scene.remove(ring);
+      };
+      tick();
+      try { spawnBurst(center, 0xff5b6e, 32); } catch (_) {}
+      try { spawnBurst(center, 0xffd84d, 18); } catch (_) {}
+      try { if (sfx && sfx.hit) sfx.hit(); } catch (_) {}
+      try { if (sfx && sfx.tone) sfx.tone(60, 0.5, 'sawtooth', 0.35, 60); } catch (_) {}
+    }
+
+    setInterval(() => {
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        if (!p || !p.isBazooka) continue;
+        // Hit-test against tanks + military + gangs
+        let hit = false;
+        const center = p.mesh.position.clone();
+        const all = [...tanks, ...military, ...gangs];
+        for (const g of all) {
+          if (!g || g.userData.down) continue;
+          if (center.distanceTo(g.position.clone().add(new THREE.Vector3(0,1.2,0))) < 1.8) { hit = true; break; }
+        }
+        // Ground impact when life expires
+        if (!hit && (p.life <= 0 || center.y < 0.5)) hit = true;
+        if (hit) {
+          explosion(center, p.splash);
+          for (const g of all) {
+            if (!g || g.userData.down) continue;
+            const d = g.position.distanceTo(center);
+            if (d > p.splash) continue;
+            const dmg = Math.max(1, Math.round(p.dmg * (1 - d / p.splash)));
+            if (g.userData.type === 'tank') damageTank(g, dmg);
+            else if (g.userData.type === 'military') damageMilitary(g, dmg);
+            else if (typeof damageGang === 'function') damageGang(g, dmg, center);
+          }
+          scene.remove(p.mesh);
+          projectiles.splice(i, 1);
+        }
+      }
+    }, 32);
+
+    /* ---- TANKS ---------------------------------------------------- */
+    function makeTank(x, z){
+      const g = new THREE.Group();
+      const hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.1, 4.6), inkMat());
+      hull.position.y = 0.85; g.add(hull); try { edges(hull); } catch (_) {}
+      for (const sx of [-1, 1]) {
+        const tr = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.85, 5), inkMat());
+        tr.position.set(sx * 1.6, 0.42, 0); g.add(tr); try { edges(tr); } catch (_) {}
+      }
+      const turret = new THREE.Mesh(new THREE.CylinderGeometry(1.25, 1.25, 0.7, 18), inkMat());
+      turret.position.y = 1.75; g.add(turret); try { edges(turret, 40); } catch (_) {}
+      const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 3.2, 10), inkMat());
+      barrel.rotation.x = Math.PI/2; barrel.position.set(0, 1.75, 2.1); g.add(barrel);
+      try { edges(barrel, 40); } catch (_) {}
+      const tag = (typeof makeLabel === 'function') ? makeLabel('TANK','#ff5b6e',1.4) : null;
+      if (tag) { tag.position.y = 3.2; g.add(tag); }
+      g.position.set(x, 0, z);
+      g.userData = { type:'tank', hp:25, heading: Math.random()*6.28, speed:1.6, turnT:2+Math.random()*4, hitT:0, down:false, cd:0 };
+      scene.add(g); tanks.push(g);
+      if (typeof colliders !== 'undefined') colliders.push({x,z,hw:2,hd:2.6});
+      return g;
+    }
+    function damageTank(t, dmg){
+      const u = t.userData;
+      u.hp -= dmg; u.hitT = 0.3;
+      try { spawnBurst(t.position.clone().add(new THREE.Vector3(0,2,0)), 0xff5b6e, 22); } catch (_) {}
+      try { if (sfx && sfx.hit) sfx.hit(); } catch (_) {}
+      try { spawnHoodz(t.position.x + (Math.random()*2-1), t.position.z + (Math.random()*2-1)); } catch (_) {}
+      if (u.hp <= 0) {
+        u.down = true; t.rotation.z = Math.PI/4; t.position.y = -0.2;
+        try { spawnBurst(t.position.clone().add(new THREE.Vector3(0,2,0)), 0xff5b6e, 60); } catch (_) {}
+        explosion(t.position.clone(), 6);
+        try { addCash(80); } catch (_) {}
+        // 2x more Hoodz than gangs (gangs drop ~3, tanks drop 6)
+        for (let k = 0; k < 6; k++) {
+          try { spawnHoodz(t.position.x + (Math.random()*5-2.5), t.position.z + (Math.random()*5-2.5)); } catch (_) {}
+        }
+        try { if (sfx && sfx.down) sfx.down(); } catch (_) {}
+        toast('★ Tank destroyed · +80 $HOOD · 6 Hoodz dropped', 'win');
+      }
+    }
+    function updateTanks(dt){
+      for (const t of tanks) {
+        const u = t.userData;
+        if (u.down) continue;
+        if (u.hitT > 0) { u.hitT -= dt; t.scale.setScalar(1 + Math.max(0, u.hitT) * 0.5); }
+        else t.scale.setScalar(1);
+        u.turnT -= dt;
+        if (u.turnT <= 0) { u.heading += (Math.random() * 1.6 - 0.8); u.turnT = 2 + Math.random() * 3; }
+        const nx = t.position.x + Math.sin(u.heading) * u.speed * dt;
+        const nz = t.position.z + Math.cos(u.heading) * u.speed * dt;
+        if (blockedAt(nx, nz)) u.heading += 2.4;
+        else { t.position.x = nx; t.position.z = nz; }
+        t.rotation.y = u.heading;
+        try { t.position.y = groundY(t.position.x, t.position.z); } catch (_) {}
+      }
+    }
+
+    /* ---- MILITARY ------------------------------------------------- */
+    function makeMilitary(x, z){
+      let g;
+      try { g = makeVoxelChar({ face: 1 }); }
+      catch (_) {
+        g = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(.9, 1.6, .55), inkMat()); body.position.y = 1.1; g.add(body);
+        const head = new THREE.Mesh(new THREE.BoxGeometry(.5, .5, .5), inkMat()); head.position.y = 2.15; g.add(head);
+      }
+      // Olive helmet on top
+      const helmet = new THREE.Mesh(new THREE.BoxGeometry(.78, .22, .78), new THREE.MeshBasicMaterial({color:0x4a5d2f}));
+      helmet.position.y = 2.32; g.add(helmet);
+      try { edges(helmet); } catch (_) {}
+      // Rifle hanging by the side
+      const rifle = new THREE.Mesh(new THREE.BoxGeometry(.1, .1, 1.1), inkMat());
+      rifle.position.set(.4, 1.2, .25); g.add(rifle);
+      g.position.set(x, 0, z);
+      g.userData = Object.assign({}, g.userData || {}, {
+        type: 'military', hp: 6, heading: Math.random() * 6.28, speed: 1.9,
+        turnT: 1 + Math.random() * 3, hitT: 0, down: false, cd: 0, aggro: false,
+      });
+      scene.add(g); military.push(g);
+      return g;
+    }
+    function damageMilitary(m, dmg){
+      const u = m.userData;
+      u.hp -= dmg; u.hitT = 0.2;
+      try { spawnBurst(m.position.clone().add(new THREE.Vector3(0,1.3,0)), 0xff5b6e, 12); } catch (_) {}
+      try { if (sfx && sfx.hit) sfx.hit(); } catch (_) {}
+      try { spawnHoodz(m.position.x + (Math.random()*1.6-0.8), m.position.z + (Math.random()*1.6-0.8)); } catch (_) {}
+      if (u.hp <= 0) {
+        u.down = true; m.rotation.z = Math.PI/2; m.position.y = 0.5;
+        try { spawnBurst(m.position.clone().add(new THREE.Vector3(0,1,0)), 0xffffff, 18); } catch (_) {}
+        try { addCash(30); } catch (_) {}
+        for (let k = 0; k < 3; k++) {
+          try { spawnHoodz(m.position.x + (Math.random()*2.4-1.2), m.position.z + (Math.random()*2.4-1.2)); } catch (_) {}
+        }
+        try { if (sfx && sfx.down) sfx.down(); } catch (_) {}
+        toast('Soldier down · +30 $HOOD', 'win');
+      }
+    }
+    function updateMilitary(dt){
+      const playerPos = (typeof player !== 'undefined' && player.pos) ? player.pos : null;
+      for (const m of military) {
+        const u = m.userData;
+        if (u.down) continue;
+        if (u.hitT > 0) { u.hitT -= dt; m.scale.setScalar(1 + Math.max(0, u.hitT) * 0.8); }
+        else m.scale.setScalar(1);
+        if (u.cd > 0) u.cd -= dt;
+        if (playerPos) {
+          const to = playerPos.clone().sub(m.position); to.y = 0;
+          const dP = to.length();
+          if (dP < 16) {
+            to.normalize();
+            m.position.x += to.x * 2.5 * dt;
+            m.position.z += to.z * 2.5 * dt;
+            m.rotation.y = Math.atan2(to.x, to.z);
+            if (dP < 2.4 && u.cd <= 0 && typeof damage === 'function') { damage(6); u.cd = 1; }
+          } else {
+            u.turnT -= dt;
+            if (u.turnT <= 0) { u.heading += (Math.random() * 2 - 1); u.turnT = 1 + Math.random() * 2; }
+            const nx = m.position.x + Math.sin(u.heading) * u.speed * dt;
+            const nz = m.position.z + Math.cos(u.heading) * u.speed * dt;
+            if (blockedAt(nx, nz)) u.heading += 2.4;
+            else { m.position.x = nx; m.position.z = nz; }
+            m.rotation.y = u.heading;
+          }
+        }
+        try { m.position.y = groundY(m.position.x, m.position.z); } catch (_) {}
+        try { if (typeof animChar === 'function') animChar(m, dt, true, u.speed * 3.2); } catch (_) {}
+      }
+    }
+
+    /* ---- GIANT MARSHMALLOW MAN (Stay Puft) ------------------------ */
+    function makeBibendum(){
+      const H = 50;          // total height in world units
+      const W = 9;           // base body width
+      const g = new THREE.Group();
+      const white = () => new THREE.MeshBasicMaterial({color: 0xfafafa});
+      const navy = new THREE.MeshBasicMaterial({color: 0x222244});
+      const black = new THREE.MeshBasicMaterial({color: 0x000000});
+
+      // Legs (chunky white boxes)
+      for (const sx of [-1, 1]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(W*0.4, H*0.34, W*0.45), white());
+        leg.position.set(sx * W * 0.28, H * 0.17, 0); g.add(leg);
+        try { edges(leg); } catch (_) {}
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(W*0.46, H*0.07, W*0.55), black);
+        boot.position.set(sx * W * 0.28, H * 0.035, W*0.06); g.add(boot);
+        try { edges(boot); } catch (_) {}
+      }
+      // Body (three stacked rolls of marshmallow flesh)
+      for (let i = 0; i < 3; i++) {
+        const r = new THREE.Mesh(new THREE.SphereGeometry(W * 0.55, 18, 12), white());
+        r.position.set(0, H * 0.39 + i * H * 0.16, 0);
+        r.scale.set(1, 0.72, 1);
+        g.add(r); try { edges(r, 50); } catch (_) {}
+      }
+      // Belt scarf around the middle
+      const scarf = new THREE.Mesh(new THREE.CylinderGeometry(W*0.58, W*0.58, H*0.06, 24), navy);
+      scarf.position.y = H * 0.52; g.add(scarf); try { edges(scarf, 40); } catch (_) {}
+      // Arms hanging at the side
+      for (const sx of [-1, 1]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(W*0.3, H*0.32, W*0.3), white());
+        arm.position.set(sx * W * 0.62, H * 0.55, 0); arm.rotation.z = sx * -0.1; g.add(arm);
+        try { edges(arm); } catch (_) {}
+        // Mitt (hand)
+        const mitt = new THREE.Mesh(new THREE.SphereGeometry(W*0.2, 12, 8), white());
+        mitt.position.set(sx * W * 0.68, H * 0.4, 0); g.add(mitt); try { edges(mitt, 40); } catch (_) {}
+      }
+      // Head
+      const head = new THREE.Mesh(new THREE.SphereGeometry(W*0.42, 18, 14), white());
+      head.position.set(0, H * 0.93, 0); g.add(head); try { edges(head, 40); } catch (_) {}
+      // Eyes
+      for (const sx of [-1, 1]) {
+        const eye = new THREE.Mesh(new THREE.CircleGeometry(W*0.06, 14), black);
+        eye.position.set(sx * W * 0.13, H * 0.95, W * 0.40); g.add(eye);
+      }
+      // Smile
+      const smile = new THREE.Mesh(new THREE.TorusGeometry(W*0.17, W*0.022, 8, 10, Math.PI), black);
+      smile.position.set(0, H * 0.88, W * 0.40); smile.rotation.set(0, 0, Math.PI);
+      g.add(smile);
+      // Sailor hat
+      const hat = new THREE.Mesh(new THREE.CylinderGeometry(W*0.45, W*0.45, W*0.18, 20), navy);
+      hat.position.y = H * 1.07; g.add(hat); try { edges(hat, 40); } catch (_) {}
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(W*0.55, W*0.55, W*0.05, 22), white());
+      brim.position.y = H * 0.99; g.add(brim);
+      const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(W*0.46, W*0.46, W*0.04, 22), new THREE.MeshBasicMaterial({color:0xff2db5}));
+      ribbon.position.y = H * 1.0; g.add(ribbon);
+
+      g.userData = {
+        type: 'bibendum',
+        H: H,
+        heading: Math.random() * 6.28,
+        speed: 1.8,    // slow lumbering walk (units/sec)
+        turnT: 4 + Math.random() * 4,
+        legPhase: 0,
+      };
+      return g;
+    }
+    function spawnBibendum(){
+      if (bibendum) return;
+      bibendum = makeBibendum();
+      // Spawn at a corner of the city so the player notices him roaming in.
+      const x = (typeof LOT !== 'undefined') ? LOT * 3 : 90;
+      const z = (typeof LOT !== 'undefined') ? LOT * 3 : 90;
+      bibendum.position.set(x, 0, z);
+      scene.add(bibendum);
+    }
+    function updateBibendum(dt){
+      if (!bibendum) return;
+      const u = bibendum.userData;
+      u.turnT -= dt;
+      if (u.turnT <= 0) { u.heading += (Math.random() * 1.4 - 0.7); u.turnT = 4 + Math.random() * 5; }
+      // Walk forward; bounce off the city edge by reversing heading.
+      const lim = (typeof GRID !== 'undefined' && typeof LOT !== 'undefined') ? GRID * LOT / 2 - 5 : 200;
+      const nx = bibendum.position.x + Math.sin(u.heading) * u.speed * dt;
+      const nz = bibendum.position.z + Math.cos(u.heading) * u.speed * dt;
+      if (Math.abs(nx) < lim && Math.abs(nz) < lim) {
+        bibendum.position.x = nx; bibendum.position.z = nz;
+      } else {
+        u.heading += Math.PI;
+      }
+      bibendum.rotation.y = u.heading;
+      // Lumbering bob
+      u.legPhase += dt * 1.4;
+      bibendum.position.y = Math.abs(Math.sin(u.legPhase)) * 0.6;
+    }
+    spawnBibendum();
+
+    /* ---- Spawn the army ------------------------------------------- */
+    for (let i = 0; i < 3; i++) {
+      let x, z, tr = 0;
+      const R = (typeof CITYR !== 'undefined') ? CITYR : 80;
+      do {
+        x = (Math.random() * 2 - 1) * R;
+        z = (Math.random() * 2 - 1) * R;
+        tr++;
+      } while (blockedAt(x, z) && tr < 16);
+      makeTank(x, z);
+    }
+    for (let i = 0; i < 8; i++) {
+      let x, z, tr = 0;
+      const R = (typeof CITYR !== 'undefined') ? CITYR : 80;
+      do {
+        x = (Math.random() * 2 - 1) * R;
+        z = (Math.random() * 2 - 1) * R;
+        tr++;
+      } while (blockedAt(x, z) && tr < 16);
+      makeMilitary(x, z);
+    }
+
+    /* ---- Tick everything via the main animation clock ------------- */
+    let lastT = (clock && clock.getElapsedTime) ? clock.getElapsedTime() : performance.now() / 1000;
+    function tick(){
+      requestAnimationFrame(tick);
+      const now = (clock && clock.getElapsedTime) ? clock.getElapsedTime() : performance.now() / 1000;
+      const dt = Math.min(0.05, Math.max(0.001, now - lastT));
+      lastT = now;
+      try {
+        if (typeof state !== 'undefined' && !state.playing) return;
+        if (state.panelOpen || state.shopOpen || state.inJail || state.eaten || state.faqOpen) return;
+        updateTanks(dt);
+        updateMilitary(dt);
+        updateBibendum(dt);
+      } catch (_) {}
+    }
+    tick();
+  }
+  // Hook into the existing start() chain by exposing patchWarOnTheStreets
+  // on the same script-block scope. start() above calls it.
+  window.patchWarOnTheStreets = patchWarOnTheStreets;
 })();
 </script>
 </body>
