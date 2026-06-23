@@ -288,8 +288,11 @@
     color:#04121a;padding:12px;margin-top:4px;pointer-events:auto}
   .actbtn:hover{filter:brightness(1.12)}
   .minted{display:inline-block;color:#2dffa6;font-weight:800;font-size:13px;padding:8px 0}
-  .nftpic{width:120px;height:120px;margin:0 auto 12px;border:1px solid rgba(255,255,255,.4);overflow:hidden;background:#000}
-  .nftpic img{width:100%;height:100%;object-fit:cover;display:block}
+  .nftpic{width:180px;height:180px;margin:0 auto 14px;border:2px solid #fff;overflow:hidden;background:#000;
+    box-shadow:0 0 0 1px rgba(255,255,255,.15) inset, 0 8px 24px rgba(0,0,0,.6);position:relative}
+  .nftpic img{width:100%;height:100%;object-fit:contain;display:block;image-rendering:pixelated;background:#000}
+  .nftpic::after{content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(255,255,255,.06),transparent 35%)}
   /* ===== target lock reticle ===== */
   #lock{position:absolute;left:50%;top:50%;width:56px;height:56px;transform:translate(-50%,-50%) scale(.7);
     opacity:0;transition:.1s;pointer-events:none;z-index:11}
@@ -833,8 +836,37 @@ function buildLake(i0,j0,n,half){
   kerb.rotation.x=-Math.PI/2;kerb.rotation.z=Math.PI/4;kerb.position.set(cx,0.07,cz);scene.add(kerb);
   lakeBounds={minX:cx-W/2+1.2,maxX:cx+W/2-1.2,minZ:cz-W/2+1.2,maxZ:cz+W/2-1.2,cx,cz,W,tex};
   for(let k=0;k<5;k++)makeShark(cx,cz,W*0.12+rng()*W*0.32);
-  // sign on the shore
-  const s=makeSignPlane('DANGER',0xffffff,5,1.2);s.position.set(cx,2.4,cz-W/2-0.5);scene.add(s);
+  // "Beware of sharks!" signs on poles, one per shore + corners
+  const shoreOff=W/2+1.0;
+  const sites=[
+    {x:cx,         z:cz-shoreOff,  yaw:0},
+    {x:cx,         z:cz+shoreOff,  yaw:Math.PI},
+    {x:cx-shoreOff,z:cz,           yaw:Math.PI/2},
+    {x:cx+shoreOff,z:cz,           yaw:-Math.PI/2},
+    {x:cx-shoreOff*0.75,z:cz-shoreOff*0.75,yaw:Math.PI/4},
+    {x:cx+shoreOff*0.75,z:cz+shoreOff*0.75,yaw:-3*Math.PI/4},
+  ];
+  for(const s of sites){
+    const grp=new THREE.Group();
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.11,3.0,8),inkMat());
+    pole.position.y=1.5; grp.add(pole); edges(pole,40);
+    const board=makeSignPlane('BEWARE OF SHARKS!',0xffffff,4.2,1.2);
+    board.position.y=2.6; grp.add(board);
+    // little shark-fin silhouette below the text so the warning reads at a glance
+    const finCv=document.createElement('canvas'); finCv.width=128; finCv.height=64;
+    const fc=finCv.getContext('2d');
+    fc.fillStyle='#000'; fc.fillRect(0,0,128,64);
+    fc.strokeStyle='#fff'; fc.lineWidth=4; fc.lineCap='round'; fc.lineJoin='round';
+    fc.beginPath();
+    fc.moveTo(10,52); fc.bezierCurveTo(34,50,46,50,58,52);  // water line left
+    fc.moveTo(70,52); fc.bezierCurveTo(86,50,108,50,118,52); // water line right
+    fc.moveTo(58,52); fc.lineTo(64,28); fc.lineTo(70,52);    // fin
+    fc.stroke();
+    const finTex=new THREE.CanvasTexture(finCv); finTex.encoding=THREE.sRGBEncoding;
+    const fin=new THREE.Mesh(new THREE.PlaneGeometry(1.4,0.7),new THREE.MeshBasicMaterial({map:finTex,transparent:true}));
+    fin.position.y=1.5; grp.add(fin);
+    grp.position.set(s.x,0,s.z); grp.rotation.y=s.yaw; scene.add(grp);
+  }
 }
 function makeShark(cx,cz,r){
   const g=new THREE.Group();
@@ -927,40 +959,26 @@ function setupSecrets(){
 }
 function makeRoadTexture(span){
   const R=2048, cv=document.createElement('canvas'); cv.width=cv.height=R; const ctx=cv.getContext('2d');
-  // Sidewalk-grey base. Streets get painted darker on top so they read as
-  // streets, not the whole ground plane.
-  ctx.fillStyle='#1c1c24'; ctx.fillRect(0,0,R,R);
-  const grain=ctx.createImageData(R,R), gd=grain.data;
-  for(let i=0;i<gd.length;i+=4){
-    const n=(Math.random()*8)|0;
-    gd[i]=26+n; gd[i+1]=26+n; gd[i+2]=32+n; gd[i+3]=255;
-  }
-  ctx.putImageData(grain,0,0);
+  // Hand-inked aesthetic to match the brick walls: pure black surface with
+  // crisp white outlines for everything (kerbs, lane line, crosswalks).
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,R,R);
   const w2px=x=>((x+span/2)/span)*R;
   const u2px=u=>(u/span)*R;
   const ROAD_HW=(LOT-SLAB)/2;
   const roadHalfPx=u2px(ROAD_HW);
   const lanes=[]; for(let k=-(GRID+1);k<=GRID+1;k++)lanes.push((k+0.5)*LOT);
-  // Asphalt strips (visibly darker than the sidewalk grey).
-  ctx.fillStyle='#080810';
+  // Inner kerb outline along each side of every road (white).
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=4; ctx.lineCap='butt';
   for(const L of lanes){
     if(Math.abs(L)>span/2)continue;
-    const p=w2px(L);
-    ctx.fillRect(p-roadHalfPx,0,roadHalfPx*2,R);
-    ctx.fillRect(0,p-roadHalfPx,R,roadHalfPx*2);
-  }
-  // Solid white kerb / edge lines on each side of every road.
-  ctx.strokeStyle='#f1f1f6'; ctx.lineWidth=4; ctx.lineCap='butt';
-  for(const L of lanes){
-    if(Math.abs(L)>span/2)continue;
-    const c=w2px(L), p1=c-roadHalfPx+3, p2=c+roadHalfPx-3;
+    const c=w2px(L), p1=c-roadHalfPx+2, p2=c+roadHalfPx-2;
     ctx.beginPath();ctx.moveTo(p1,0);ctx.lineTo(p1,R);ctx.stroke();
     ctx.beginPath();ctx.moveTo(p2,0);ctx.lineTo(p2,R);ctx.stroke();
     ctx.beginPath();ctx.moveTo(0,p1);ctx.lineTo(R,p1);ctx.stroke();
     ctx.beginPath();ctx.moveTo(0,p2);ctx.lineTo(R,p2);ctx.stroke();
   }
-  // Yellow dashed centre line down the middle of every road.
-  ctx.strokeStyle='#ffd84d'; ctx.lineWidth=3; ctx.setLineDash([30,30]);
+  // Dashed white centre line — no colour, just ink.
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=3; ctx.setLineDash([26,26]);
   for(const L of lanes){
     if(Math.abs(L)>span/2)continue;
     const p=w2px(L);
@@ -968,10 +986,10 @@ function makeRoadTexture(span){
     ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(R,p);ctx.stroke();
   }
   ctx.setLineDash([]);
-  // Crosswalks: short white stripes parallel to traffic, drawn just inside
-  // each kerb at every intersection.
-  ctx.fillStyle='#f8f8fb';
-  const nStripes=6, sGap=2;
+  // Crosswalks — short stripes drawn as white outlines (not solids) to keep
+  // the inked look consistent with bricks/slabs.
+  ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
+  const nStripes=5, sGap=3;
   const sWidth=(roadHalfPx*2 - (nStripes+1)*sGap)/nStripes;
   const sLen=roadHalfPx*0.55;
   for(const Lx of lanes)for(const Lz of lanes){
@@ -979,11 +997,11 @@ function makeRoadTexture(span){
     const xc=w2px(Lx),yc=w2px(Lz);
     for(let m=0;m<nStripes;m++){
       const sx=xc-roadHalfPx+sGap+m*(sWidth+sGap);
-      ctx.fillRect(sx, yc-roadHalfPx-sLen+2, sWidth, sLen);   // approach from north
-      ctx.fillRect(sx, yc+roadHalfPx-2,       sWidth, sLen);   // approach from south
+      ctx.strokeRect(sx, yc-roadHalfPx-sLen+2, sWidth, sLen);
+      ctx.strokeRect(sx, yc+roadHalfPx-2,       sWidth, sLen);
       const sy=yc-roadHalfPx+sGap+m*(sWidth+sGap);
-      ctx.fillRect(xc-roadHalfPx-sLen+2, sy, sLen, sWidth);   // approach from west
-      ctx.fillRect(xc+roadHalfPx-2,       sy, sLen, sWidth);   // approach from east
+      ctx.strokeRect(xc-roadHalfPx-sLen+2, sy, sLen, sWidth);
+      ctx.strokeRect(xc+roadHalfPx-2,       sy, sLen, sWidth);
     }
   }
   const t=new THREE.CanvasTexture(cv);
@@ -1534,10 +1552,29 @@ function makeHoodlrFigure(opt){
 }
 function animChar(g,dt,moving,speed){
   const L=g.userData.limbs; if(!L)return;
-  if(moving){g.userData.phase+=dt*(speed||7);const s=Math.sin(g.userData.phase)*0.7;
-    L.lhip.rotation.x=s;L.rhip.rotation.x=-s;L.lsh.rotation.x=-s;L.rsh.rotation.x=s;
-    L.torso.position.y=1.22+Math.abs(Math.sin(g.userData.phase))*0.04;}
-  else{for(const k of['lhip','rhip','lsh','rsh'])L[k].rotation.x+=( -L[k].rotation.x)*Math.min(1,8*dt);L.torso.position.y=1.22;}
+  if(moving){
+    // Walk cycle: hips/shoulders swing opposite-phase, torso bobs on the
+    // double-step frequency. Speed scales the cycle so jogging looks
+    // visibly faster than walking.
+    g.userData.phase+=dt*(speed||7);
+    const s=Math.sin(g.userData.phase)*0.72;
+    L.lhip.rotation.x=s;L.rhip.rotation.x=-s;
+    L.lsh.rotation.x=-s*0.85;L.rsh.rotation.x=s*0.85;
+    L.torso.position.y=1.22+Math.abs(Math.sin(g.userData.phase))*0.05;
+    // Subtle hip sway so the model doesn't look pinned to the ground plane.
+    L.torso.rotation.z=Math.sin(g.userData.phase)*0.04;
+    g.userData.idleT=0;
+  } else {
+    // Idle anim: breathing torso, slow arm sway, occasional weight shift.
+    g.userData.idleT=(g.userData.idleT||0)+dt;
+    const it=g.userData.idleT;
+    for(const k of['lhip','rhip']) L[k].rotation.x += (-L[k].rotation.x)*Math.min(1,8*dt);
+    const sway=Math.sin(it*1.3)*0.05;
+    L.lsh.rotation.x += (-sway - L.lsh.rotation.x)*Math.min(1,6*dt);
+    L.rsh.rotation.x += ( sway - L.rsh.rotation.x)*Math.min(1,6*dt);
+    L.torso.position.y=1.22+Math.sin(it*2.2)*0.018;
+    L.torso.rotation.z += (Math.sin(it*0.7)*0.025 - L.torso.rotation.z)*Math.min(1,4*dt);
+  }
 }
 /* floating billboard label (Sprite always faces the camera) */
 function makeLabel(text,color,scale){
@@ -1565,6 +1602,16 @@ const CITIZEN_LINES=[
   "They say three SECRET souls hide in plain sight · #0000, #0001, #0002.",
   "See a white crown floating over a tower? That's not decoration, holder. That's a tell.",
   "New here? Talk to everyone. Somebody always knows something they shouldn't.",
+  "If your gas runs cold, the elevators stop. I've been stuck on floor 7 for two days.",
+  "They say the lake remembers every wallet that fell in. The sharks just digest the rest.",
+  "Don't waste rounds on the cops · just drop your Hoodz before they grab you.",
+  "I traded a #0042 for two slices of pizza last week. The pizza was good.",
+  "The Genesis Hoodlr is real, holder. I saw the crown myself. Just not the wallet.",
+  "There's a hole in the radar around the lake. Cops don't go in. Sharks do.",
+  "Hood Blaster works on every gang sprite in The Block. Don't aim it at me.",
+  "Lost souls don't stay lost. They just wait for someone to walk up and press E.",
+  "Heard a holder paid 50 Hoodz to a junkie for a wallet tip. Tip was real.",
+  "Every block sign is a hex address. Six chars, easy to remember if you try.",
 ];
 const JUNKIE_LINES=[
   "...the glitch... it talks to me, man... three souls that wouldn't delete...",
@@ -1572,6 +1619,11 @@ const JUNKIE_LINES=[
   "they burned #0002 off the ledger but it's still THERE, glowing white, I swear...",
   "the white light over the tower... it's a wallet... walk up, press E... you'll see it too...",
   "#0001... the Phantom... it refused the delete command... it's still minted somewhere...",
+  "the chain remembers... the chain always remembers... even the souls they erased...",
+  "the cops can't see me when I close my eyes... try it... close them, just like me...",
+  "you think you're holding the wallet... but the wallet's holding you, holder...",
+  "the lake's deeper than it looks... three of them down there... three souls, glowing...",
+  "every tower's a tombstone, every floor's a name. I read them all. I'm tired now.",
 ];
 const WORKER_LINES=[
   "Lonely in The Block, holder? The informant's the one you want, not me.",
@@ -1579,6 +1631,18 @@ const WORKER_LINES=[
   "Keep your Hoodz close · cops and gangs both want a cut.",
   "Buy a drink at the bar, the owner spills everything worth knowing.",
   "Crowns of light over the towers? Those are the lost souls, sugar. Go get them.",
+  "If a cop's eye lights up white, you've got two seconds before the cuffs.",
+  "Bring me 20 Hoodz and I'll tell you which tower lit up last night.",
+  "The Dealer's the only honest face in The Block. Honest cause he's bored.",
+  "Look for the white crowns. Always the crowns. Forget the rest, holder.",
+  "The Oracles speak in riddles. The citizens speak in tips. Listen to both.",
+];
+const KEEPER_LINES=[
+  "Wallet's open. Tell me what you need.",
+  "Health, drip or muscle · I stock all three. Spend smart.",
+  "Heard the lake claimed another holder last cycle. Don't be next.",
+  "Hood Blaster's good gear, but it draws the cops. Cool down between blocks.",
+  "Don't lift anything. Cameras are real. So am I.",
 ];
 function makePedestrians(n){
   for(let i=0;i<n;i++){
@@ -2490,16 +2554,31 @@ function buildInterior(b){
   G.add(mesh(hw*2,roomH,0.3,brick(),IC.x,INTERIOR_Y+roomH/2,IC.z-hd));                   // front
   G.add(mesh(0.3,roomH,hd*2,brick(),IC.x-hw,INTERIOR_Y+roomH/2,IC.z));                   // left
   G.add(mesh(0.3,roomH,hd*2,brick(),IC.x+hw,INTERIOR_Y+roomH/2,IC.z));                   // right
-  // GALLERY of stacked NFTs on the back wall, white frame + per-floor highlight
-  const gw=Math.min(hw*1.4,b.w*0.85);
-  G.add(edges(mesh(gw+0.4,galleryH+0.4,0.12,inkMat(),IC.x,INTERIOR_Y+galleryH/2+0.7,IC.z+hd-0.3)));
+  // GALLERY · square NFT canvas centred on the back wall, white outline
+  // frame, per-floor highlight strip that travels up as the player uses
+  // the elevator. Aspect is forced 1:1 because the Hoodlrz art is square.
+  const galSide=Math.min(hw*1.4, b.w*0.85, galleryH*1.4);
+  const galY=INTERIOR_Y+galSide/2+0.9;
+  G.add(edges(mesh(galSide+0.45,galSide+0.45,0.12,inkMat(),IC.x,galY,IC.z+hd-0.3)));
+  // Helper that builds a textured material with a gateway-fallback chain so
+  // one flaky IPFS host doesn't blank the gallery.
+  const buildGalMat=(url)=>{
+    if(!url)return new THREE.MeshBasicMaterial({map:b.facadeTex});
+    const t=new THREE.Texture(); t.encoding=THREE.sRGBEncoding; t.magFilter=THREE.LinearFilter;
+    const cands=[]; if(url.startsWith('ipfs://')){const p=url.replace(/^ipfs:\/\//,'').replace(/^ipfs\//,'');
+      cands.push('https://ipfs.io/ipfs/'+p,'https://cloudflare-ipfs.com/ipfs/'+p,'https://nftstorage.link/ipfs/'+p);
+    } else cands.push(url);
+    let i=0; const next=()=>{ if(i>=cands.length)return; const im=new Image(); im.crossOrigin='anonymous';
+      im.onload=()=>{t.image=im;t.needsUpdate=true;}; im.onerror=()=>{i++;next();}; im.src=cands[i++]; };
+    next();
+    return new THREE.MeshBasicMaterial({map:t,toneMapped:false});
+  };
   const galImg=onchain.live?onchain.tokenImg(b.tokenId):null;
-  const galMat=galImg?new THREE.MeshBasicMaterial({map:(()=>{const t=new THREE.TextureLoader().load(galImg);t.encoding=THREE.sRGBEncoding;return t;})()}):new THREE.MeshBasicMaterial({map:b.facadeTex});
-  const gal=new THREE.Mesh(new THREE.PlaneGeometry(gw,galleryH),galMat);
-  gal.position.set(IC.x,INTERIOR_Y+galleryH/2+0.7,IC.z+hd-0.22);G.add(gal);
-  const hl=new THREE.Mesh(new THREE.PlaneGeometry(gw+0.25,Math.max(0.5,galleryH/b.floors)),new THREE.MeshBasicMaterial({color:WHITE,transparent:true,opacity:.22,depthWrite:false}));
-  hl.position.set(IC.x,INTERIOR_Y,IC.z+hd-0.18);G.add(hl);interior.highlight=hl;
-  const addr=makeSignPlane(b.short,0xffffff,gw*0.7,gw*0.7/5);addr.position.set(IC.x,INTERIOR_Y+galleryH+1.3,IC.z+hd-0.28);G.add(addr);
+  const gal=new THREE.Mesh(new THREE.PlaneGeometry(galSide,galSide),buildGalMat(galImg));
+  gal.position.set(IC.x,galY,IC.z+hd-0.22);G.add(gal);
+  const hl=new THREE.Mesh(new THREE.PlaneGeometry(galSide+0.3,Math.max(0.5,galSide/b.floors)),new THREE.MeshBasicMaterial({color:WHITE,transparent:true,opacity:.22,depthWrite:false}));
+  hl.position.set(IC.x,INTERIOR_Y,IC.z+hd-0.18);G.add(hl);interior.highlight=hl;interior.galSide=galSide;
+  const addr=makeSignPlane(b.short,0xffffff,galSide*0.7,galSide*0.7/5);addr.position.set(IC.x,INTERIOR_Y+galSide+1.5,IC.z+hd-0.28);G.add(addr);
   // wallet terminal
   G.add(edges(inkBox(1,1,1,IC.x,INTERIOR_Y+0.5,IC.z+hd-2)));
   G.add(makeFloatingLabel(b.secret?'WALLET · sealed':'WALLET TERMINAL','#ffffff',new THREE.Vector3(IC.x,INTERIOR_Y+1.7,IC.z+hd-2)));
@@ -2580,9 +2659,37 @@ function decorateInterior(G,hw,hd,roomH,b){
   const scan=new THREE.Mesh(new THREE.PlaneGeometry(2.4,1.34),gradMat.collect);scan.position.set(IC.x+hw*0.35,INTERIOR_Y+2.4,IC.z+hd-0.25);G.add(scan);
   // stacked crates in a corner
   for(let i=0;i<3;i++){const c=mesh(0.9,0.9,0.9,inkMat(),IC.x-hw+1.2,INTERIOR_Y+0.45+i*0.92,IC.z-hd+4.2+(i%2)*0.2);G.add(edges(c));}
-  // ceiling pendant lights
-  for(const lx of[-1,1]){const cord=mesh(0.04,1.0,0.04,inkMat(),IC.x+lx*hw*0.4,INTERIOR_Y+roomH-0.6,IC.z);G.add(cord);
-    const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8),new THREE.MeshBasicMaterial({color:WHITE}));bulb.position.set(IC.x+lx*hw*0.4,INTERIOR_Y+roomH-1.1,IC.z);G.add(bulb);}
+  // ceiling pendant lights — three lamps casting a soft circle on the floor below
+  for(const lx of[-1,0,1]){
+    const cord=mesh(0.04,1.0,0.04,inkMat(),IC.x+lx*hw*0.4,INTERIOR_Y+roomH-0.6,IC.z);G.add(cord);
+    const bulb=new THREE.Mesh(new THREE.SphereGeometry(0.22,10,8),new THREE.MeshBasicMaterial({color:WHITE}));bulb.position.set(IC.x+lx*hw*0.4,INTERIOR_Y+roomH-1.1,IC.z);G.add(bulb);
+    const pool=new THREE.Mesh(new THREE.CircleGeometry(0.8,18),new THREE.MeshBasicMaterial({color:WHITE,transparent:true,opacity:.08,depthWrite:false,side:THREE.DoubleSide}));
+    pool.rotation.x=-Math.PI/2;pool.position.set(IC.x+lx*hw*0.4,INTERIOR_Y+0.04,IC.z);G.add(pool);
+  }
+  // wall clock above the sofa, hand-inked
+  const clk=new THREE.Mesh(new THREE.RingGeometry(0.42,0.5,28),new THREE.MeshBasicMaterial({color:WHITE,side:THREE.DoubleSide}));
+  clk.rotation.x=-Math.PI/2;clk.position.set(IC.x,INTERIOR_Y+roomH-1.0,IC.z-hd+0.32);clk.rotation.x=0;G.add(clk);
+  const clkH=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.34,0.02),new THREE.MeshBasicMaterial({color:WHITE}));clkH.position.set(IC.x,INTERIOR_Y+roomH-0.9,IC.z-hd+0.33);G.add(clkH);
+  const clkM=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.24,0.02),new THREE.MeshBasicMaterial({color:WHITE}));clkM.rotation.z=0.9;clkM.position.set(IC.x,INTERIOR_Y+roomH-0.95,IC.z-hd+0.33);G.add(clkM);
+  // bookshelf on the right-front wall: stacked spines as small white bars
+  const shelfX=IC.x+hw-0.25;
+  G.add(edges(mesh(0.18,2.4,1.6,inkMat(),shelfX,INTERIOR_Y+1.4,IC.z-hd+2.4)));
+  for(let row=0;row<3;row++){
+    for(let i=0;i<5;i++){
+      const sp=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.5+(i%2)*0.05,0.18),new THREE.MeshBasicMaterial({color:WHITE}));
+      sp.position.set(shelfX-0.05,INTERIOR_Y+0.55+row*0.78,IC.z-hd+2.4-0.6+i*0.24);
+      G.add(sp);
+    }
+  }
+  // hanging cable string-of-bulbs above the back wall (party lights)
+  const sl=10;
+  for(let i=0;i<sl;i++){
+    const t=i/(sl-1);
+    const sx=IC.x-hw*0.7+t*hw*1.4;
+    const sy=INTERIOR_Y+roomH-0.45-Math.sin(t*Math.PI)*0.25;
+    const bb=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),new THREE.MeshBasicMaterial({color:WHITE}));
+    bb.position.set(sx,sy,IC.z+hd-0.6); G.add(bb);
+  }
   // neon wall tag
   const tag=makeSignPlane('hOodlrz',0xffffff,2.6,0.9);tag.position.set(IC.x+hw*0.1,INTERIOR_Y+roomH-1.0,IC.z+hd-0.3);G.add(tag);
   placeInteriorLoot(G,hw,hd,b);
@@ -2680,8 +2787,8 @@ function decorateShopInterior(G,hw,hd,roomH,b){
   }
   placeInteriorLoot(G,hw,hd,b);
 }
-function setFloor(n){state.floor=n;const cellH=interior.galleryH/interior.b.floors;
-  if(interior.highlight)interior.highlight.position.y=INTERIOR_Y+0.7+(n-0.5)*cellH;
+function setFloor(n){state.floor=n;const galH=interior.galSide||interior.galleryH;const cellH=galH/interior.b.floors;
+  if(interior.highlight)interior.highlight.position.y=INTERIOR_Y+0.9+(n-0.5)*cellH;
   if(interior.elevInd){interior.elevInd.material.map=policeTextTex('▲ '+n);interior.elevInd.material.needsUpdate=true;}
   if(interior.floorLabel)interiorGroup.remove(interior.floorLabel);
   interior.floorLabel=makeFloatingLabel('FLOOR '+n+' / '+interior.b.floors+'  ·  '+interior.b.short,'#ffffff',new THREE.Vector3(IC.x,INTERIOR_Y+interior.roomH-0.7,IC.z+interior.hd-1));
@@ -3019,8 +3126,12 @@ window.addEventListener('load',boot);
   #holders .hitem{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid rgba(255,255,255,.12);
     cursor:pointer;background:rgba(255,255,255,.02);transition:.12s}
   #holders .hitem:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
-  #holders .himg{width:46px;height:46px;background:#000;border:1px solid rgba(255,255,255,.2);overflow:hidden;flex-shrink:0}
-  #holders .himg img{width:100%;height:100%;object-fit:cover;display:block}
+  #holders .himg{width:54px;height:54px;background:#000;border:1px solid rgba(255,255,255,.3);overflow:hidden;flex-shrink:0;
+    display:grid;place-items:center}
+  #holders .himg img{width:100%;height:100%;object-fit:contain;display:block;image-rendering:pixelated}
+  #holders .himg::before{content:'?';color:rgba(255,255,255,.18);font-family:'Hoodlrz',sans-serif;font-size:22px;
+    grid-area:1/1;font-weight:700}
+  #holders .himg img{grid-area:1/1}
   #holders .himeta{display:flex;flex-direction:column;min-width:0;font-size:11px;line-height:1.3}
   #holders .haddr{font-family:'Consolas',monospace;color:#fff;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #holders .hcount2{color:#9d9dba;letter-spacing:.04em}
@@ -3132,7 +3243,9 @@ window.addEventListener('load',boot);
       const el = document.createElement('div');
       el.className = 'hitem';
       el.innerHTML =
-        '<div class="himg">' + (img ? '<img loading="lazy" src="' + img + '" alt="">' : '') + '</div>' +
+        '<div class="himg">' + (img
+          ? '<img loading="lazy" src="' + img + '" alt="" onerror="this.remove()">'
+          : '') + '</div>' +
         '<div class="himeta">' +
           '<span class="haddr">' + fmt(wallet) + '</span>' +
           '<span class="hcount2">#' + (i + 1) + ' · find on map</span>' +
@@ -3335,19 +3448,70 @@ window.addEventListener('load',boot);
     const dbg = { wrappedCalls: 0, hadUrl: 0, addedPlanes: 0, lastUrl: null, loadedOk: 0, loadFailed: 0, sweeps: 0 };
     window.__cityNftDebug = dbg;
 
+    // Resolve a URL to its candidate fetch list - ipfs:// gets up to three
+    // public gateways so a single flaky one doesn't blank out a tower.
+    function urlCandidates(url){
+      if (!url) return [];
+      const out = [];
+      if (typeof url === 'string' && url.startsWith('ipfs://')) {
+        const path = url.replace(/^ipfs:\/\//, '').replace(/^ipfs\//, '');
+        out.push('https://ipfs.io/ipfs/' + path);
+        out.push('https://cloudflare-ipfs.com/ipfs/' + path);
+        out.push('https://nftstorage.link/ipfs/' + path);
+      } else if (typeof url === 'string' && /^https?:\/\/(ipfs\.io|gateway\.ipfs|cloudflare-ipfs|nftstorage|ipfs\.infura)/.test(url)) {
+        out.push(url);
+        // also queue a fallback if the original was ipfs.io
+        if (/ipfs\.io\/ipfs\//.test(url)) {
+          out.push(url.replace('ipfs.io', 'cloudflare-ipfs.com'));
+          out.push(url.replace('ipfs.io', 'nftstorage.link'));
+        }
+      } else if (url) {
+        out.push(url);
+      }
+      return out;
+    }
     function loadTex(url){
       if (texCache[url]) return texCache[url];
-      const loader = new THREE.TextureLoader();
-      loader.crossOrigin = 'anonymous';
-      const tex = loader.load(
-        url,
-        (t) => { t.encoding = THREE.sRGBEncoding; t.needsUpdate = true; dbg.loadedOk++; },
-        undefined,
-        () => { dbg.loadFailed++; console.warn('[NFT facade] image failed:', url); },
-      );
+      const tex = new THREE.Texture();
       tex.encoding = THREE.sRGBEncoding;
       texCache[url] = tex;
+      const candidates = urlCandidates(url);
+      let attempt = 0;
+      const tryNext = () => {
+        if (attempt >= candidates.length) {
+          dbg.loadFailed++;
+          console.warn('[NFT facade] all gateways failed for', url);
+          return;
+        }
+        const u = candidates[attempt++];
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          tex.image = img;
+          tex.needsUpdate = true;
+          dbg.loadedOk++;
+        };
+        img.onerror = () => {
+          console.warn('[NFT facade] gateway failed:', u);
+          tryNext();
+        };
+        img.src = u;
+      };
+      tryNext();
       return tex;
+    }
+
+    // Hoodlrz NFTs are square, so we force the plane to be square and
+    // size it to the largest dimension that fits both the building width
+    // AND the tower's facade height. The earlier rectangular plane was
+    // stretching some NFTs into smears.
+    function planeDimsFor(b, FH){
+      const totalH = b.floors * FH;
+      const availW = Math.max(2.4, b.w - 0.6);
+      const availH = Math.max(2.4, totalH - FH * 0.55);
+      const side = Math.min(availW, availH);
+      const yCenter = Math.min(totalH - side / 2 - FH * 0.15, side / 2 + FH * 0.85);
+      return { side, yCenter };
     }
 
     window.makeBuildingDetail = function(b){
@@ -3361,27 +3525,38 @@ window.addEventListener('load',boot);
         dbg.hadUrl++; dbg.lastUrl = url;
         const FH = (typeof FLOOR_H !== 'undefined') ? FLOOR_H : 3.2;
 
-        const planeW = Math.max(3, b.w - 0.6);
-        const totalH = b.floors * FH;
-        const planeH = Math.max(planeW, totalH - FH * 0.7);
-        const yCenter = (totalH + FH * 0.4) / 2;
+        const { side, yCenter } = planeDimsFor(b, FH);
         const zPlane = b.z + b.w / 2 + 0.18;
 
-        const frame = new THREE.Mesh(
-          new THREE.PlaneGeometry(planeW + 0.4, planeH + 0.4),
+        // Black-frame backing + white-outlined border to match the inked aesthetic.
+        const backing = new THREE.Mesh(
+          new THREE.PlaneGeometry(side + 0.5, side + 0.5),
           new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide })
         );
-        frame.position.set(b.x, yCenter, zPlane - 0.02);
-        frame.renderOrder = 5;
-        G.add(frame);
+        backing.position.set(b.x, yCenter, zPlane - 0.02);
+        backing.renderOrder = 5;
+        G.add(backing);
 
+        const border = new THREE.LineSegments(
+          new THREE.EdgesGeometry(new THREE.PlaneGeometry(side + 0.5, side + 0.5)),
+          new THREE.LineBasicMaterial({ color: 0xffffff })
+        );
+        border.position.copy(backing.position);
+        border.position.z += 0.005;
+        border.renderOrder = 7;
+        G.add(border);
+
+        // Artwork plane - square, magnified-nearest so pixel art stays crisp.
+        const tex = loadTex(url);
+        tex.magFilter = THREE.NearestFilter;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
         const mat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
-          map: loadTex(url),
+          map: tex,
           side: THREE.DoubleSide,
           toneMapped: false,
         });
-        const plane = new THREE.Mesh(new THREE.PlaneGeometry(planeW, planeH), mat);
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(side, side), mat);
         plane.position.set(b.x, yCenter, zPlane);
         plane.renderOrder = 6;
         G.add(plane);
