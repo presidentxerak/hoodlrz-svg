@@ -132,6 +132,10 @@ function decodeDataUri(uri: string): { image?: string } | null {
  * image for, we read tokenURI off the contract and fetch the metadata
  * JSON ourselves through up to 3 IPFS gateways. Same logic as
  * /api/hoodlrz/collection so the source of truth is identical.
+ *
+ * We keep the underlying ipfs:// URI when we have one so the BROWSER can
+ * rotate through its own multi-gateway list instead of being stuck with
+ * whatever single HTTPS gateway we picked here.
  */
 async function fetchTokenImagesDirect(tokenIds: number[]): Promise<Map<number, string>> {
   const out = new Map<number, string>();
@@ -174,8 +178,14 @@ async function fetchTokenImagesDirect(tokenIds: number[]): Promise<Map<number, s
         const uri = uris.get(id)!;
         const meta = uri.startsWith("data:") ? decodeDataUri(uri) : await fetchMetadataJson(uri);
         if (!meta?.image) return;
-        const httpImage = resolveIpfsToHttp(meta.image);
-        if (httpImage) out.set(id, httpImage);
+        // Keep raw ipfs:// when we can - the game has its own multi-gateway
+        // rotation that's smarter than picking one for them.
+        if (typeof meta.image === "string" && meta.image.startsWith("ipfs://")) {
+          out.set(id, meta.image);
+        } else {
+          const httpImage = resolveIpfsToHttp(meta.image);
+          if (httpImage) out.set(id, httpImage);
+        }
       }),
     );
   }

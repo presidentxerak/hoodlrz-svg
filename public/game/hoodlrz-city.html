@@ -2789,7 +2789,46 @@ function openWalletPanel(b){
     openPanel('wallet','◇','SEALED WALLET',b.short+' · ???',`Something hums behind this wallet · a hidden soul. But no lead points here yet. Question the citizens; an informant knows which wallet holds which soul.`,'Locked · find the clue');return;}
   const owned=onchain.tokenImg(b.tokenId);
   const pic=owned?`<div class="nftpic"><img src="${owned}" alt=""></div>`:'';
-  openPanel('wallet','⌂','WALLET',`${b.short} · ${b.floors} NFT`,`${pic}A holder's tower. <em>${b.floors} Hoodlrz</em> live across ${b.floors} floors. ${onchain.live?'Real on-chain holder.':'Procedural holder.'}`,onchain.live?'The Block · live on-chain':'The Block · procedural');}
+  openPanel('wallet','⌂','WALLET',`${b.short} · ${b.floors} NFT`,
+    `${pic}<div id="walletGrid" style="margin-top:6px"></div>`+
+    `A holder's tower. <em>${b.floors} Hoodlrz</em> live across ${b.floors} floors. ${onchain.live?'Real on-chain holder.':'Procedural holder.'}`,
+    onchain.live?'The Block · live on-chain':'The Block · procedural');
+  // Fetch + render the full on-chain collection this holder owns. /api/hoodlrz/by-owner
+  // returns every token + image_url for that wallet from the same city_tokens cache
+  // the facades use, so the grid is always in sync with what you see outside.
+  if(onchain.live){
+    const wallet=(b.addr||'').toLowerCase();
+    if(/^0x[0-9a-f]{40}$/.test(wallet)){
+      fetch('/api/hoodlrz/by-owner?wallet='+encodeURIComponent(wallet))
+        .then(r=>r.ok?r.json():null)
+        .then(data=>{
+          const grid=document.getElementById('walletGrid');
+          if(!grid||!data||!Array.isArray(data.tokens)||!data.tokens.length)return;
+          const items=data.tokens.slice(0,24);    // cap at 24 so the panel doesn't explode
+          grid.innerHTML='<div style="font-size:10px;letter-spacing:.18em;color:var(--mut);'+
+            'margin:8px 0 6px;text-transform:uppercase">'+
+            data.tokens.length+' NFT on-chain</div>'+
+            '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px">'+
+            items.map(t=>{
+              const safeUrl=t.image?String(t.image).replace(/"/g,'&quot;'):'';
+              return '<a href="https://opensea.io/assets/ethereum/0xdde5f965f9d80da49c5cb2951d046156f26ebfa2/'+t.tokenId+'" '+
+                'target="_blank" rel="noopener" '+
+                'style="display:block;aspect-ratio:1;background:#000;border:1px solid rgba(255,255,255,.18);overflow:hidden;text-decoration:none">'+
+                (safeUrl?'<img src="'+safeUrl+'" alt="#'+t.tokenId+'" loading="lazy" '+
+                  'style="width:100%;height:100%;object-fit:cover;display:block" '+
+                  "onerror=\"this.style.display='none'\">":'')+
+                '<span style="position:absolute;font-size:9px;color:rgba(255,255,255,.55);'+
+                'padding:2px 4px;font-family:Consolas,monospace">#'+t.tokenId+'</span>'+
+              '</a>';
+            }).join('')+'</div>'+
+            (data.tokens.length>24?'<div style="font-size:10px;color:var(--mut);margin-top:8px">'+
+              '+'+(data.tokens.length-24)+' more · open the holder on <a href="https://opensea.io/'+
+              wallet+'" target="_blank" rel="noopener" style="color:var(--cyan)">OpenSea</a></div>':'');
+        })
+        .catch(()=>{});
+    }
+  }
+}
 
 /* ===================================================================
    ECONOMY · items, shop (buy with Hoodz), inventory, merchants
@@ -3882,36 +3921,50 @@ window.addEventListener('load',boot);
     const dbg = { wrappedCalls: 0, hadUrl: 0, addedPlanes: 0, lastUrl: null, loadedOk: 0, loadFailed: 0, sweeps: 0 };
     window.__cityNftDebug = dbg;
 
-    // Resolve a URL to its candidate fetch list - ipfs:// gets up to three
-    // public gateways so a single flaky one doesn't blank out a tower.
+    // Resolve a URL to its candidate fetch list. ipfs:// URLs become a
+    // 6-gateway rotation; HTTPS URLs already on a known IPFS gateway also
+    // get the alternate gateways queued. A non-IPFS HTTPS URL is returned
+    // as-is.
     function urlCandidates(url){
       if (!url) return [];
-      const out = [];
+      const GW = [
+        'https://ipfs.io/ipfs/',
+        'https://cloudflare-ipfs.com/ipfs/',
+        'https://nftstorage.link/ipfs/',
+        'https://gateway.pinata.cloud/ipfs/',
+        'https://ipfs.4everland.io/ipfs/',
+        'https://dweb.link/ipfs/',
+      ];
       if (typeof url === 'string' && url.startsWith('ipfs://')) {
         const path = url.replace(/^ipfs:\/\//, '').replace(/^ipfs\//, '');
-        out.push('https://ipfs.io/ipfs/' + path);
-        out.push('https://cloudflare-ipfs.com/ipfs/' + path);
-        out.push('https://nftstorage.link/ipfs/' + path);
-      } else if (typeof url === 'string' && /^https?:\/\/(ipfs\.io|gateway\.ipfs|cloudflare-ipfs|nftstorage|ipfs\.infura)/.test(url)) {
-        out.push(url);
-        // also queue a fallback if the original was ipfs.io
-        if (/ipfs\.io\/ipfs\//.test(url)) {
-          out.push(url.replace('ipfs.io', 'cloudflare-ipfs.com'));
-          out.push(url.replace('ipfs.io', 'nftstorage.link'));
-        }
-      } else if (url) {
-        out.push(url);
+        return GW.map((g) => g + path);
       }
-      return out;
+      if (typeof url === 'string' && /\/ipfs\//.test(url)) {
+        // Pull out the IPFS path so we can try every gateway
+        const m = url.match(/\/ipfs\/(.+)$/);
+        if (m && m[1]) return [url, ...GW.map((g) => g + m[1]).filter((u) => u !== url)];
+      }
+      return url ? [url] : [];
     }
-    // Called with (true) when a candidate finally loaded, (false) when every
-     // gateway in the chain failed. We use this to hide the placeholder plane
-     // so the building's window facade can show through instead of a white card.
+    // Race one Image() load against a 7s timeout so a single slow gateway
+    // doesn't stall the whole chain. Returns true on success, false on
+    // timeout/error.
+    function tryLoadImage(src){
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        let done = false;
+        const finish = (ok) => { if (done) return; done = true; resolve(ok ? img : false); };
+        img.onload = () => finish(true);
+        img.onerror = () => finish(false);
+        // 7s is enough to defeat a flaky CDN without locking the user out
+        // of seeing the placeholder card for too long.
+        setTimeout(() => finish(false), 7000);
+        img.src = src;
+      });
+    }
     function loadTex(url, onResolved){
       if (texCache[url]) {
-        // Cached texture - we still need to fire the resolver based on the
-        // cached outcome so newly-added planes for the same URL get hidden
-        // when the texture is known-bad.
         const cached = texCache[url];
         setTimeout(() => onResolved && onResolved(cached.__hoodlrzOk !== false), 0);
         return cached;
@@ -3921,32 +3974,24 @@ window.addEventListener('load',boot);
       tex.__hoodlrzOk = null;
       texCache[url] = tex;
       const candidates = urlCandidates(url);
-      let attempt = 0;
-      const tryNext = () => {
-        if (attempt >= candidates.length) {
-          dbg.loadFailed++;
-          tex.__hoodlrzOk = false;
-          console.warn('[NFT facade] all gateways failed for', url);
-          onResolved && onResolved(false);
-          return;
+      (async () => {
+        for (const u of candidates) {
+          const img = await tryLoadImage(u);
+          if (img) {
+            tex.image = img;
+            tex.needsUpdate = true;
+            tex.__hoodlrzOk = true;
+            dbg.loadedOk++;
+            onResolved && onResolved(true);
+            return;
+          }
+          console.warn('[NFT facade] gateway failed/timeout:', u);
         }
-        const u = candidates[attempt++];
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          tex.image = img;
-          tex.needsUpdate = true;
-          tex.__hoodlrzOk = true;
-          dbg.loadedOk++;
-          onResolved && onResolved(true);
-        };
-        img.onerror = () => {
-          console.warn('[NFT facade] gateway failed:', u);
-          tryNext();
-        };
-        img.src = u;
-      };
-      tryNext();
+        dbg.loadFailed++;
+        tex.__hoodlrzOk = false;
+        console.warn('[NFT facade] ALL ' + candidates.length + ' gateways failed for', url);
+        onResolved && onResolved(false);
+      })();
       return tex;
     }
 
