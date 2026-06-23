@@ -4017,6 +4017,50 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (wallet && wallet.parentNode) wallet.parentNode.insertBefore(btn, wallet);
     else ops.appendChild(btn);
     btn.style.display = 'inline-block';
+
+    // ── Refresh-holders icon button right next to HOLDERS ────────────────
+    // Triggers /api/city/refresh-public (throttled 1/min) so anyone can
+    // re-sync the holders list from Alchemy without waiting for the cron.
+    // Toasts the result, then reloads the page when the refresh succeeded
+    // so the new tower count actually shows up in the city.
+    if ($('refreshBtn')) return;
+    const refresh = document.createElement('button');
+    refresh.id = 'refreshBtn';
+    refresh.title = 'Refresh holders from chain';
+    refresh.setAttribute('aria-label', 'Refresh holders');
+    refresh.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>';
+    refresh.style.cssText = "font-family:'Outfit',sans-serif;cursor:pointer;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.6);color:#fff;padding:8px 9px;backdrop-filter:blur(6px);transition:.12s;pointer-events:auto;display:inline-grid;place-items:center;width:32px;height:32px";
+    refresh.onmouseenter = () => { refresh.style.background = '#fff'; refresh.style.color = '#000'; };
+    refresh.onmouseleave = () => { refresh.style.background = 'rgba(0,0,0,.6)'; refresh.style.color = '#fff'; };
+    let busy = false;
+    refresh.addEventListener('click', async () => {
+      if (busy) return;
+      busy = true;
+      const icon = refresh.querySelector('svg');
+      if (icon) { icon.style.transition = 'transform .6s linear'; icon.style.transformOrigin = 'center'; icon.style.transform = 'rotate(360deg)'; }
+      const tone = (msg, kind) => { if (typeof toast === 'function') toast(msg, kind); };
+      tone('Refreshing holders from chain…');
+      try {
+        const r = await fetch('/api/city/refresh-public', { method: 'POST' });
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 429) {
+          tone('Already refreshed recently · retry in ' + (j.retryAfter || 60) + 's', 'warn');
+        } else if (!r.ok || j.ok === false) {
+          tone((j.error || 'Refresh failed').slice(0, 80), 'warn');
+        } else {
+          tone('Updated · ' + j.holders + ' holders · ' + j.tokensWithImage + '/' + j.tokens + ' images · reloading…', 'gold');
+          setTimeout(() => { try { window.top.location.reload(); } catch (_) { window.location.reload(); } }, 1500);
+        }
+      } catch (e) {
+        tone('Network error · ' + (e && e.message ? e.message : 'unknown'), 'warn');
+      } finally {
+        busy = false;
+        if (icon) setTimeout(() => { icon.style.transform = 'rotate(0deg)'; }, 800);
+      }
+    });
+    // Slot the icon right AFTER the HOLDERS button.
+    if (btn.nextSibling) btn.parentNode.insertBefore(refresh, btn.nextSibling);
+    else btn.parentNode.appendChild(refresh);
   }
 
   function buildHolderList(filterStr){
