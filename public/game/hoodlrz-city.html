@@ -2243,6 +2243,13 @@ function buildColliderGrid(){
     let a=colliderGrid.get(k); if(!a){a=[];colliderGrid.set(k,a);} a.push(c);}
 }
 function blockedAt(px,pz){const lim=GRID*LOT/2+LOT*0.6;if(Math.abs(px)>lim||Math.abs(pz)>lim)return true;
+  // Reject the shark lake for ALL AI movement (peds, gangs, military,
+  // tanks, marshmallow, animals, cops). Only sharks - which move on a
+  // fixed circular path that never calls blockedAt - can swim there.
+  // The player still triggers getEaten() via the separate lakeBounds
+  // check in the animate loop, so the "step in the water and die"
+  // mechanic stays intact.
+  if(lakeBounds&&px>lakeBounds.minX-0.6&&px<lakeBounds.maxX+0.6&&pz>lakeBounds.minZ-0.6&&pz<lakeBounds.maxZ+0.6)return true;
   if(colliderGrid){const gi=Math.round(px/LOT),gj=Math.round(pz/LOT);
     for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const arr=colliderGrid.get((gi+a)+','+(gj+b));if(!arr)continue;
       for(const c of arr)if(Math.abs(px-c.x)<c.hw+0.6&&Math.abs(pz-c.z)<c.hd+0.6)return true;}
@@ -5432,11 +5439,15 @@ window.addEventListener('unhandledrejection',(ev)=>{
       const u = bibendum.userData;
       u.turnT -= dt;
       if (u.turnT <= 0) { u.heading += (Math.random() * 1.4 - 0.7); u.turnT = 4 + Math.random() * 5; }
-      // Walk forward; bounce off the city edge by reversing heading.
+      // Walk forward; bounce off the city edge OR the shark lake by
+      // reversing heading. The Bibendum is way too big to step over
+      // the kerb so he just turns around when he reaches it.
       const lim = (typeof GRID !== 'undefined' && typeof LOT !== 'undefined') ? GRID * LOT / 2 - 5 : 200;
       const nx = bibendum.position.x + Math.sin(u.heading) * u.speed * dt;
       const nz = bibendum.position.z + Math.cos(u.heading) * u.speed * dt;
-      if (Math.abs(nx) < lim && Math.abs(nz) < lim) {
+      const lake = (typeof lakeBounds !== 'undefined') ? lakeBounds : null;
+      const inLake = lake && nx > lake.minX - 4 && nx < lake.maxX + 4 && nz > lake.minZ - 4 && nz < lake.maxZ + 4;
+      if (Math.abs(nx) < lim && Math.abs(nz) < lim && !inLake) {
         bibendum.position.x = nx; bibendum.position.z = nz;
       } else {
         u.heading += Math.PI;
