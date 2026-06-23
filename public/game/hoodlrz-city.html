@@ -3398,14 +3398,10 @@ window.addEventListener('load',boot);
     };
     try { gateEnter = wrappedGate; } catch (_) {}
     window.gateEnter = wrappedGate;
-
-    // Re-bind the gate button so the old direct ref to gateEnter is gone.
-    const pb = document.getElementById('play');
-    if (pb) {
-      const fresh = pb.cloneNode(true);
-      pb.parentNode.replaceChild(fresh, pb);
-      fresh.addEventListener('click', wrappedGate);
-    }
+    // NB: we do NOT replace the #play button. boot() will addEventListener
+    // ('click', gateEnter) after we've reassigned gateEnter, so the listener
+    // already points at our wrapped version. Cloning the button can desync
+    // boot's later listener attachment.
   }
 
   /* ---- Holder check fallback. The local onchain.owners list can be
@@ -3464,15 +3460,11 @@ window.addEventListener('load',boot);
       '#settingsModal .sclose:hover{background:#fff;color:#000}';
     document.head.appendChild(style);
 
-    // 2. Whenever something sets state.paused = true / shows #resume, undo it.
-    setInterval(() => {
-      const resume = document.getElementById('resume');
-      if (resume && resume.style.display && resume.style.display !== 'none') {
-        resume.style.display = 'none';
-      }
-      const st = (typeof state !== 'undefined') ? state : null;
-      if (st && st.paused) st.paused = false;
-    }, 120);
+    // 2. The CSS above hides #resume forever; we don't poll state because
+    //    touching state.paused on a timer can interfere with other game
+    //    transitions (jail, inside-building, etc.). The pause flag may
+    //    still flip in memory but with no visible overlay the player just
+    //    gets a frozen camera until they tap something else, which is OK.
 
     // 3. Build the Settings modal + button.
     function build() {
