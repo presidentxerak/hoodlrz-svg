@@ -4466,6 +4466,73 @@ window.addEventListener('load',boot);
     build();
   }
 
+  /* ---- Auto-connect inside MetaMask in-app browser ------------------
+         The friction we saw on mobile: user opens hoodlrz.com on Safari,
+         taps "Open in MetaMask" -> MetaMask loads the dapp -> page sits
+         on the gate modal showing "Enter the Block" -> nothing happens
+         -> user goes back to Safari -> infinite loop.
+
+         The fix: when the page detects it's running inside the MetaMask
+         in-app browser (UA contains "MetaMaskMobile" OR mobile UA +
+         window.ethereum.isMetaMask), we programmatically trigger the
+         gate flow shortly after load. MetaMask then shows the
+         account-approval modal immediately - the user just approves
+         and the gate passes. No second tap on Enter the Block needed.
+  */
+  function patchMobileAutoConnect(){
+    if (typeof window === 'undefined' || typeof window.ethereum === 'undefined') return;
+    const ua = navigator.userAgent;
+    const mobile = /iPhone|iPad|iPod|Android/i.test(ua);
+    // Auto-fire whenever we're on a mobile UA AND an injected provider
+    // exists - that's effectively "we're inside a wallet's in-app
+    // browser" (MetaMask, Coinbase Wallet, Trust, Rainbow, Phantom EVM,
+    // Rabby Mobile, ...). On Safari/Chrome with no extension, window.
+    // ethereum is undefined so this block is a no-op.
+    if (!mobile) return;
+    let attempts = 0;
+    // Visible hint so the user understands why MetaMask is asking for
+    // permission a beat after they land here.
+    const setHint = (text) => {
+      if (typeof setGateStat === 'function') {
+        try { setGateStat(text, 'ok'); } catch (_) {}
+      }
+    };
+    setHint('Wallet detected · auto-connecting in a moment…');
+    let fired = false;
+    const tryConnect = async () => {
+      if (fired) return;
+      // Give up after ~20s if the gate / holders never show up.
+      if (++attempts > 80) { fired = true; return; }
+      // If the user already tapped Enter the Block and connected manually,
+      // there's nothing to auto-trigger.
+      if (typeof state !== 'undefined' && state.wallet) { fired = true; return; }
+      // gateEnter is defined inside the main game script; patchWallet has
+      // wrapped it onto window by the time start() runs.
+      const gate = window.gateEnter || (typeof gateEnter === 'function' ? gateEnter : null);
+      const startEl = document.getElementById('start');
+      const oc = (typeof onchain !== 'undefined') ? onchain : null;
+      const gateVisible = startEl && getComputedStyle(startEl).display !== 'none';
+      // We need to wait until:
+      //  - gateEnter exists (script has run)
+      //  - the gate modal is on screen (boot() done, build() done)
+      //  - holders cache is loaded (otherwise gateEnter would bypass the
+      //    gate, since "configured" requires onchain.live)
+      if (typeof gate !== 'function' || !gateVisible || !oc || !oc.live) {
+        return setTimeout(tryConnect, 250);
+      }
+      fired = true;
+      try {
+        setHint('Approve the connection request in your wallet…');
+        await gate();
+      } catch (e) {
+        console.warn('[mm-autoconnect] gateEnter threw', e);
+        setHint('Tap "Enter the Block" to try again');
+      }
+    };
+    // Initial nudge - the polling loop above takes over after that.
+    setTimeout(tryConnect, 600);
+  }
+
   function start(){
     wireMode();
     patchFacades();
@@ -4473,6 +4540,7 @@ window.addEventListener('load',boot);
     patchWallet();
     patchHolderCheck();
     patchPauseAndSettings();
+    patchMobileAutoConnect();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
