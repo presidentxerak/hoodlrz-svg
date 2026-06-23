@@ -2858,6 +2858,16 @@ function setWeaponView(name){
     viewWeapon.add(tube,flange,sight,grip,handle);
     muzzle=new THREE.Mesh(new THREE.SphereGeometry(.3,10,10),new THREE.MeshBasicMaterial({color:0xff5b6e,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
     muzzle.position.set(.42,-.4,-1.7); viewWeapon.add(muzzle);
+  }else if(name==='Laser Cannon'){
+    // Sleek cylinder with a glowing crystal in the middle and a coil at the tip.
+    const tube=new THREE.Mesh(new THREE.CylinderGeometry(.12,.16,1.1,14),inkMat()); tube.rotation.x=Math.PI/2; tube.position.set(.42,-.4,-.85); edges(tube,40);
+    const coil=new THREE.Mesh(new THREE.TorusGeometry(.13,.025,8,16),new THREE.MeshBasicMaterial({color:0x56e0ff})); coil.rotation.y=Math.PI/2; coil.position.set(.42,-.4,-1.3);
+    const crystal=new THREE.Mesh(new THREE.OctahedronGeometry(.1),new THREE.MeshBasicMaterial({color:0x56e0ff,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false})); crystal.position.set(.42,-.36,-.6);
+    const grip=new THREE.Mesh(new THREE.BoxGeometry(.14,.32,.16),inkMat()); grip.position.set(.42,-.6,-.55); edges(grip);
+    const sight=new THREE.Mesh(new THREE.BoxGeometry(.05,.18,.08),new THREE.MeshBasicMaterial({color:0x56e0ff})); sight.position.set(.42,-.22,-.5);
+    viewWeapon.add(tube,coil,crystal,grip,sight);
+    muzzle=new THREE.Mesh(new THREE.SphereGeometry(.22,10,10),new THREE.MeshBasicMaterial({color:0x56e0ff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+    muzzle.position.set(.42,-.4,-1.45); viewWeapon.add(muzzle);
   }else{
     const fist=new THREE.Mesh(new THREE.BoxGeometry(.3,.3,.46),inkMat()); fist.position.set(.46,-.46,-.78); edges(fist);
     const knuck=new THREE.Mesh(new THREE.BoxGeometry(.32,.08,.1),new THREE.MeshBasicMaterial({color:WHITE})); knuck.position.set(.46,-.36,-.96);
@@ -2869,6 +2879,7 @@ function onPrimary(){
   player.holster=1;                                   // raise weapon when firing
   if(state.weapon==='Hood Blaster')fireProjectile();
   else if(state.weapon==='Bazooka' && typeof window.fireBazooka==='function')window.fireBazooka();
+  else if(state.weapon==='Laser Cannon' && typeof window.fireLaser==='function')window.fireLaser();
   else meleeHit();
 }
 function fireProjectile(){
@@ -3645,7 +3656,20 @@ function buildJailCell(){
 function updateHUD(){$('hpFill').style.width=Math.max(0,state.hp)+'%';$('cashVal').textContent=state.cash.toLocaleString('en-US');$('hoodzVal').textContent=state.hoodz;
   if($('secVal'))$('secVal').textContent=state.secretsFound+'/3';
   if($('vaultVal'))$('vaultVal').textContent=state.vaultsFound+'/3';
-  const ty=state.weapon==='Hood Blaster'?'RANGED':'MELEE';$('weapName').innerHTML=state.weapon+' <span style="font-size:10px;letter-spacing:.12em;color:var(--mut)">· '+ty+'</span>';
+  // Weapon line: name · type · target list. Lets the player see at a
+  // glance which enemies their current weapon can damage.
+  const WEAP_META={
+    'Hood Blaster': { type:'RANGED', vs:'Gangs' },
+    'Street Bat':   { type:'MELEE',  vs:'Gangs · close range' },
+    'Bazooka':      { type:'SPLASH', vs:'Tanks · Military · Gangs' },
+    'Laser Cannon': { type:'BEAM',   vs:'Stay Puft · Tanks · Military · Gangs' },
+    'Fists':        { type:'MELEE',  vs:'Gangs · close range' },
+  };
+  const meta=WEAP_META[state.weapon]||{type:'',vs:''};
+  $('weapName').innerHTML=
+    state.weapon+
+    ' <span style="font-size:10px;letter-spacing:.12em;color:var(--mut)">· '+meta.type+'</span>'+
+    '<br><span style="font-size:9.5px;letter-spacing:.08em;color:#ff2db5;font-weight:700">vs '+meta.vs+'</span>';
   // Mirror into the mobile top bar + drawer (no-op when those nodes don't exist).
   const hpPct=Math.max(0,state.hp)+'%';
   const elHp=document.getElementById('mHpFill'); if(elHp)elHp.style.width=hpPct;
@@ -5426,6 +5450,110 @@ window.addEventListener('unhandledrejection',(ev)=>{
     }
     spawnBazookaPickup();
 
+    /* ---- LASER CANNON ---------------------------------------------- */
+    // The bibendum-buster. Instant-hit beam, 2s recharge, 30 dmg per
+    // hit. Only weapon that does serious damage to Stay Puft (3-4 hits
+    // to drop him).
+    const laserPos = { x: -LOT * 1.05, z: LOT * 0.4 };
+    function spawnLaserPickup(){
+      const g = new THREE.Group();
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(.15,.2,1.4,12), inkMat());
+      tube.rotation.x = Math.PI/2; tube.position.y = 1.1; g.add(tube);
+      try { if (typeof edges === 'function') edges(tube, 40); } catch (_) {}
+      const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(.32),
+        new THREE.MeshBasicMaterial({color:0x56e0ff,transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false}));
+      crystal.position.y = 1.5; g.add(crystal);
+      // Glowing ring at the muzzle
+      const coil = new THREE.Mesh(new THREE.TorusGeometry(.22,.04,8,18), new THREE.MeshBasicMaterial({color:0x56e0ff}));
+      coil.rotation.y = Math.PI/2; coil.position.set(0, 1.1, 0.75); g.add(coil);
+      const label = (typeof makeLabel === 'function') ? makeLabel('LASER CANNON','#56e0ff',2.0) : null;
+      if (label) { label.position.y = 2.4; g.add(label); }
+      g.rotation.z = -0.25;
+      g.position.set(laserPos.x, 0, laserPos.z);
+      g.userData = { type: 'weapon', name: 'Laser Cannon' };
+      scene.add(g);
+      if (typeof pickups !== 'undefined') pickups.push(g);
+    }
+    spawnLaserPickup();
+
+    let laserLast = 0;
+    window.fireLaser = function(){
+      const now = performance.now();
+      if (now - laserLast < 2000) return;     // 2 s recharge
+      laserLast = now;
+      try { if (sfx && sfx.tone) sfx.tone(2400, 0.22, 'sine', 0.18, 240); } catch (_) {}
+      try { if (sfx && sfx.tone) sfx.tone(880, 0.18, 'square', 0.12, 220); } catch (_) {}
+      const start = camera.position.clone();
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+
+      // Raycast against every damageable entity. Pick the closest along
+      // the camera ray within 200 units.
+      const MAX_RANGE = 200;
+      const targets = [
+        ...gangs.map(g => ({obj:g, kind:'gang'})),
+        ...tanks.map(g => ({obj:g, kind:'tank'})),
+        ...military.map(g => ({obj:g, kind:'military'})),
+      ];
+      if (bibendum && !bibendum.userData.down) {
+        targets.push({obj: bibendum, kind: 'bibendum'});
+      }
+      let bestT = MAX_RANGE, bestHit = null;
+      for (const t of targets) {
+        const obj = t.obj;
+        if (!obj || obj.userData.down) continue;
+        // Approximate each entity as a capsule. Hit-test = closest point
+        // on the ray to the entity centre + radius check.
+        const centre = obj.position.clone().add(new THREE.Vector3(0, t.kind === 'bibendum' ? obj.userData.H*0.45 : 1.2, 0));
+        const toCentre = centre.clone().sub(start);
+        const tDist = toCentre.dot(dir);
+        if (tDist < 0 || tDist > bestT) continue;
+        const closest = start.clone().addScaledVector(dir, tDist);
+        const radius = t.kind === 'bibendum' ? 6 : (t.kind === 'tank' ? 3 : 1.4);
+        if (closest.distanceTo(centre) < radius) {
+          bestT = tDist; bestHit = t;
+        }
+      }
+
+      // Draw the beam itself
+      const endT = bestHit ? bestT : MAX_RANGE;
+      const beamGeo = new THREE.CylinderGeometry(0.06, 0.06, endT, 8);
+      beamGeo.translate(0, endT/2, 0);
+      beamGeo.rotateX(Math.PI/2);
+      const beamMat = new THREE.MeshBasicMaterial({color:0x56e0ff,transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false});
+      const beam = new THREE.Mesh(beamGeo, beamMat);
+      beam.position.copy(start);
+      beam.lookAt(start.clone().addScaledVector(dir, endT));
+      scene.add(beam);
+      // Fade out + remove
+      let bt = 0;
+      const fade = () => {
+        bt += 0.05;
+        beam.material.opacity = Math.max(0, 0.85 - bt * 1.5);
+        beam.scale.x = beam.scale.y = Math.max(0.2, 1 - bt);
+        if (bt < 0.6) requestAnimationFrame(fade);
+        else { scene.remove(beam); beamGeo.dispose(); beamMat.dispose(); }
+      };
+      fade();
+      // Muzzle flash
+      try {
+        if (typeof muzzle !== 'undefined' && muzzle && muzzle.material) {
+          muzzle.material.opacity = 1;
+          setTimeout(() => { try { muzzle.material.opacity = 0; } catch (_) {} }, 100);
+        }
+      } catch (_) {}
+
+      // Apply damage to whatever the beam hit
+      if (bestHit) {
+        const dmg = bestHit.kind === 'bibendum' ? 30 : (bestHit.kind === 'tank' ? 25 : 15);
+        try { spawnBurst(bestHit.obj.position.clone().add(new THREE.Vector3(0,1.4,0)), 0x56e0ff, 22); } catch (_) {}
+        if (bestHit.kind === 'tank') damageTank(bestHit.obj, dmg);
+        else if (bestHit.kind === 'military') damageMilitary(bestHit.obj, dmg);
+        else if (bestHit.kind === 'bibendum') damageBibendum(dmg);
+        else if (typeof damageGang === 'function') damageGang(bestHit.obj, dmg, start);
+      }
+    };
+
     // Bazooka fire: a big slow rocket projectile + splash damage.
     let bazLast = 0;
     window.fireBazooka = function(){
@@ -5497,13 +5625,19 @@ window.addEventListener('unhandledrejection',(ev)=>{
       for (let i = projectiles.length - 1; i >= 0; i--) {
         const p = projectiles[i];
         if (!p || !p.isBazooka) continue;
-        // Hit-test against tanks + military + gangs
+        // Hit-test against tanks + military + gangs (Bibendum is huge so
+        // we hit-test his bounding cylinder separately)
         let hit = false;
         const center = p.mesh.position.clone();
         const all = [...tanks, ...military, ...gangs];
         for (const g of all) {
           if (!g || g.userData.down) continue;
           if (center.distanceTo(g.position.clone().add(new THREE.Vector3(0,1.2,0))) < 1.8) { hit = true; break; }
+        }
+        // Direct hit on Bibendum (he's ~9 units wide, so a generous 6 u radius)
+        if (!hit && bibendum && !bibendum.userData.down) {
+          const bc = bibendum.position.clone().add(new THREE.Vector3(0, bibendum.userData.H * 0.5, 0));
+          if (center.distanceTo(bc) < 7) hit = true;
         }
         // Ground impact when life expires
         if (!hit && (p.life <= 0 || center.y < 0.5)) hit = true;
@@ -5517,6 +5651,16 @@ window.addEventListener('unhandledrejection',(ev)=>{
             if (g.userData.type === 'tank') damageTank(g, dmg);
             else if (g.userData.type === 'military') damageMilitary(g, dmg);
             else if (typeof damageGang === 'function') damageGang(g, dmg, center);
+          }
+          // Bibendum gets a slice of the bazooka damage too (he's tanky
+          // - takes 100 HP to drop and a bazooka does ~30 max so it's
+          // a 4-rocket commitment unless paired with the laser).
+          if (bibendum && !bibendum.userData.down) {
+            const bc = bibendum.position.clone().add(new THREE.Vector3(0, bibendum.userData.H * 0.4, 0));
+            const d = bc.distanceTo(center);
+            if (d < p.splash + 5) {
+              damageBibendum(Math.max(5, Math.round(p.dmg * (1 - d / (p.splash + 5)))));
+            }
           }
           scene.remove(p.mesh);
           projectiles.splice(i, 1);
@@ -5661,64 +5805,139 @@ window.addEventListener('unhandledrejection',(ev)=>{
       const W = 9;           // base body width
       const g = new THREE.Group();
       const white = () => new THREE.MeshBasicMaterial({color: 0xfafafa});
-      const navy = new THREE.MeshBasicMaterial({color: 0x222244});
-      const black = new THREE.MeshBasicMaterial({color: 0x000000});
+      const ink   = () => new THREE.MeshBasicMaterial({color: 0x000000});
+      const navy  = new THREE.MeshBasicMaterial({color: 0x222244});
+      const pink  = new THREE.MeshBasicMaterial({color: 0xff2db5});
 
-      // Legs (chunky white boxes)
-      for (const sx of [-1, 1]) {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(W*0.4, H*0.34, W*0.45), white());
-        leg.position.set(sx * W * 0.28, H * 0.17, 0); g.add(leg);
-        try { edges(leg); } catch (_) {}
-        const boot = new THREE.Mesh(new THREE.BoxGeometry(W*0.46, H*0.07, W*0.55), black);
-        boot.position.set(sx * W * 0.28, H * 0.035, W*0.06); g.add(boot);
-        try { edges(boot); } catch (_) {}
+      const LEG_H = H * 0.30;
+      const ARM_H = H * 0.32;
+
+      // Hips. Each is a group anchored at the hip socket so we can pivot
+      // the whole leg around it for the walk cycle.
+      const lhip = new THREE.Group(); lhip.position.set(-W*0.26, H*0.32, 0); g.add(lhip);
+      const rhip = new THREE.Group(); rhip.position.set( W*0.26, H*0.32, 0); g.add(rhip);
+      function leg(hip, side){
+        const l = new THREE.Mesh(new THREE.BoxGeometry(W*0.42, LEG_H, W*0.46), white());
+        l.position.y = -LEG_H/2;  // top of leg sits at the hip pivot
+        hip.add(l); try { edges(l); } catch (_) {}
+        // Knee crease (decorative ring) so the leg reads as two segments.
+        const knee = new THREE.Mesh(new THREE.CylinderGeometry(W*0.24, W*0.24, W*0.04, 16), white());
+        knee.position.y = -LEG_H*0.45; hip.add(knee); try { edges(knee, 40); } catch (_) {}
+        // Boot
+        const boot = new THREE.Mesh(new THREE.BoxGeometry(W*0.48, H*0.06, W*0.58), ink());
+        boot.position.set(0, -LEG_H + W*0.02, W*0.06);
+        hip.add(boot); try { edges(boot); } catch (_) {}
       }
-      // Body (three stacked rolls of marshmallow flesh)
+      leg(lhip, -1); leg(rhip, 1);
+
+      // Marshmallow body rolls (3 stacked spheres squashed slightly).
       for (let i = 0; i < 3; i++) {
-        const r = new THREE.Mesh(new THREE.SphereGeometry(W * 0.55, 18, 12), white());
-        r.position.set(0, H * 0.39 + i * H * 0.16, 0);
-        r.scale.set(1, 0.72, 1);
+        const r = new THREE.Mesh(new THREE.SphereGeometry(W * 0.56, 20, 14), white());
+        r.position.set(0, H * 0.40 + i * H * 0.16, 0);
+        r.scale.set(1, 0.7, 1);
         g.add(r); try { edges(r, 50); } catch (_) {}
       }
       // Belt scarf around the middle
-      const scarf = new THREE.Mesh(new THREE.CylinderGeometry(W*0.58, W*0.58, H*0.06, 24), navy);
+      const scarf = new THREE.Mesh(new THREE.CylinderGeometry(W*0.6, W*0.6, H*0.06, 26), navy);
       scarf.position.y = H * 0.52; g.add(scarf); try { edges(scarf, 40); } catch (_) {}
-      // Arms hanging at the side
-      for (const sx of [-1, 1]) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(W*0.3, H*0.32, W*0.3), white());
-        arm.position.set(sx * W * 0.62, H * 0.55, 0); arm.rotation.z = sx * -0.1; g.add(arm);
-        try { edges(arm); } catch (_) {}
-        // Mitt (hand)
-        const mitt = new THREE.Mesh(new THREE.SphereGeometry(W*0.2, 12, 8), white());
-        mitt.position.set(sx * W * 0.68, H * 0.4, 0); g.add(mitt); try { edges(mitt, 40); } catch (_) {}
+      // STAY PUFT label on the scarf (front)
+      try {
+        const labelCv = document.createElement('canvas');
+        labelCv.width = 512; labelCv.height = 96;
+        const lc = labelCv.getContext('2d');
+        lc.fillStyle = '#222244'; lc.fillRect(0, 0, 512, 96);
+        lc.strokeStyle = '#fff'; lc.lineWidth = 6; lc.strokeRect(8, 8, 496, 80);
+        lc.fillStyle = '#fff'; lc.font = "bold 56px 'Hoodlrz', sans-serif";
+        lc.textAlign = 'center'; lc.textBaseline = 'middle';
+        lc.fillText('STAY PUFT', 256, 52);
+        const labelTex = new THREE.CanvasTexture(labelCv); labelTex.encoding = THREE.sRGBEncoding;
+        const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, toneMapped: false });
+        const label = new THREE.Mesh(new THREE.PlaneGeometry(W*0.9, W*0.17), labelMat);
+        label.position.set(0, H*0.52, W*0.61); g.add(label);
+      } catch (_) {}
+
+      // Shoulders. Same pivot trick as the hips so the arms can swing.
+      const lsh = new THREE.Group(); lsh.position.set(-W*0.62, H*0.72, 0); g.add(lsh);
+      const rsh = new THREE.Group(); rsh.position.set( W*0.62, H*0.72, 0); g.add(rsh);
+      function arm(sh){
+        const a = new THREE.Mesh(new THREE.BoxGeometry(W*0.3, ARM_H, W*0.3), white());
+        a.position.y = -ARM_H/2; sh.add(a); try { edges(a); } catch (_) {}
+        // Mitt (hand) at the bottom of the arm
+        const mitt = new THREE.Mesh(new THREE.SphereGeometry(W*0.22, 14, 10), white());
+        mitt.position.y = -ARM_H - W*0.05; sh.add(mitt); try { edges(mitt, 40); } catch (_) {}
       }
+      arm(lsh); arm(rsh);
+
       // Head
-      const head = new THREE.Mesh(new THREE.SphereGeometry(W*0.42, 18, 14), white());
+      const head = new THREE.Mesh(new THREE.SphereGeometry(W*0.44, 20, 16), white());
       head.position.set(0, H * 0.93, 0); g.add(head); try { edges(head, 40); } catch (_) {}
-      // Eyes
+      // Big rounded cheeks
       for (const sx of [-1, 1]) {
-        const eye = new THREE.Mesh(new THREE.CircleGeometry(W*0.06, 14), black);
-        eye.position.set(sx * W * 0.13, H * 0.95, W * 0.40); g.add(eye);
+        const cheek = new THREE.Mesh(new THREE.SphereGeometry(W*0.16, 14, 10), white());
+        cheek.position.set(sx * W*0.32, H*0.9, W*0.22); g.add(cheek);
+        try { edges(cheek, 40); } catch (_) {}
       }
-      // Smile
-      const smile = new THREE.Mesh(new THREE.TorusGeometry(W*0.17, W*0.022, 8, 10, Math.PI), black);
-      smile.position.set(0, H * 0.88, W * 0.40); smile.rotation.set(0, 0, Math.PI);
+      // Eyes (white circle + black pupil)
+      for (const sx of [-1, 1]) {
+        const eyeW = new THREE.Mesh(new THREE.CircleGeometry(W*0.08, 16), new THREE.MeshBasicMaterial({color:0xffffff}));
+        eyeW.position.set(sx * W*0.14, H*0.97, W*0.42); g.add(eyeW);
+        const eyeB = new THREE.Mesh(new THREE.CircleGeometry(W*0.04, 14), ink());
+        eyeB.position.set(sx * W*0.14, H*0.97, W*0.43); g.add(eyeB);
+        // Eyebrow above each eye
+        const brow = new THREE.Mesh(new THREE.BoxGeometry(W*0.15, W*0.025, W*0.02), ink());
+        brow.position.set(sx * W*0.14, H*1.01, W*0.42);
+        brow.rotation.z = sx * 0.18;
+        g.add(brow);
+      }
+      // Big toothy smile
+      const smile = new THREE.Mesh(new THREE.TorusGeometry(W*0.18, W*0.025, 8, 12, Math.PI), ink());
+      smile.position.set(0, H * 0.87, W * 0.42); smile.rotation.set(0, 0, Math.PI);
       g.add(smile);
+      // Three teeth inside the smile
+      for (const tx of [-W*0.08, 0, W*0.08]) {
+        const tooth = new THREE.Mesh(new THREE.BoxGeometry(W*0.05, W*0.04, W*0.01), new THREE.MeshBasicMaterial({color:0xffffff}));
+        tooth.position.set(tx, H*0.86, W*0.43); g.add(tooth);
+      }
+
       // Sailor hat
-      const hat = new THREE.Mesh(new THREE.CylinderGeometry(W*0.45, W*0.45, W*0.18, 20), navy);
-      hat.position.y = H * 1.07; g.add(hat); try { edges(hat, 40); } catch (_) {}
-      const brim = new THREE.Mesh(new THREE.CylinderGeometry(W*0.55, W*0.55, W*0.05, 22), white());
-      brim.position.y = H * 0.99; g.add(brim);
-      const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(W*0.46, W*0.46, W*0.04, 22), new THREE.MeshBasicMaterial({color:0xff2db5}));
-      ribbon.position.y = H * 1.0; g.add(ribbon);
+      const hatTop = new THREE.Mesh(new THREE.CylinderGeometry(W*0.46, W*0.46, W*0.2, 22), navy);
+      hatTop.position.y = H * 1.07; g.add(hatTop); try { edges(hatTop, 40); } catch (_) {}
+      const brim = new THREE.Mesh(new THREE.CylinderGeometry(W*0.56, W*0.56, W*0.05, 22), white());
+      brim.position.y = H * 0.98; g.add(brim);
+      const ribbon = new THREE.Mesh(new THREE.CylinderGeometry(W*0.47, W*0.47, W*0.04, 22), pink);
+      ribbon.position.y = H * 1.005; g.add(ribbon);
+      // Anchor on the front of the hat (Stay Puft's iconic ⚓)
+      try {
+        const acv = document.createElement('canvas');
+        acv.width = acv.height = 128;
+        const ac = acv.getContext('2d');
+        ac.clearRect(0, 0, 128, 128);
+        ac.strokeStyle = '#fff'; ac.lineWidth = 8; ac.lineCap = 'round'; ac.lineJoin = 'round';
+        ac.beginPath(); ac.arc(64, 30, 10, 0, Math.PI*2); ac.stroke();
+        ac.beginPath(); ac.moveTo(64, 40); ac.lineTo(64, 95); ac.moveTo(40, 80); ac.lineTo(64, 100); ac.lineTo(88, 80); ac.stroke();
+        ac.beginPath(); ac.moveTo(48, 60); ac.lineTo(80, 60); ac.stroke();
+        const aTex = new THREE.CanvasTexture(acv); aTex.encoding = THREE.sRGBEncoding;
+        const anchor = new THREE.Mesh(new THREE.PlaneGeometry(W*0.32, W*0.32), new THREE.MeshBasicMaterial({map:aTex,transparent:true}));
+        anchor.position.set(0, H*1.08, W*0.47); g.add(anchor);
+      } catch (_) {}
+
+      // Damage stat / billboard label
+      const label = (typeof makeLabel === 'function') ? makeLabel('STAY PUFT · 100 HP', '#ff2db5', 4.6) : null;
+      if (label) { label.position.y = H * 1.22; g.add(label); }
 
       g.userData = {
         type: 'bibendum',
         H: H,
+        hp: 100, maxHp: 100,
         heading: Math.random() * 6.28,
-        speed: 1.8,    // slow lumbering walk (units/sec)
+        speed: 2.6,
         turnT: 4 + Math.random() * 4,
-        legPhase: 0,
+        walkPhase: 0,
+        hitT: 0,
+        down: false,
+        label: label,
+        // limb refs so updateBibendum can swing them
+        lhip, rhip, lsh, rsh,
       };
       return g;
     }
@@ -5731,14 +5950,76 @@ window.addEventListener('unhandledrejection',(ev)=>{
       bibendum.position.set(x, 0, z);
       scene.add(bibendum);
     }
+    function damageBibendum(dmg){
+      if (!bibendum) return;
+      const u = bibendum.userData;
+      if (u.down) return;
+      u.hp -= dmg; u.hitT = 0.3;
+      try { spawnBurst(bibendum.position.clone().add(new THREE.Vector3(0, u.H * 0.6, 0)), 0xff2db5, 24); } catch (_) {}
+      try { if (sfx && sfx.hit) sfx.hit(); } catch (_) {}
+      if (u.label) {
+        u.label.userData.refresh = true;
+        // Replace the label text with the new HP. The makeLabel helper
+        // returns a Sprite; rebuilding the canvas is easiest.
+        try {
+          const cv = document.createElement('canvas'); cv.width = 256; cv.height = 64;
+          const c = cv.getContext('2d');
+          c.fillStyle = 'rgba(11,10,31,.82)';
+          c.fillRect(4, 12, 248, 40);
+          c.strokeStyle = '#ff2db5'; c.lineWidth = 3; c.strokeRect(4, 12, 248, 40);
+          c.fillStyle = '#fff'; c.font = 'bold 26px Consolas,monospace';
+          c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.shadowColor = '#ff2db5'; c.shadowBlur = 8;
+          c.fillText('STAY PUFT · ' + Math.max(0, u.hp) + ' HP', 128, 33);
+          const tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding;
+          u.label.material.map.dispose && u.label.material.map.dispose();
+          u.label.material.map = tex; u.label.material.needsUpdate = true;
+        } catch (_) {}
+      }
+      if (u.hp <= 0) {
+        u.down = true;
+        try { spawnBurst(bibendum.position.clone().add(new THREE.Vector3(0, u.H * 0.5, 0)), 0xff2db5, 80); } catch (_) {}
+        try { spawnBurst(bibendum.position.clone().add(new THREE.Vector3(0, u.H * 0.5, 0)), 0xffd84d, 60); } catch (_) {}
+        try { explosion(bibendum.position.clone().add(new THREE.Vector3(0, u.H * 0.4, 0)), 12); } catch (_) {}
+        try { if (sfx && sfx.down) sfx.down(); } catch (_) {}
+        // 1000 Hoodz reward, spread around in a starburst so the player
+        // can run around collecting them.
+        for (let k = 0; k < 50; k++) {
+          const ang = Math.random() * Math.PI * 2;
+          const rad = 3 + Math.random() * 18;
+          try { spawnHoodz(bibendum.position.x + Math.cos(ang) * rad, bibendum.position.z + Math.sin(ang) * rad); } catch (_) {}
+        }
+        // Generous cash + huge toast
+        try { addCash(500); } catch (_) {}
+        toast('★ STAY PUFT DOWN · +500 $HOOD · 1000 Hoodz dropped (50× 20)', 'gold');
+        // Tip-over animation handled in updateBibendum via down flag
+        u.fallT = 0;
+      }
+    }
+    window.damageBibendum = damageBibendum;
+
     function updateBibendum(dt){
       if (!bibendum) return;
       const u = bibendum.userData;
+      // Hit flash
+      if (u.hitT > 0) { u.hitT -= dt; }
+
+      // Death / tip-over animation
+      if (u.down) {
+        u.fallT = (u.fallT || 0) + dt;
+        bibendum.rotation.z = Math.min(Math.PI / 2, u.fallT * 1.2);
+        bibendum.position.y = Math.max(-u.H * 0.4, -u.fallT * 4);
+        // Fade out then remove after 6 seconds
+        if (u.fallT > 6) {
+          scene.remove(bibendum);
+          bibendum = null;
+        }
+        return;
+      }
+
       u.turnT -= dt;
       if (u.turnT <= 0) { u.heading += (Math.random() * 1.4 - 0.7); u.turnT = 4 + Math.random() * 5; }
-      // Walk forward; bounce off the city edge OR the shark lake by
-      // reversing heading. The Bibendum is way too big to step over
-      // the kerb so he just turns around when he reaches it.
+
       const lim = (typeof GRID !== 'undefined' && typeof LOT !== 'undefined') ? GRID * LOT / 2 - 5 : 200;
       const nx = bibendum.position.x + Math.sin(u.heading) * u.speed * dt;
       const nz = bibendum.position.z + Math.cos(u.heading) * u.speed * dt;
@@ -5750,9 +6031,19 @@ window.addEventListener('unhandledrejection',(ev)=>{
         u.heading += Math.PI;
       }
       bibendum.rotation.y = u.heading;
-      // Lumbering bob
-      u.legPhase += dt * 1.4;
-      bibendum.position.y = Math.abs(Math.sin(u.legPhase)) * 0.6;
+
+      // ── Animated walk cycle ────────────────────────────────────────
+      // Hips/shoulders pivot around their attachment groups; alternating
+      // sine wave so the legs swing forward/back and the arms counter-
+      // swing. The whole body bobs vertically on the double-step
+      // frequency for the lumbering feel.
+      u.walkPhase += dt * u.speed * 0.7;
+      const swing = Math.sin(u.walkPhase) * 0.55;
+      if (u.lhip) u.lhip.rotation.x = -swing;
+      if (u.rhip) u.rhip.rotation.x =  swing;
+      if (u.lsh)  u.lsh.rotation.x  =  swing * 0.5;
+      if (u.rsh)  u.rsh.rotation.x  = -swing * 0.5;
+      bibendum.position.y = Math.abs(Math.sin(u.walkPhase * 2)) * 0.45;
     }
     spawnBibendum();
 
