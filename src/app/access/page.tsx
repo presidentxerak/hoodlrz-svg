@@ -87,14 +87,30 @@ export default function AccessPage() {
   const [loading, setLoading] = useState(false);
 
   // Wallet state
-  const [walletLoading, setWalletLoading] = useState(false);
+  type ConnectStep = "idle" | "connecting" | "signing" | "verifying" | "done";
+  const [walletStep, setWalletStep] = useState<ConnectStep>("idle");
   const [walletError, setWalletError] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+  const [inMetaMaskApp, setInMetaMaskApp] = useState(false);
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
-    }
+    if (typeof window === "undefined") return;
+    const ua = navigator.userAgent;
+    const mobile = /iPhone|iPad|iPod|Android/i.test(ua);
+    setIsMobile(mobile);
+    // True when running inside MetaMask's in-app browser. Either the UA
+    // says so explicitly or we're on mobile AND MetaMask injected itself.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eth = (window as any).ethereum;
+    setInMetaMaskApp(/MetaMaskMobile/i.test(ua) || (mobile && Boolean(eth?.isMetaMask)));
   }, []);
+  const walletLoading = walletStep !== "idle" && walletStep !== "done";
+  const stepLabel: Record<ConnectStep, string> = {
+    idle: "Connect",
+    connecting: "Approve in your wallet…",
+    signing: "Sign the message…",
+    verifying: "Verifying…",
+    done: "Connected ✓",
+  };
 
   async function handleEmailSubmit(e: FormEvent) {
     e.preventDefault();
@@ -156,16 +172,39 @@ export default function AccessPage() {
 
   async function connectWallet(provider: unknown) {
     setWalletError("");
-    setWalletLoading(true);
+    setWalletStep("connecting");
 
     try {
-      const eth = provider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> };
+      const eth = provider as {
+        request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+      };
 
-      // Request account
-      const accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
+      // 1. Silent probe first - if the wallet has already approved this
+      //    origin we skip the popup. MetaMask mobile in particular reuses
+      //    the approval and an extra prompt at this point confuses users.
+      let accounts: string[] = [];
+      try {
+        accounts = (await eth.request({ method: "eth_accounts" })) as string[];
+      } catch {
+        /* ignore - fall through to eth_requestAccounts */
+      }
+      // 2. Real connect prompt
       if (!accounts || accounts.length === 0) {
-        setWalletError("No account selected.");
-        setWalletLoading(false);
+        accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
+      }
+      // 3. Mobile retry - some MetaMask Mobile builds return [] even after
+      //    the user approves on the first call. Wait briefly + retry once.
+      if (!accounts || accounts.length === 0) {
+        await new Promise((r) => setTimeout(r, 600));
+        try {
+          accounts = (await eth.request({ method: "eth_accounts" })) as string[];
+        } catch {
+          /* still empty */
+        }
+      }
+      if (!accounts || accounts.length === 0) {
+        setWalletError("No account selected. Unlock your wallet and try again.");
+        setWalletStep("idle");
         return;
       }
       const address = accounts[0];
@@ -179,18 +218,20 @@ export default function AccessPage() {
       if (!nonceRes.ok) {
         const data = await nonceRes.json().catch(() => ({}));
         setWalletError(data.error || "Failed to get nonce.");
-        setWalletLoading(false);
+        setWalletStep("idle");
         return;
       }
       const { nonce, message } = await nonceRes.json();
 
       // Sign message
+      setWalletStep("signing");
       const signature = await eth.request({
         method: "personal_sign",
         params: [message, address],
       });
 
       // Verify signature on server
+      setWalletStep("verifying");
       const verifyRes = await fetch("/api/auth/wallet/verify", {
         method: "POST",
         body: JSON.stringify({ address, signature, nonce }),
@@ -200,21 +241,34 @@ export default function AccessPage() {
       if (!verifyRes.ok) {
         const data = await verifyRes.json().catch(() => ({}));
         setWalletError(data.error || "Verification failed.");
-        setWalletLoading(false);
+        setWalletStep("idle");
         return;
       }
 
-      // Success - full page reload to pick up session cookies
-      setWalletLoading(false);
-      window.location.href = "/my-collection";
+      // Success. We swap to the "done" state and then redirect. If the
+      // navigation is blocked by the in-app WebView (rare but happens on
+      // some MetaMask Mobile versions), the user can tap the visible
+      // "Continue to My Collection" button as a manual fallback.
+      setWalletStep("done");
+      setTimeout(() => {
+        try {
+          window.location.href = "/my-collection";
+        } catch {
+          /* fallback button is shown */
+        }
+      }, 250);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Wallet connection failed.";
-      if (msg.includes("user rejected") || msg.includes("User denied")) {
-        setWalletError("Connection cancelled.");
+      const e = err as { code?: number; message?: string };
+      const code = e?.code;
+      const msg = e?.message || "Wallet connection failed.";
+      if (code === 4001 || /reject|denied|cancel/i.test(msg)) {
+        setWalletError("Connection cancelled in your wallet.");
+      } else if (code === -32002 || /already pending/i.test(msg)) {
+        setWalletError("A wallet popup is already open — check your wallet app.");
       } else {
         setWalletError(msg);
       }
-      setWalletLoading(false);
+      setWalletStep("idle");
     }
   }
 
@@ -277,8 +331,9 @@ export default function AccessPage() {
         {tab === "wallet" && (
           <div className="w-full flex flex-col items-center gap-4 animate-fade-in">
             <p className="text-xs text-center text-muted leading-relaxed">
-              Sign a message to prove ownership of your wallet.
-              No gas fees, no transaction - just a signature.
+              {inMetaMaskApp
+                ? "You're inside MetaMask. Tap Connect, approve, then sign — that's it."
+                : "Sign a message to prove ownership of your wallet. No gas fees, no transaction — just a signature."}
             </p>
 
             {wallets.length > 0 && (
@@ -297,16 +352,36 @@ export default function AccessPage() {
                     ].join(" ")}
                   >
                     <span className="text-base">{w.icon}</span>
-                    {walletLoading ? "Connecting..." : `Connect ${w.name}`}
+                    {walletLoading ? stepLabel[walletStep] : `Connect ${w.name}`}
                   </button>
                 ))}
               </div>
             )}
 
-            {/* Mobile deep link - always visible on mobile so users in
-                Safari/Chrome can pop into the MetaMask in-app browser even
-                when another wallet (Coinbase, Phantom) injected ethereum. */}
-            {isMobile && (
+            {/* Visible status track so the user knows WHICH MetaMask popup
+                they're waiting on - on mobile they have to swipe between
+                MetaMask and Safari so this matters a lot. */}
+            {walletLoading && (
+              <div className="w-full text-[11px] uppercase tracking-widest text-muted text-center">
+                {stepLabel[walletStep]}
+              </div>
+            )}
+
+            {/* Success state with a manual fallback link in case the
+                in-app WebView blocks window.location.href. */}
+            {walletStep === "done" && (
+              <a
+                href="/my-collection"
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold uppercase tracking-widest border border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+              >
+                Continue to My Collection →
+              </a>
+            )}
+
+            {/* Mobile deep link - only when we're NOT already inside the
+                MetaMask in-app browser. Showing it there confuses users
+                because tapping it just bounces them back to the same page. */}
+            {isMobile && !inMetaMaskApp && (
               <a
                 href={`https://metamask.app.link/dapp/${typeof window !== "undefined" ? window.location.host : "hoodlrz.com"}/access`}
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest border border-[#ff2db5] text-[#ff2db5] hover:bg-[#ff2db5]/10 transition-colors"
