@@ -2916,7 +2916,10 @@ function initTouch(){
     el.addEventListener('touchstart',e=>{e.preventDefault();on();},{passive:false});
     el.addEventListener('touchend',e=>{e.preventDefault();off&&off();},{passive:false});
     el.addEventListener('touchcancel',()=>off&&off());};
-  hold('tFire',()=>touch.fire=true,()=>touch.fire=false);
+  // Fire button is tap-to-toggle (auto-fire). The button latches ON
+  // on first tap, fires every frame (gated by per-weapon cooldown)
+  // until tapped again.
+  $('tFire').addEventListener('touchstart',e=>{e.preventDefault();touch.fire=!touch.fire;$('tFire').classList.toggle('on',touch.fire);},{passive:false});
   hold('tJump',()=>touch.jump=true,()=>touch.jump=false);
   $('tAct').addEventListener('touchstart',e=>{e.preventDefault();tryInteract();},{passive:false});
   $('tSprint').addEventListener('touchstart',e=>{e.preventDefault();touch.sprint=!touch.sprint;$('tSprint').classList.toggle('on',touch.sprint);},{passive:false});
@@ -4308,6 +4311,19 @@ window.addEventListener('unhandledrejection',(ev)=>{
       border-width: 2px !important;
     }
     #tFire   { border-color: #ff2db5 !important; color: #fff    !important; background: rgba(255,45,181,.22) !important; }
+    /* Tap-to-toggle auto-fire: solid magenta + pulsing ring so the
+       player always sees that the gun is firing on its own. */
+    #tFire.on{
+      background: rgba(255,45,181,.65) !important;
+      border-color: #ff2db5 !important;
+      color: #fff !important;
+      box-shadow: 0 0 14px rgba(255,45,181,.85), inset 0 0 8px rgba(255,255,255,.35) !important;
+      animation: tFirePulse 0.9s ease-in-out infinite !important;
+    }
+    @keyframes tFirePulse{
+      0%,100%{ box-shadow: 0 0 10px rgba(255,45,181,.7), inset 0 0 6px rgba(255,255,255,.25); }
+      50%   { box-shadow: 0 0 22px rgba(255,45,181,1),   inset 0 0 12px rgba(255,255,255,.55); }
+    }
     #tAct    { border-color: #56e0ff !important; color: #56e0ff !important; background: rgba(86,224,255,.14) !important; font-size: 18px !important; }
     #tJump   { border-color: rgba(255,255,255,.55) !important; color: #fff !important; background: rgba(255,255,255,.08) !important; }
     #tSprint { border-color: #ffd84d !important; color: #ffd84d !important; background: rgba(255,216,77,.12) !important; font-size: 10.5px !important; }
