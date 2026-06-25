@@ -415,6 +415,7 @@
   <div id="mTopBar">
     <div class="mhp" title="Health"><i id="mHpFill"></i></div>
     <div class="mc" title="Hoodz"><b id="mHoodz">0</b><i>HOODZ</i></div>
+    <button id="mWeapBtn" class="mbtn" aria-label="Switch weapon" title="Tap to cycle weapons" style="min-width:90px;font-size:11px;font-weight:800;letter-spacing:.02em;padding:0 8px"><span id="mWeapName">Knife</span> <small style="opacity:.6">⇄</small></button>
     <button id="mMenuBtn" class="mbtn" aria-label="Menu">☰</button>
   </div>
   <div id="mScrim"></div>
@@ -4532,6 +4533,8 @@ window.addEventListener('unhandledrejection',(ev)=>{
   <span><b>SHIFT</b>run</span>
   <span><b>SPACE</b>jump</span>
   <span><b>CLICK</b>fire</span>
+  <span><b>1-5</b>weapon</span>
+  <span><b>WHEEL</b>cycle</span>
   <span><b>E</b>interact</span>
   <span><b>F</b>search</span>
   <span><b>J</b>journal</span>
@@ -7652,6 +7655,139 @@ window.addEventListener('unhandledrejection',(ev)=>{
     }
   }
   tick();
+})();
+</script>
+
+<!-- ============================================================
+     Patch: weapon-switch (desktop 1-5 + wheel, mobile top-bar chip)
+     - state.weapons holds the names the player owns (starts with
+       just 'Knife'); pickups add to this set instead of replacing.
+     - Desktop: number keys 1-5 select directly, mouse wheel cycles.
+     - Mobile: a chip in the top bar shows the current weapon and
+       cycles on tap.
+============================================================ -->
+<script>
+(function(){
+  const ORDER = ['Knife', 'Shuriken', 'Hood Blaster', 'Bazooka', 'Laser Cannon'];
+
+  function ownedList(){
+    if (typeof state === 'undefined') return ['Knife'];
+    if (!Array.isArray(state.weapons)) {
+      // Initialise inventory from whatever's currently equipped (or Knife).
+      state.weapons = [state.weapon || 'Knife'];
+    }
+    return state.weapons;
+  }
+  function ownsWeapon(name){
+    return ownedList().indexOf(name) !== -1;
+  }
+  function addToInventory(name){
+    if (!name) return;
+    const list = ownedList();
+    if (list.indexOf(name) === -1) list.push(name);
+  }
+  function equip(name){
+    if (typeof state === 'undefined' || !state.playing) return;
+    if (!ownsWeapon(name)) return;
+    if (state.weapon === name) return;
+    state.weapon = name;
+    try { if (typeof setWeaponView === 'function') setWeaponView(name); } catch(_){}
+    try { if (typeof updateHUD === 'function') updateHUD(); } catch(_){}
+    try { if (typeof sfx !== 'undefined' && sfx && sfx.pickup) sfx.pickup(); } catch(_){}
+    try { if (typeof toast === 'function') toast('Equipped ' + name, 'win'); } catch(_){}
+    refreshMobileChip();
+  }
+  function cycle(dir){
+    const list = ownedList();
+    if (!list.length) return;
+    const cur = state.weapon || list[0];
+    const order = ORDER.filter(n => list.indexOf(n) !== -1);
+    if (!order.length) return;
+    let i = order.indexOf(cur);
+    if (i === -1) i = 0;
+    i = (i + (dir > 0 ? 1 : -1) + order.length) % order.length;
+    equip(order[i]);
+  }
+
+  /* ---- Hook collectPickup so a new weapon adds to inventory ------- */
+  function patchCollectPickup(){
+    if (typeof collectPickup !== 'function' || collectPickup.__weapSwitchPatched) return;
+    const orig = collectPickup;
+    const wrapped = function(p){
+      try {
+        if (p && p.userData && p.userData.type === 'weapon' && p.userData.name) {
+          addToInventory(p.userData.name);
+        }
+      } catch (_) {}
+      const r = orig.apply(this, arguments);
+      refreshMobileChip();
+      return r;
+    };
+    wrapped.__weapSwitchPatched = true;
+    collectPickup = wrapped;
+    window.collectPickup = wrapped;
+  }
+
+  /* ---- Desktop: 1-5 + mouse wheel + Q ----------------------------- */
+  function gameLockedForInput(){
+    if (typeof state === 'undefined') return true;
+    return state.panelOpen || state.shopOpen || state.journalOpen || state.faqOpen || state.inJail || state.eaten || !state.playing;
+  }
+  window.addEventListener('keydown', function(e){
+    if (gameLockedForInput()) return;
+    // Don't steal typing in the search box or any input
+    const t = e.target && e.target.tagName;
+    if (t === 'INPUT' || t === 'TEXTAREA') return;
+    if (e.key >= '1' && e.key <= '5') {
+      const name = ORDER[parseInt(e.key, 10) - 1];
+      if (ownsWeapon(name)) { e.preventDefault(); equip(name); }
+    } else if (e.code === 'KeyQ') {
+      e.preventDefault(); cycle(1);
+    }
+  });
+  window.addEventListener('wheel', function(e){
+    if (gameLockedForInput()) return;
+    cycle(e.deltaY > 0 ? 1 : -1);
+  }, { passive: true });
+
+  /* ---- Mobile top-bar chip: tap to cycle -------------------------- */
+  function refreshMobileChip(){
+    const n = document.getElementById('mWeapName');
+    if (n && typeof state !== 'undefined') {
+      // Short display names so the chip stays narrow.
+      const w = state.weapon || 'Knife';
+      n.textContent = (w === 'Hood Blaster') ? 'Blaster'
+                    : (w === 'Laser Cannon') ? 'Laser'
+                    : w;
+    }
+  }
+  function wireMobileChip(){
+    const btn = document.getElementById('mWeapBtn');
+    if (!btn || btn.__weapWired) return;
+    btn.__weapWired = true;
+    const onTap = function(e){
+      if (e && e.preventDefault) e.preventDefault();
+      cycle(1);
+    };
+    btn.addEventListener('click', onTap);
+    btn.addEventListener('touchstart', onTap, { passive: false });
+  }
+
+  function init(){
+    if (typeof state === 'undefined') return;
+    ownedList();  // ensure state.weapons exists
+    patchCollectPickup();
+    wireMobileChip();
+    refreshMobileChip();
+  }
+  // Poll until the game's state is up; then we wire once.
+  let wired = false;
+  setInterval(function(){
+    if (wired) { refreshMobileChip(); return; }
+    if (typeof state === 'undefined') return;
+    wired = true;
+    init();
+  }, 300);
 })();
 </script>
 </body>
