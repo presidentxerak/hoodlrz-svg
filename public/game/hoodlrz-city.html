@@ -678,7 +678,9 @@ function initScene(){
   scene.add(new THREE.AmbientLight(0xffffff, 0.95));
   const key=new THREE.DirectionalLight(0xffffff, 0.35); key.position.set(-60,90,40); scene.add(key);
 
-  addSky(); addStars(); addEmbers();
+  // addEmbers() removed: pure cosmetic, 260 THREE.Points with a CPU
+  // position-buffer update + GPU upload every frame. No gameplay value.
+  addSky(); addStars();
 }
 // ===== B&W outline helpers =====
 const WHITE=0xffffff;
@@ -3244,15 +3246,14 @@ function openWalletPanel(b){
     openPanel('wallet','◇','SEALED WALLET',b.short+' · ???',`Something hums behind this wallet · a hidden soul. But no lead points here yet. Question the citizens; an informant knows which wallet holds which soul.`,'Locked · find the clue');return;}
   const owned=onchain.tokenImg(b.tokenId);
   const pic=owned?`<div class="nftpic"><img src="${owned}" alt=""></div>`:'';
-  // b.floors is the tower height baked at city-generation time, which
-  // is the wallet's NFT count at the last holders refresh. The live
-  // count from /api/hoodlrz/by-owner may differ (transfers since
-  // refresh). Both the subtitle ("X NFT") and the body sentence are
-  // rewritten with the live count once the API call returns, so the
-  // numbers always match the grid below.
-  openPanel('wallet','⌂','WALLET',`${b.short} · ${b.floors} NFT`,
+  // Subtitle + body intentionally do NOT mention an NFT count. The
+  // tower height (b.floors) is a snapshot from the last holders
+  // refresh; the real, current count lives only in the grid header
+  // ("N NFT on-chain") below, which is rendered from the live
+  // /api/hoodlrz/by-owner response and is the only source of truth.
+  openPanel('wallet','⌂','WALLET',`${b.short}`,
     `${pic}<div id="walletGrid" style="margin-top:6px"></div>`+
-    `<span id="walletDesc">A holder's tower. <em>${b.floors} Hoodlrz</em> live across ${b.floors} floors. ${onchain.live?'Real on-chain holder.':'Procedural holder.'}</span>`,
+    `<span id="walletDesc">A holder's tower in The Block. ${onchain.live?'Real on-chain holder.':'Procedural holder.'}</span>`,
     onchain.live?'The Block · live on-chain':'The Block · procedural');
   // Fetch + render the full on-chain collection this holder owns. /api/hoodlrz/by-owner
   // returns every token + image_url for that wallet from the same city_tokens cache
@@ -3264,22 +3265,8 @@ function openWalletPanel(b){
         .then(r=>r.ok?r.json():null)
         .then(data=>{
           const grid=document.getElementById('walletGrid');
-          if(!grid||!data||!Array.isArray(data.tokens))return;
+          if(!grid||!data||!Array.isArray(data.tokens)||!data.tokens.length)return;
           const realCount=data.tokens.length;
-          // Rewrite subtitle + description so all three numbers (top
-          // line, grid header, body text) match the live on-chain
-          // count we just fetched. The tower height stays b.floors;
-          // we only mention it when it differs from the live count.
-          const sub=document.getElementById('panelSub');
-          if(sub) sub.textContent=`${b.short} · ${realCount} NFT`;
-          const desc=document.getElementById('walletDesc');
-          if(desc){
-            const floorNote = (realCount===b.floors)
-              ? `across ${b.floors} floors`
-              : `· tower built for ${b.floors} floors`;
-            desc.innerHTML = `A holder's tower. <em>${realCount} Hoodlrz</em> held on-chain ${floorNote}. Real on-chain holder.`;
-          }
-          if(!realCount)return;
           const items=data.tokens.slice(0,24);    // cap at 24 so the panel doesn't explode
           grid.innerHTML='<div style="font-size:10px;letter-spacing:.18em;color:var(--mut);'+
             'margin:8px 0 6px;text-transform:uppercase">'+
@@ -4077,7 +4064,7 @@ function updateEntities(dt,t){
     pingRing.children[0].material.opacity=Math.min(.95,k/1.2);
     pingRing.children[1].material.opacity=Math.min(.5,k/3);
     if(k<=0){scene.remove(pingRing);pingRing=null;}}
-  updateFires(dt,t);
+  if(_ambient) updateFires(dt,t);
   updatePolice(dt);
   updateProjectiles(dt);
 }
