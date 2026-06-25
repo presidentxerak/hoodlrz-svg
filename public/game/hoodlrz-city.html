@@ -2201,7 +2201,7 @@ function makeLabel(text,color,scale){
   c.fillStyle='#ffffff';c.font='bold 30px Consolas,monospace';c.textAlign='center';c.textBaseline='middle';
   c.shadowColor=color;c.shadowBlur=10;c.fillText(text,128,33);
   const tex=new THREE.CanvasTexture(cv);tex.encoding=THREE.sRGBEncoding;
-  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false}));
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:true,depthWrite:false}));
   const s=scale||1.6;sp.scale.set(s,s*0.25,1);return sp;
 }
 function roundRect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
@@ -7193,7 +7193,9 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (u.killLabel || u.down) return u.killLabel;
     const info = KILL_INFO[type];
     if (!info) return null;
-    const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
+    // depthTest stays on so the label is occluded by walls — players
+    // shouldn't see "Shoot me with…" chips floating through a brick.
+    const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: true, depthWrite: false });
     const sp = new THREE.Sprite(mat);
     // Same 360×96 aspect ratio as the canvas (3.75:1) so the text
     // isn't squished. Bigger overall than before so the new two-line
@@ -7455,12 +7457,12 @@ window.addEventListener('unhandledrejection',(ev)=>{
     group.renderOrder = 1000;
     const W = 1.6, H = 0.16;
     const bg = new THREE.Sprite(new THREE.SpriteMaterial({
-      color: 0x3a0a14, depthTest: false, transparent: true, opacity: 0.9
+      color: 0x3a0a14, transparent: true, opacity: 0.9, depthWrite: false,
     }));
     bg.scale.set(W, H + 0.04, 1);
     group.add(bg);
     const fill = new THREE.Sprite(new THREE.SpriteMaterial({
-      color: 0x39ff9e, depthTest: false, transparent: true
+      color: 0x39ff9e, transparent: true, depthWrite: false,
     }));
     fill.scale.set(W, H, 1);
     group.add(fill);
@@ -7618,7 +7620,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
       arrow.add(new THREE.LineSegments(edgeGeom, edgeMat));
       // ENTER chip floats just below the cone.
       const labelMat = new THREE.SpriteMaterial({
-        map: labelTex, transparent: true, depthTest: false,
+        map: labelTex, transparent: true, depthWrite: false,
       });
       const sp = new THREE.Sprite(labelMat);
       sp.scale.set(2.2, 0.55, 1);
