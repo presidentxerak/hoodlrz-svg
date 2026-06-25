@@ -2916,10 +2916,18 @@ function initTouch(){
     el.addEventListener('touchstart',e=>{e.preventDefault();on();},{passive:false});
     el.addEventListener('touchend',e=>{e.preventDefault();off&&off();},{passive:false});
     el.addEventListener('touchcancel',()=>off&&off());};
-  // Fire button is tap-to-toggle (auto-fire). The button latches ON
-  // on first tap, fires every frame (gated by per-weapon cooldown)
-  // until tapped again.
-  $('tFire').addEventListener('touchstart',e=>{e.preventDefault();touch.fire=!touch.fire;$('tFire').classList.toggle('on',touch.fire);},{passive:false});
+  // Fire button is press-and-hold: autofire stays ON only while the
+  // thumb is on the button. onPrimary fires every frame and each
+  // weapon's own cooldown gates the cadence. The .on class drives
+  // the magenta glow so the player sees the gun is firing.
+  const tFireEl=$('tFire');
+  if(tFireEl){
+    const fireOn=e=>{e.preventDefault();touch.fire=true;tFireEl.classList.add('on');};
+    const fireOff=e=>{if(e&&e.preventDefault)e.preventDefault();touch.fire=false;tFireEl.classList.remove('on');};
+    tFireEl.addEventListener('touchstart',fireOn,{passive:false});
+    tFireEl.addEventListener('touchend',fireOff,{passive:false});
+    tFireEl.addEventListener('touchcancel',fireOff);
+  }
   hold('tJump',()=>touch.jump=true,()=>touch.jump=false);
   $('tAct').addEventListener('touchstart',e=>{e.preventDefault();tryInteract();},{passive:false});
   $('tSprint').addEventListener('touchstart',e=>{e.preventDefault();touch.sprint=!touch.sprint;$('tSprint').classList.toggle('on',touch.sprint);},{passive:false});
