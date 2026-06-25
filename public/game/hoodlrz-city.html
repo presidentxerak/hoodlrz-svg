@@ -661,7 +661,13 @@ function initScene(){
   scene.fog=new THREE.Fog(0x000000, 30, 170);
   clock=new THREE.Clock();
 
-  camera=new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+  // Depth precision: with near=0.1 + far=1000 the depth buffer had so
+  // little resolution at gameplay distance that wall-mounted signs
+  // (offset +0.06m from the brick) would flicker when the camera
+  // moved. Pushing near to 0.5 and clamping far to 350 (fog ends at
+  // 170 so anything farther is invisible) gives ~100× more precision
+  // and kills the z-fight.
+  camera=new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.5, 350);
   camera.rotation.order='YXZ'; camera.position.set(0,PLAYER_EYE,0);
 
   // Mobile: antialias off (the biggest fragment-shader cost on tile GPUs),
@@ -6950,6 +6956,368 @@ window.addEventListener('unhandledrejection',(ev)=>{
     document.addEventListener('DOMContentLoaded', injectToggles);
   else
     injectToggles();
+})();
+</script>
+
+<!-- ============================================================
+     Patch: kill-everyone + overhead "weapon · reward" labels
+     Every walking thing (gangs, peds, cops, animals, plus the
+     tanks / military / bibendum from the war patch) can now take
+     damage from any matching weapon. A floating chip above each
+     target shows what kills it + the Hoodz reward; the chip is
+     green when your equipped weapon can kill it, gray otherwise.
+============================================================ -->
+<script>
+(function(){
+  // Per-type kill metadata — HP, reward, and the simplest weapon
+  // label to show. Tank/military still need a heavy weapon; bibendum
+  // is the boss. The damage handler picks rewards from this table.
+  const KILL_INFO = {
+    gang:     { label:'ANY',     hp:4,   hood:5,    cash:40,  yOff:2.6 },
+    ped:      { label:'ANY',     hp:3,   hood:3,    cash:15,  yOff:2.6 },
+    cop:      { label:'ANY',     hp:6,   hood:10,   cash:80,  yOff:2.8 },
+    swat:     { label:'ANY',     hp:10,  hood:20,   cash:150, yOff:2.8 },
+    animal:   { label:'ANY',     hp:2,   hood:1,    cash:0,   yOff:1.0 },
+    tank:     { label:'BAZOOKA', hp:25,  hood:30,   cash:120, yOff:3.4 },
+    military: { label:'BAZOOKA', hp:6,   hood:5,    cash:30,  yOff:2.6 },
+    bibendum: { label:'LASER',   hp:100, hood:1000, cash:500, yOff:8.0 },
+  };
+  // What each weapon can damage. Soft targets fall to everything;
+  // tank/military/bibendum need explosives or beams.
+  const WEAPON_KILLS = {
+    'Fists':        new Set(['gang','ped','animal']),
+    'Hood Blaster': new Set(['gang','ped','cop','swat','animal','military']),
+    'Street Bat':   new Set(['gang','ped','cop','swat','animal']),
+    'Bazooka':      new Set(['gang','ped','cop','swat','animal','tank','military','bibendum']),
+    'Laser Cannon': new Set(['gang','ped','cop','swat','animal','tank','military','bibendum']),
+  };
+
+  function getNPCType(e){
+    if (!e || !e.userData) return null;
+    const u = e.userData;
+    if (u.type === 'gang') return 'gang';
+    if (u.type === 'ped')  return 'ped';
+    if (u.type === 'cop')  return u.swat ? 'swat' : 'cop';
+    if (u.kind === 'dog' || u.kind === 'cat') return 'animal';
+    if (u.type === 'tank')     return 'tank';
+    if (u.type === 'military') return 'military';
+    if (u.type === 'bibendum') return 'bibendum';
+    return null;
+  }
+
+  /* ---- Label sprites ----------------------------------------------- */
+  // Texture cache, keyed by "type-canKill". 7 types × 2 states = 14
+  // textures shared by every NPC of the same kind/state.
+  const texCache = new Map();
+  function getLabelTexture(type, canKill){
+    const key = type + '-' + (canKill ? '1' : '0');
+    let tex = texCache.get(key);
+    if (tex) return tex;
+    const info = KILL_INFO[type];
+    if (!info) return null;
+    const W = 256, H = 64;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    const bg = canKill ? 'rgba(57,255,158,0.92)' : 'rgba(0,0,0,0.72)';
+    const fg = canKill ? '#04121a' : '#ffffff';
+    const stroke = canKill ? '#0c3a23' : 'rgba(255,255,255,0.55)';
+    // pill background
+    ctx.fillStyle = bg;
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 4;
+    const r = 16;
+    ctx.beginPath();
+    ctx.moveTo(r, 2); ctx.lineTo(W - r, 2);
+    ctx.quadraticCurveTo(W - 2, 2, W - 2, r);
+    ctx.lineTo(W - 2, H - r);
+    ctx.quadraticCurveTo(W - 2, H - 2, W - r, H - 2);
+    ctx.lineTo(r, H - 2);
+    ctx.quadraticCurveTo(2, H - 2, 2, H - r);
+    ctx.lineTo(2, r);
+    ctx.quadraticCurveTo(2, 2, r, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = "bold 22px 'Outfit', Arial, sans-serif";
+    ctx.fillText(info.label + ' · +' + info.hood + ' ⬢', W / 2, H / 2 + 2);
+    const tex2 = new THREE.CanvasTexture(cv);
+    tex2.encoding = THREE.sRGBEncoding;
+    tex2.needsUpdate = true;
+    texCache.set(key, tex2);
+    return tex2;
+  }
+
+  function ensureLabel(npc, type){
+    const u = npc.userData;
+    if (u.killLabel || u.down) return u.killLabel;
+    const info = KILL_INFO[type];
+    if (!info) return null;
+    const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
+    const sp = new THREE.Sprite(mat);
+    sp.scale.set(2.4, 0.6, 1);
+    sp.position.y = info.yOff;
+    sp.renderOrder = 999;
+    npc.add(sp);
+    u.killLabel = sp;
+    return sp;
+  }
+
+  function refreshLabel(npc){
+    const type = getNPCType(npc);
+    if (!type) return;
+    const u = npc.userData;
+    if (u.down) return;
+    const sp = ensureLabel(npc, type);
+    if (!sp) return;
+    const can = WEAPON_KILLS[state.weapon] && WEAPON_KILLS[state.weapon].has(type);
+    sp.material.map = getLabelTexture(type, !!can);
+    sp.material.needsUpdate = true;
+  }
+
+  function eachKillable(fn){
+    if (typeof gangs !== 'undefined') for (const g of gangs) fn(g);
+    if (typeof peds  !== 'undefined') for (const p of peds)  fn(p);
+    if (typeof cops  !== 'undefined') for (const c of cops)  fn(c);
+    if (typeof animals !== 'undefined') for (const a of animals) fn(a);
+    const war = window.__war;
+    if (war) {
+      if (Array.isArray(war.tanks))    for (const t of war.tanks)    fn(t);
+      if (Array.isArray(war.military)) for (const m of war.military) fn(m);
+      const bb = (typeof war.getBibendum === 'function') ? war.getBibendum() : null;
+      if (bb) fn(bb);
+    }
+  }
+
+  function refreshAll(){ eachKillable(refreshLabel); }
+
+  /* ---- Generic damage (peds/cops/animals — gangs already handled) -- */
+  function damageNPC(npc, dmg, from){
+    const u = npc.userData;
+    if (!u || u.down) return;
+    const type = getNPCType(npc);
+    if (!type) return;
+    // Gangs already have a dedicated path with knock-back + aggro.
+    if (type === 'gang' && typeof damageGang === 'function') {
+      damageGang(npc, dmg, from);
+      // refresh in case it died (label cleanup below also covers it)
+      if (u.down && u.killLabel) { npc.remove(u.killLabel); u.killLabel = null; }
+      return;
+    }
+    // tank/military/bibendum: leave to the war patch's own damage flows.
+    if (type === 'tank' || type === 'military' || type === 'bibendum') return;
+
+    if (u.hp == null) u.hp = KILL_INFO[type].hp;
+    u.hp -= dmg;
+    u.hitT = 0.25;
+    if (typeof hitMarker === 'function') hitMarker();
+    if (typeof sfx !== 'undefined' && sfx && sfx.hit) sfx.hit();
+    try { spawnBurst(npc.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xff2db5, 10); } catch(_){}
+    if (from) {
+      const k = npc.position.clone().sub(from);
+      k.y = 0;
+      if (k.lengthSq() > 0) npc.position.add(k.normalize().multiplyScalar(0.4));
+    }
+    if (u.hp <= 0) {
+      const info = KILL_INFO[type];
+      u.down = true;
+      npc.rotation.z = Math.PI / 2;
+      npc.position.y = type === 'animal' ? 0.25 : 0.5;
+      if (typeof addCash === 'function' && info.cash > 0) addCash(info.cash);
+      // Drop Hoodz capsules around the body
+      const drops = Math.min(info.hood, 6);
+      for (let k = 0; k < drops; k++) {
+        try { spawnHoodz(npc.position.x + rand(-1.4, 1.4), npc.position.z + rand(-1.4, 1.4)); } catch(_){}
+      }
+      try { spawnBurst(npc.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xffffff, 18); } catch(_){}
+      if (u.killLabel) { npc.remove(u.killLabel); u.killLabel = null; }
+      if (typeof sfx !== 'undefined' && sfx && sfx.down) sfx.down();
+      // Killing a cop triggers immediate pursuit (the others go hot)
+      if ((type === 'cop' || type === 'swat') && typeof toast === 'function')
+        toast(type.toUpperCase() + ' down · +' + info.cash + ' $HOOD · +' + info.hood + ' Hoodz', 'win');
+      else if (typeof toast === 'function')
+        toast(type.toUpperCase() + ' down · +' + info.hood + ' Hoodz', 'win');
+    }
+  }
+
+  window.__damageNPC = damageNPC;
+
+  /* ---- Hook the existing damage paths ----------------------------- */
+  // Target lock: scan every killable type, not just gangs. The lock
+  // angle (0.965 dot ≈ 8° cone) and 42m range are kept identical so
+  // the targeting feel doesn't change for the player.
+  function pickTarget(){
+    const cam = camera, dir = new THREE.Vector3();
+    cam.getWorldDirection(dir);
+    const o = cam.position;
+    let best = null, bestDot = 0.965;
+    eachKillable(function(npc){
+      if (!npc || npc.userData.down) return;
+      const type = getNPCType(npc);
+      if (!type) return;
+      // Only lock onto things the current weapon can actually kill —
+      // otherwise the player would auto-fire wasted shots.
+      if (!(WEAPON_KILLS[state.weapon] && WEAPON_KILLS[state.weapon].has(type))) return;
+      const to = npc.position.clone().add(new THREE.Vector3(0, 1.2, 0)).sub(o);
+      const dd = to.length();
+      if (dd > 42) return;
+      to.normalize();
+      const dp = to.dot(dir);
+      if (dp > bestDot) { bestDot = dp; best = npc; }
+    });
+    return best;
+  }
+  // The original lock pass runs at the end of updateEntities. Override
+  // it from a post-step in animate via patching lockedTarget right
+  // after the original pass.
+  function patchTargetLock(){
+    // Original logic only scanned gangs; we re-scan with our broader
+    // list and replace lockedTarget if we found something the player
+    // can actually hit.
+    const b = pickTarget();
+    if (b) lockedTarget = b;
+    if (typeof updateLockUI === 'function') updateLockUI();
+  }
+
+  // Hook into the existing animate loop by wrapping updateEntities.
+  function patchUpdateEntities(){
+    if (typeof updateEntities !== 'function' || updateEntities.__killAllPatched) return;
+    const orig = updateEntities;
+    const wrapped = function(dt, t){
+      const r = orig.apply(this, arguments);
+      try { patchTargetLock(); } catch(_){}
+      return r;
+    };
+    wrapped.__killAllPatched = true;
+    updateEntities = wrapped;
+    window.updateEntities = wrapped;
+  }
+
+  // Projectiles: extend collision to peds/cops/animals.
+  function patchUpdateProjectiles(){
+    if (typeof updateProjectiles !== 'function' || updateProjectiles.__killAllPatched) return;
+    const orig = updateProjectiles;
+    const wrapped = function(dt){
+      // Run our extra collision pass FIRST so a projectile that hits a
+      // ped doesn't continue on to a gang in the same frame.
+      try {
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+          const p = projectiles[i];
+          if (p.isBazooka) continue;
+          const m = p.mesh; if (!m) continue;
+          let hit = null;
+          for (const arr of [peds, cops, animals]) {
+            if (!arr) continue;
+            for (const npc of arr) {
+              if (!npc || npc.userData.down) continue;
+              const yProbe = m.position.y;
+              if (m.position.distanceTo(npc.position.clone().setY(yProbe)) < 1.2) {
+                hit = npc; break;
+              }
+            }
+            if (hit) break;
+          }
+          if (hit) {
+            damageNPC(hit, 2, m.position);
+            try { spawnImpact(m.position, 0xff3d6e); } catch(_){}
+            scene.remove(m);
+            projectiles.splice(i, 1);
+          }
+        }
+      } catch(_){}
+      return orig.apply(this, arguments);
+    };
+    wrapped.__killAllPatched = true;
+    updateProjectiles = wrapped;
+    window.updateProjectiles = wrapped;
+  }
+
+  // Melee: scan peds/cops/animals too within the same 4.6m cone.
+  function patchMeleeHit(){
+    if (typeof meleeHit !== 'function' || meleeHit.__killAllPatched) return;
+    const orig = meleeHit;
+    const wrapped = function(){
+      // Let the original do its thing on gangs first
+      const r = orig.apply(this, arguments);
+      // Then sweep peds/cops/animals for an extra hit
+      try {
+        const dmg = state.weapon === 'Street Bat' ? 3 : 1;
+        const origin = camera.position.clone();
+        const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+        let best = null, bd = 1e9;
+        for (const arr of [peds, cops, animals]) {
+          if (!arr) continue;
+          for (const npc of arr) {
+            if (!npc || npc.userData.down) continue;
+            const to = npc.position.clone().setY(origin.y).sub(origin);
+            const d = to.length();
+            if (d > 4.6) continue;
+            to.normalize();
+            if (to.dot(dir) > 0.8 && d < bd) { best = npc; bd = d; }
+          }
+        }
+        if (best) damageNPC(best, dmg, origin);
+      } catch(_){}
+      return r;
+    };
+    wrapped.__killAllPatched = true;
+    meleeHit = wrapped;
+    window.meleeHit = wrapped;
+  }
+
+  /* ---- Per-frame: refresh labels when weapon changes + cull distant - */
+  let lastWeapon = '';
+  function tick(){
+    requestAnimationFrame(tick);
+    if (typeof state === 'undefined' || !state.playing) return;
+    if (state.weapon !== lastWeapon) {
+      lastWeapon = state.weapon;
+      refreshAll();
+    }
+    // Visibility: hide labels past ~28m so the HUD isn't cluttered.
+    // The label itself is still a Sprite child of the npc — toggling
+    // visible is essentially free.
+    const camPos = camera.position;
+    const D2 = 28 * 28;
+    eachKillable(function(npc){
+      const sp = npc.userData && npc.userData.killLabel;
+      if (!sp) return;
+      // Gang killed via the original damageGang path won't have had
+      // its label cleaned up — drop it the first frame after death.
+      if (npc.userData.down) { npc.remove(sp); npc.userData.killLabel = null; return; }
+      const dx = npc.position.x - camPos.x, dz = npc.position.z - camPos.z;
+      sp.visible = (dx * dx + dz * dz) < D2 && npc.visible !== false;
+    });
+  }
+
+  // Wait until the game has spawned + the damage helpers exist, then
+  // wire everything once.
+  function ready(){
+    return typeof state !== 'undefined'
+        && state.playing
+        && typeof camera !== 'undefined'
+        && typeof updateEntities === 'function'
+        && typeof gangs !== 'undefined' && gangs.length >= 0
+        && typeof projectiles !== 'undefined';
+  }
+  let wired = false;
+  function tryWire(){
+    if (wired) return;
+    if (!ready()) return;
+    wired = true;
+    patchUpdateEntities();
+    patchUpdateProjectiles();
+    patchMeleeHit();
+    // initial labels
+    refreshAll();
+    // re-scan every 4s so newly-spawned NPCs (tanks etc.) get labels too
+    setInterval(refreshAll, 4000);
+    tick();
+  }
+  setInterval(tryWire, 400);
 })();
 </script>
 </body>
