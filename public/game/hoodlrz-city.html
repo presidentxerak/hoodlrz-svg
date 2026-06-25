@@ -2516,7 +2516,7 @@ function placeEntities(){
   df.position.set(LOT*0.6,0,LOT*0.6); df.position.y=groundY(df.position.x,df.position.z); attachGlow(df,0x39ff9e,false);
   const dl=makeLabel('DEALER','#ffffff');dl.position.y=3.3;df.add(dl);
   df.userData={...df.userData,type:'dealer'}; scene.add(df); dealer=df;
-  for(let i=0;i<(isMobile?10:16);i++){
+  for(let i=0;i<(isMobile?22:34);i++){
     const f=makeHoodlrFigure({label:pick(['hOodlrz','BRO','hOodlrz'])});
     let gx=rand(-CITYR,CITYR), gz=rand(-CITYR,CITYR);
     let gtries=0; while(blockedAt(gx,gz)&&gtries<14){gx=rand(-CITYR,CITYR);gz=rand(-CITYR,CITYR);gtries++;}
@@ -2550,8 +2550,8 @@ function placeEntities(){
     while(blockedAt(wx,wz) && wt<20){wx=rand(-CITYR*0.9,CITYR*0.9); wz=rand(-CITYR*0.9,CITYR*0.9); wt++;}
     if (wt < 20) addWeaponPickup(w, wx, wz);
   }
-  makePolice(isMobile?5:8);
-  makeSWAT(isMobile?2:4);
+  makePolice(isMobile?8:14);
+  makeSWAT(isMobile?4:7);
   spawnPoliceVehicles();
   spawnAnimals();
   spawnUFOs();
@@ -6816,7 +6816,8 @@ window.addEventListener('unhandledrejection',(ev)=>{
     spawnBibendum();
 
     /* ---- Spawn the army ------------------------------------------- */
-    for (let i = 0; i < 3; i++) {
+    const _mobile = !!window.isMobile;
+    for (let i = 0; i < (_mobile ? 4 : 7); i++) {
       let x, z, tr = 0;
       const R = (typeof CITYR !== 'undefined') ? CITYR : 80;
       do {
@@ -6826,7 +6827,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
       } while (blockedAt(x, z) && tr < 16);
       makeTank(x, z);
     }
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < (_mobile ? 12 : 18); i++) {
       let x, z, tr = 0;
       const R = (typeof CITYR !== 'undefined') ? CITYR : 80;
       do {
@@ -7553,6 +7554,102 @@ window.addEventListener('unhandledrejection',(ev)=>{
     tick();
   }
   setInterval(tryWire, 400);
+})();
+</script>
+
+<!-- ============================================================
+     Patch: bouncing arrows above every building entrance
+     Players couldn't tell which towers they could walk into. A
+     small green pyramid + ENTER label floats above each building's
+     doorPos, bobs up and down, and spins slowly so it stands out
+     against the dark sky.
+============================================================ -->
+<script>
+(function(){
+  // Shared geometry + materials so 100+ buildings still draw cheap.
+  let arrowsBuilt = false;
+  const arrows = [];
+  function build(){
+    if (arrowsBuilt) return;
+    if (typeof THREE === 'undefined') return;
+    if (typeof scene === 'undefined' || typeof buildings === 'undefined') return;
+    if (!buildings.length) return;
+    arrowsBuilt = true;
+    const geom = new THREE.ConeGeometry(0.55, 1.1, 4);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0x39ff9e, transparent: true, opacity: 0.92, depthWrite: false,
+    });
+    const edgeGeom = new THREE.EdgesGeometry(geom);
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    // ENTER label as a shared canvas → texture → sprite material.
+    function makeEnterLabel(){
+      const W = 256, H = 64;
+      const cv = document.createElement('canvas');
+      cv.width = W; cv.height = H;
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = 'rgba(57,255,158,0.92)';
+      const r = 16;
+      ctx.beginPath();
+      ctx.moveTo(r, 2); ctx.lineTo(W - r, 2);
+      ctx.quadraticCurveTo(W - 2, 2, W - 2, r);
+      ctx.lineTo(W - 2, H - r);
+      ctx.quadraticCurveTo(W - 2, H - 2, W - r, H - 2);
+      ctx.lineTo(r, H - 2);
+      ctx.quadraticCurveTo(2, H - 2, 2, H - r);
+      ctx.lineTo(2, r);
+      ctx.quadraticCurveTo(2, 2, r, 2);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#04121a';
+      ctx.font = "bold 26px 'Outfit', Arial, sans-serif";
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('ENTER ▾', W / 2, H / 2 + 2);
+      const tex = new THREE.CanvasTexture(cv);
+      tex.encoding = THREE.sRGBEncoding;
+      return tex;
+    }
+    const labelTex = makeEnterLabel();
+    for (const b of buildings) {
+      if (!b || !b.doorPos) continue;
+      // Vaults aren't enterable — they're sealed until a key is found.
+      if (b.vault) continue;
+      const arrow = new THREE.Mesh(geom, mat);
+      arrow.rotation.x = Math.PI;             // tip pointing DOWN at the door
+      arrow.position.set(b.doorPos.x, 4.2, b.doorPos.z + 0.6);
+      arrow.add(new THREE.LineSegments(edgeGeom, edgeMat));
+      // ENTER chip floats just below the cone.
+      const labelMat = new THREE.SpriteMaterial({
+        map: labelTex, transparent: true, depthTest: false,
+      });
+      const sp = new THREE.Sprite(labelMat);
+      sp.scale.set(2.2, 0.55, 1);
+      sp.position.y = 1.0;       // below the cone, so cone-base is overhead
+      arrow.add(sp);
+      arrow.renderOrder = 5;
+      scene.add(arrow);
+      arrows.push({ mesh: arrow, baseY: 4.2, phase: (b.x + b.z) * 0.07 });
+    }
+  }
+  function tick(){
+    requestAnimationFrame(tick);
+    if (!arrowsBuilt) { build(); return; }
+    if (typeof state === 'undefined' || !state.playing) return;
+    if (typeof player === 'undefined' || !player.pos) return;
+    // Cull arrows past 70 m so a 200-tower city doesn't draw 200 cones.
+    const t = performance.now() * 0.001;
+    const px = player.pos.x, pz = player.pos.z;
+    const CULL2 = 70 * 70;
+    for (let i = 0; i < arrows.length; i++) {
+      const a = arrows[i], m = a.mesh;
+      const dx = m.position.x - px, dz = m.position.z - pz;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > CULL2) { m.visible = false; continue; }
+      m.visible = true;
+      // Gentle bob + slow spin.
+      m.position.y = a.baseY + Math.sin(t * 2.2 + a.phase) * 0.35;
+      m.rotation.y += 0.025;
+    }
+  }
+  tick();
 })();
 </script>
 </body>
