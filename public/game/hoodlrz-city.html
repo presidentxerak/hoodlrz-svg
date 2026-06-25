@@ -2471,7 +2471,7 @@ function addWeaponPickup(name,x,z){
   }
   g.position.set(x,1.1,z);g.userData={type:'weapon',name,spin:rng()*6};
   addBeacon(g,'collect');
-  const lb=makeLabel(name==='Street Bat'?'BAT':'BLASTER','#2dffa6',1.5);lb.position.y=1.0;g.add(lb);
+  const lb=makeLabel(name==='Street Bat'?'STREET BAT':'HOOD BLASTER','#2dffa6',1.8);lb.position.y=1.0;g.add(lb);
   scene.add(g);pickups.push(g);
 }
 function placeEntities(){
@@ -7017,27 +7017,33 @@ window.addEventListener('unhandledrejection',(ev)=>{
   }
 
   /* ---- Label sprites ----------------------------------------------- */
-  // Texture cache, keyed by "type-canKill". 7 types × 2 states = 14
+  // Texture cache, keyed by "type-canKill". 8 types × 2 states = 16
   // textures shared by every NPC of the same kind/state.
   const texCache = new Map();
+  // Human-readable phrasing for the "Shoot me with a ___" line.
+  const WEAPON_PHRASE = {
+    'ANY':     'anything',
+    'BAZOOKA': 'a Bazooka',
+    'LASER':   'a Laser Cannon',
+  };
   function getLabelTexture(type, canKill){
     const key = type + '-' + (canKill ? '1' : '0');
     let tex = texCache.get(key);
     if (tex) return tex;
     const info = KILL_INFO[type];
     if (!info) return null;
-    const W = 256, H = 64;
+    const W = 360, H = 96;
     const cv = document.createElement('canvas');
     cv.width = W; cv.height = H;
     const ctx = cv.getContext('2d');
-    const bg = canKill ? 'rgba(57,255,158,0.92)' : 'rgba(0,0,0,0.72)';
+    const bg = canKill ? 'rgba(57,255,158,0.92)' : 'rgba(0,0,0,0.74)';
     const fg = canKill ? '#04121a' : '#ffffff';
     const stroke = canKill ? '#0c3a23' : 'rgba(255,255,255,0.55)';
     // pill background
     ctx.fillStyle = bg;
     ctx.strokeStyle = stroke;
     ctx.lineWidth = 4;
-    const r = 16;
+    const r = 22;
     ctx.beginPath();
     ctx.moveTo(r, 2); ctx.lineTo(W - r, 2);
     ctx.quadraticCurveTo(W - 2, 2, W - 2, r);
@@ -7053,8 +7059,13 @@ window.addEventListener('unhandledrejection',(ev)=>{
     ctx.fillStyle = fg;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    // Line 1: "Shoot me with [phrase]"
     ctx.font = "bold 22px 'Outfit', Arial, sans-serif";
-    ctx.fillText(info.label + ' · +' + info.hood + ' ⬢', W / 2, H / 2 + 2);
+    const phrase = WEAPON_PHRASE[info.label] || ('a ' + info.label.toLowerCase());
+    ctx.fillText('Shoot me with ' + phrase, W / 2, H / 2 - 14);
+    // Line 2: "+X Hoodz"
+    ctx.font = "bold 18px 'Outfit', Arial, sans-serif";
+    ctx.fillText('+' + info.hood + ' ⬢ Hoodz', W / 2, H / 2 + 18);
     const tex2 = new THREE.CanvasTexture(cv);
     tex2.encoding = THREE.sRGBEncoding;
     tex2.needsUpdate = true;
@@ -7069,7 +7080,10 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (!info) return null;
     const mat = new THREE.SpriteMaterial({ transparent: true, depthTest: false });
     const sp = new THREE.Sprite(mat);
-    sp.scale.set(2.4, 0.6, 1);
+    // Same 360×96 aspect ratio as the canvas (3.75:1) so the text
+    // isn't squished. Bigger overall than before so the new two-line
+    // copy stays legible.
+    sp.scale.set(3.0, 0.8, 1);
     sp.position.y = info.yOff;
     sp.renderOrder = 999;
     npc.add(sp);
