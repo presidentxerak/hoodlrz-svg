@@ -2557,9 +2557,13 @@ function setupVaults(){
    PLAYER
 =================================================================== */
 const player={yaw:0,pitch:0,vy:0,onGround:true,bob:0,eye:PLAYER_EYE,crouch:false,
-  pos:new THREE.Vector3(0,PLAYER_EYE,0),vel:new THREE.Vector3(),speed:14,sprint:24,crouchSpeed:7.2,holster:1};
+  pos:new THREE.Vector3(0,PLAYER_EYE,0),vel:new THREE.Vector3(),speed:14,sprint:24,crouchSpeed:7.2,holster:0};
 const keys={}; let locked=false, recoil=0, lastShot=0, firing=false, lockedTarget=null;
-function updateLockUI(){const el=$('lock');if(!el)return;const on=!!lockedTarget&&state.weapon==='Hood Blaster';
+function updateLockUI(){const el=$('lock');if(!el)return;
+  // Crosshair lock shows for every weapon — Bat / Bazooka / Laser
+  // also need to know what they're aiming at, even though only the
+  // Hood Blaster used to gate fire on this state.
+  const on=!!lockedTarget;
   el.classList.toggle('on',on);const cr=$('cross');if(cr)cr.classList.toggle('locked',on);}
 // gyro: opt-in toggle so the player can tilt the phone to fine-tune aim.
 const settings={sens:1, invertY:false, headBob:true, fov:75, touch:false, gyro:false};
@@ -3033,7 +3037,10 @@ function updatePlayer(dt){
   // fire (mouse hold / touch / gamepad) · cooldowns gate the rate
   if(firing||touch.fire||pad.fire)onPrimary();
   if(recoil>0)recoil=Math.max(0,recoil-dt*0.9);
-  player.holster+=((state.combat?0:1)-player.holster)*Math.min(1,7*dt);
+  // Weapon is always shown (no holster on/off animation) so the player
+  // sees their starting pistol from frame 1, not only when a gang
+  // appears within 15 m.
+  player.holster=0;
   if(viewWeapon){const h=player.holster;
     viewWeapon.position.set(Math.cos(player.bob)*0.02, -0.05+bob*0.6 - h*1.15, recoil*1.6);
     viewWeapon.rotation.x=h*1.1;}
