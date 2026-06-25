@@ -24,7 +24,12 @@
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%;overflow:hidden;background:var(--ink);
     font-family:'Outfit',"Segoe UI",system-ui,sans-serif;color:var(--paper);
-    -webkit-user-select:none;user-select:none}
+    -webkit-user-select:none;user-select:none;
+    /* Block pull-to-refresh + iOS rubber-band scroll. Without this a
+       drag-down at the top of the iframe reloads the page and the
+       player loses the run. */
+    overscroll-behavior:none;
+    -webkit-overflow-scrolling:auto}
   canvas{display:block}
   .mono{font-family:"Consolas","SF Mono",ui-monospace,monospace}
 
@@ -2437,11 +2442,16 @@ function blockedAt(px,pz){const lim=GRID*LOT/2+LOT*0.6;if(Math.abs(px)>lim||Math
   // check in the animate loop, so the "step in the water and die"
   // mechanic stays intact.
   if(lakeBounds&&px>lakeBounds.minX-0.6&&px<lakeBounds.maxX+0.6&&pz>lakeBounds.minZ-0.6&&pz<lakeBounds.maxZ+0.6)return true;
+  // 1.0 m clearance around every collider (was 0.6). NPCs, animals
+  // and item-spawn helpers (findSafeSpawn / spawnHoodz) all run
+  // through blockedAt, so a wider margin keeps them off the walls
+  // and stops gangs / chickens / Hoodz capsules from getting pinned
+  // against a brick.
   if(colliderGrid){const gi=Math.round(px/LOT),gj=Math.round(pz/LOT);
     for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const arr=colliderGrid.get((gi+a)+','+(gj+b));if(!arr)continue;
-      for(const c of arr)if(Math.abs(px-c.x)<c.hw+0.6&&Math.abs(pz-c.z)<c.hd+0.6)return true;}
+      for(const c of arr)if(Math.abs(px-c.x)<c.hw+1.0&&Math.abs(pz-c.z)<c.hd+1.0)return true;}
     return false;}
-  for(const c of colliders)if(Math.abs(px-c.x)<c.hw+0.6&&Math.abs(pz-c.z)<c.hd+0.6)return true;return false;}
+  for(const c of colliders)if(Math.abs(px-c.x)<c.hw+1.0&&Math.abs(pz-c.z)<c.hd+1.0)return true;return false;}
 const SLAB_TOP=0.3, INTERIOR_Y=-600;
 function groundY(x,z){               // sidewalk slabs are raised · return the walkable height here
   const half=(GRID-1)/2, gi=Math.round(x/LOT), gj=Math.round(z/LOT);
@@ -2529,6 +2539,17 @@ function placeEntities(){
   // pickup, slightly further out.
   addWeaponPickup('Shuriken',0,-LOT*0.55);
   addWeaponPickup('Hood Blaster',-LOT*1.05,LOT*0.4);
+  // Scatter extra weapon pickups across the city so a player who
+  // walks into the suburbs isn't stuck with whatever they started
+  // with. Mix is weighted toward the starter weapons so something
+  // is always nearby; rare Hood Blasters keep the mid-game weapon a
+  // real upgrade.
+  const _extras = ['Knife','Knife','Knife','Shuriken','Shuriken','Hood Blaster','Knife','Shuriken','Hood Blaster','Knife'];
+  for (const w of _extras){
+    let wx=rand(-CITYR*0.9,CITYR*0.9), wz=rand(-CITYR*0.9,CITYR*0.9), wt=0;
+    while(blockedAt(wx,wz) && wt<20){wx=rand(-CITYR*0.9,CITYR*0.9); wz=rand(-CITYR*0.9,CITYR*0.9); wt++;}
+    if (wt < 20) addWeaponPickup(w, wx, wz);
+  }
   makePolice(isMobile?5:8);
   makeSWAT(isMobile?2:4);
   spawnPoliceVehicles();
@@ -2923,6 +2944,17 @@ function initSettingsUI(){
 }
 function initTouch(){
   if(!settings.touch)return;
+  // Belt-and-suspenders: even with overscroll-behavior:none in CSS,
+  // some iOS versions still let a drag-down at the top of the screen
+  // pull the page and trigger a refresh, which kicks the player out
+  // of the run. Block native touchmove defaults while the game is
+  // running but allow them inside scrollable modals (journal /
+  // holders / wallet panel etc.) so those can still scroll.
+  document.addEventListener('touchmove', function(e){
+    if (!state || !state.playing) return;
+    if (state.paused || state.panelOpen || state.journalOpen || state.shopOpen || state.faqOpen) return;
+    e.preventDefault();
+  }, { passive: false });
   const joy=$('joy'),knob=$('joyKnob'),look=$('look'),R=52; let joyId=null,jcx=0,jcy=0;
   const moveKnob=(x,y)=>{let dx=x-jcx,dy=y-jcy;const d=Math.hypot(dx,dy);if(d>R){dx*=R/d;dy*=R/d;}
     knob.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;touch.moveX=dx/R;touch.moveY=-dy/R;};

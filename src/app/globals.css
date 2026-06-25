@@ -52,6 +52,11 @@
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Block pull-to-refresh + iOS rubber-band on the host page. The
+       game lives inside a fixed-position iframe on /city, so a drag-
+       down at the top of the iframe should never reload the parent
+       and quit the run. */
+    overscroll-behavior: none;
   }
 
   body {
