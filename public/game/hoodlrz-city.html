@@ -2497,7 +2497,7 @@ function placeEntities(){
     f.position.set(gx,0,gz);
     const ring=new THREE.Mesh(new THREE.RingGeometry(.85,1.15,24),gradMat.danger);
     ring.rotation.x=-Math.PI/2;ring.position.y=.05;f.add(ring);
-    f.userData={...f.userData,type:'gang',hp:4,heading:rng()*6.28,aggro:false,hitT:0,cd:0,down:false}; scene.add(f); gangs.push(f);
+    f.userData={...f.userData,type:'gang',hp:8,heading:rng()*6.28,aggro:false,hitT:0,cd:0,down:false}; scene.add(f); gangs.push(f);
   }
   makePedestrians(isMobile?24:42);
   // designate 3 informants (one per secret) among the crowd
@@ -2554,14 +2554,12 @@ function setupVaults(){
    PLAYER
 =================================================================== */
 const player={yaw:0,pitch:0,vy:0,onGround:true,bob:0,eye:PLAYER_EYE,crouch:false,
-  pos:new THREE.Vector3(0,PLAYER_EYE,0),vel:new THREE.Vector3(),speed:7,sprint:12,crouchSpeed:3.6,holster:1};
+  pos:new THREE.Vector3(0,PLAYER_EYE,0),vel:new THREE.Vector3(),speed:14,sprint:24,crouchSpeed:7.2,holster:1};
 const keys={}; let locked=false, recoil=0, lastShot=0, firing=false, lockedTarget=null;
 function updateLockUI(){const el=$('lock');if(!el)return;const on=!!lockedTarget&&state.weapon==='Hood Blaster';
   el.classList.toggle('on',on);const cr=$('cross');if(cr)cr.classList.toggle('locked',on);}
-// autoFire (mobile-only QoL: shoots automatically while a target is locked,
-// so the thumb doesn't have to hold the FIRE button while swiping to look)
-// and gyro (tilt the phone to fine-tune aim) default ON for touch users.
-const settings={sens:1, invertY:false, headBob:true, fov:75, touch:false, autoFire:true, gyro:false};
+// gyro: opt-in toggle so the player can tilt the phone to fine-tune aim.
+const settings={sens:1, invertY:false, headBob:true, fov:75, touch:false, gyro:false};
 const touch={moveX:0,moveY:0,lookDX:0,lookDY:0,sprint:false,fire:false,jump:false};
 const pad={moveX:0,moveY:0,lookX:0,lookY:0,sprint:false,fire:false,jump:false,act:false,_act:false,crouch:false};
 const state={playing:false,panelOpen:false,paused:false,journalOpen:false,shopOpen:false,combat:false,inside:null,inJail:false,hp:100,cash:0,hoodz:0,weapon:'Hood Blaster',oraclesTalked:0,knownClues:new Set(),journal:[],secretsFound:0,inventory:{},keys:new Set(),vaultsFound:0,day:1,floor:1,wallet:null,minted:new Set(),searching:false,faqOpen:false,jailUntil:0,jailCooldown:0,eaten:false,eatenUntil:0};
@@ -3018,12 +3016,8 @@ function updatePlayer(dt){
   const tf=settings.fov+((sprinting&&speedNow>player.speed*0.6)?8:0);
   if(Math.abs(camera.fov-tf)>0.05){camera.fov+=(tf-camera.fov)*Math.min(1,8*dt);camera.updateProjectionMatrix();}
 
-  // fire (mouse hold / touch / gamepad) · cooldowns gate the rate.
-  // autoFire (mobile): when a hostile is locked in the crosshair, the
-  // game shoots without holding the FIRE button, so the player can use
-  // their thumb to swipe-look instead.
-  const _autoShoot = settings.autoFire && settings.touch && lockedTarget && state.weapon!=='Fists' && state.weapon!=='Street Bat';
-  if(firing||touch.fire||pad.fire||_autoShoot)onPrimary();
+  // fire (mouse hold / touch / gamepad) · cooldowns gate the rate
+  if(firing||touch.fire||pad.fire)onPrimary();
   if(recoil>0)recoil=Math.max(0,recoil-dt*0.9);
   player.holster+=((state.combat?0:1)-player.holster)*Math.min(1,7*dt);
   if(viewWeapon){const h=player.holster;
@@ -3308,7 +3302,7 @@ function openWalletPanel(b){
 const ITEMS={
   health:{name:'Health Pack',price:3,icon:'✚',desc:'Restore 50 HP',use:()=>{state.hp=Math.min(100,state.hp+50);}},
   armor:{name:'Kevlar Hoodie',price:6,icon:'🛡',desc:'Patch up to full HP',use:()=>{state.hp=100;}},
-  sneakers:{name:'Hood Sneakers',price:8,icon:'👟',desc:'+30% move speed (kept)',use:()=>{player.speed=9.1;player.sprint=15.5;}},
+  sneakers:{name:'Hood Sneakers',price:8,icon:'👟',desc:'+30% move speed (kept)',use:()=>{player.speed=18.2;player.sprint=31.2;}},
   energy:{name:'Energy Cell',price:5,icon:'🔋',desc:'Blaster runs hotter (flex)',cosmetic:true},
   chain:{name:'Gold Chain',price:7,icon:'⛓',desc:'Iced-out Hoodlr flex',cosmetic:true},
   cap:{name:'Hoodlr Cap',price:4,icon:'🧢',desc:'Street drip',cosmetic:true},
@@ -5733,8 +5727,8 @@ window.addEventListener('unhandledrejection',(ev)=>{
       // own the item.
       try {
         if (state.inventory && state.inventory.sneakers && typeof player !== 'undefined') {
-          player.speed = Math.max(player.speed || 0, 9.1);
-          player.sprint = Math.max(player.sprint || 0, 15.5);
+          player.speed = Math.max(player.speed || 0, 18.2);
+          player.sprint = Math.max(player.sprint || 0, 31.2);
         }
       } catch (_) {}
       console.log('[save] restored player progress (' + state.hoodz + ' Hoodz, '
@@ -5835,8 +5829,8 @@ window.addEventListener('unhandledrejection',(ev)=>{
       if (Array.isArray(snap.journal))    state.journal    = snap.journal;
       try {
         if (state.inventory && state.inventory.sneakers && typeof player !== 'undefined') {
-          player.speed = Math.max(player.speed || 0, 9.1);
-          player.sprint = Math.max(player.sprint || 0, 15.5);
+          player.speed = Math.max(player.speed || 0, 18.2);
+          player.sprint = Math.max(player.sprint || 0, 31.2);
         }
       } catch (_) {}
       try { if (typeof updateHUD === 'function') updateHUD(); } catch (_) {}
@@ -6267,7 +6261,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
       const tag = (typeof makeLabel === 'function') ? makeLabel('TANK','#ff5b6e',1.4) : null;
       if (tag) { tag.position.y = 3.2; g.add(tag); }
       g.position.set(x, 0, z);
-      g.userData = { type:'tank', hp:25, heading: Math.random()*6.28, speed:1.6, turnT:2+Math.random()*4, hitT:0, down:false, cd:0 };
+      g.userData = { type:'tank', hp:50, heading: Math.random()*6.28, speed:1.6, turnT:2+Math.random()*4, hitT:0, down:false, cd:0 };
       scene.add(g); tanks.push(g);
       if (typeof colliders !== 'undefined') colliders.push({x,z,hw:2,hd:2.6});
       return g;
@@ -6326,7 +6320,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
       rifle.position.set(.4, 1.2, .25); g.add(rifle);
       g.position.set(x, 0, z);
       g.userData = Object.assign({}, g.userData || {}, {
-        type: 'military', hp: 6, heading: Math.random() * 6.28, speed: 1.9,
+        type: 'military', hp: 12, heading: Math.random() * 6.28, speed: 1.9,
         turnT: 1 + Math.random() * 3, hitT: 0, down: false, cd: 0, aggro: false,
       });
       scene.add(g); military.push(g);
@@ -6504,13 +6498,13 @@ window.addEventListener('unhandledrejection',(ev)=>{
       } catch (_) {}
 
       // Damage stat / billboard label
-      const label = (typeof makeLabel === 'function') ? makeLabel('STAY PUFT · 100 HP', '#ff2db5', 4.6) : null;
+      const label = (typeof makeLabel === 'function') ? makeLabel('STAY PUFT · 200 HP', '#ff2db5', 4.6) : null;
       if (label) { label.position.y = H * 1.22; g.add(label); }
 
       g.userData = {
         type: 'bibendum',
         H: H,
-        hp: 100, maxHp: 100,
+        hp: 200, maxHp: 200,
         heading: Math.random() * 6.28,
         speed: 2.6,
         turnT: 4 + Math.random() * 4,
@@ -6859,9 +6853,8 @@ window.addEventListener('unhandledrejection',(ev)=>{
        meant a single thumb couldn't both move the joystick AND
        rotate the camera — you needed two fingers. We split the
        screen: left half = joystick zone, right half = look zone.
-     - Adds settings toggles for Auto-fire (mobile QoL) and Gyro
-       aim (tilt the device to fine-tune yaw/pitch). iOS 13+ asks
-       permission on the first tap.
+     - Adds a Gyro-aim toggle (tilt the device to fine-tune yaw/
+       pitch). iOS 13+ asks permission on the first tap.
 ============================================================ -->
 <style>
   /* Split-screen touch zones — only on mobile / coarse-pointer.
@@ -6877,27 +6870,16 @@ window.addEventListener('unhandledrejection',(ev)=>{
   const isMobile = !!window.isMobile;
   if (!isMobile) return;
 
-  /* ---- Add the two new mobile toggles to the pause-menu settings ---- */
+  /* ---- Add the Gyro toggle to the pause-menu settings -------------- */
   function injectToggles(){
     const togs = document.querySelector('#resume .toggles');
-    if (!togs || document.getElementById('tgAutoFire')) return;
-    const af = document.createElement('div');
-    af.className = 'tg on';
-    af.id = 'tgAutoFire';
-    af.textContent = 'Auto-fire · ON';
-    togs.appendChild(af);
+    if (!togs || document.getElementById('tgGyro')) return;
     const gy = document.createElement('div');
     gy.className = 'tg';
     gy.id = 'tgGyro';
     gy.textContent = 'Gyro aim · OFF';
     togs.appendChild(gy);
 
-    af.addEventListener('click', () => {
-      if (typeof settings === 'undefined') return;
-      settings.autoFire = !settings.autoFire;
-      af.classList.toggle('on', settings.autoFire);
-      af.textContent = 'Auto-fire · ' + (settings.autoFire ? 'ON' : 'OFF');
-    });
     gy.addEventListener('click', async () => {
       if (typeof settings === 'undefined') return;
       const want = !settings.gyro;
@@ -6976,14 +6958,14 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // label to show. Tank/military still need a heavy weapon; bibendum
   // is the boss. The damage handler picks rewards from this table.
   const KILL_INFO = {
-    gang:     { label:'ANY',     hp:4,   hood:5,    cash:40,  yOff:2.6 },
-    ped:      { label:'ANY',     hp:3,   hood:3,    cash:15,  yOff:2.6 },
-    cop:      { label:'ANY',     hp:6,   hood:10,   cash:80,  yOff:2.8 },
-    swat:     { label:'ANY',     hp:10,  hood:20,   cash:150, yOff:2.8 },
-    animal:   { label:'ANY',     hp:2,   hood:1,    cash:0,   yOff:1.0 },
-    tank:     { label:'BAZOOKA', hp:25,  hood:30,   cash:120, yOff:3.4 },
-    military: { label:'BAZOOKA', hp:6,   hood:5,    cash:30,  yOff:2.6 },
-    bibendum: { label:'LASER',   hp:100, hood:1000, cash:500, yOff:8.0 },
+    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:2.6 },
+    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:2.6 },
+    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:2.8 },
+    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:2.8 },
+    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:1.0 },
+    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:3.4 },
+    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:2.6 },
+    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:8.0 },
   };
   // What each weapon can damage. Soft targets fall to everything;
   // tank/military/bibendum need explosives or beams.
