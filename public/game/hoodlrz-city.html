@@ -641,6 +641,11 @@ let scene,camera,renderer,clock,embers;
 let GRID=15; const LOT=30, SLAB=21, FLOOR_H=5, MAX_GRID=41;   // SLAB<LOT leaves the streets; GRID grows (odd) to fit the holder count (up to ~1337)
 let CITYR=GRID*LOT*0.42;                          // spread entities across the whole (bigger) city
 const PLAYER_EYE=2.0, PLAYER_R=0.7;
+// Mobile detection drives renderer scale, NPC budget, and touch controls.
+// Coarse pointer catches Android tablets too; the media query catches
+// landscape phones that report fine pointer.
+const isMobile = (typeof matchMedia !== 'undefined') && (matchMedia('(max-width:760px)').matches || matchMedia('(pointer:coarse)').matches);
+window.isMobile = isMobile;
 const colliders=[], buildings=[], oracles=[], gangs=[], pickups=[], projectiles=[], effects=[], peds=[], secrets=[], fires=[], cops=[], vaults=[];
 let dealer=null, genesisBuilding=null, viewWeapon=null, muzzle=null, lightBudget=6, targetRing=null;
 const $=id=>document.getElementById(id);
@@ -659,9 +664,12 @@ function initScene(){
   camera=new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
   camera.rotation.order='YXZ'; camera.position.set(0,PLAYER_EYE,0);
 
-  renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});
+  // Mobile: antialias off (the biggest fragment-shader cost on tile GPUs),
+  // pixelRatio capped to 1.0 (an iPhone DPR3 was rendering 3.8M pixels/frame).
+  // Desktop keeps 1.75× + AA for sharpness.
+  renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:true,powerPreference:'high-performance'});
   renderer.setSize(innerWidth,innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.75));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.0 : 1.75));
   renderer.shadowMap.enabled=false;
   renderer.outputEncoding=THREE.sRGBEncoding;
   document.body.appendChild(renderer.domElement);
@@ -1204,7 +1212,7 @@ function makeUFO(x,z){
   scene.add(g);ufos.push(g);
 }
 function spawnUFOs(){const lanes=[];for(let k=-(GRID);k<=GRID;k++)lanes.push((k+0.5)*LOT);
-  for(let i=0;i<5;i++){const v=pick(lanes),p=rand(-CITYR,CITYR);makeUFO(rng()<.5?p:v,rng()<.5?v:p);}}
+  for(let i=0;i<(isMobile?2:5);i++){const v=pick(lanes),p=rand(-CITYR,CITYR);makeUFO(rng()<.5?p:v,rng()<.5?v:p);}}
 function updateUFOs(dt,t){
   if(state.eaten||state.inJail||state.inside)return;
   for(const u of ufos){const d=u.userData;
@@ -2361,16 +2369,17 @@ function updateAnimals(dt){
     if(!blockedAt(nx,nz)&&Math.abs(nx)<CITYR+30&&Math.abs(nz)<CITYR+30){a.position.x=nx;a.position.z=nz;}else u.heading+=2.2;
     a.rotation.y=u.heading;a.position.y=groundY(a.position.x,a.position.z)+Math.abs(Math.sin(performance.now()*0.008+a.position.x))*0.04;}
 }
-function spawnAnimals(){for(let i=0;i<9;i++)makeAnimal('dog');for(let i=0;i<9;i++)makeAnimal('cat');}
+function spawnAnimals(){const N=isMobile?5:9;for(let i=0;i<N;i++)makeAnimal('dog');for(let i=0;i<N;i++)makeAnimal('cat');}
 // ===== night workers & junkies (ambient street NPCs) =====
 function spawnStreetLife(){
-  for(let i=0;i<8;i++){const p=makeVoxelChar({});let x,z,tr=0;do{x=rand(-CITYR,CITYR);z=rand(-CITYR,CITYR);tr++;}while(blockedAt(x,z)&&tr<16);
+  const N=isMobile?5:8;
+  for(let i=0;i<N;i++){const p=makeVoxelChar({});let x,z,tr=0;do{x=rand(-CITYR,CITYR);z=rand(-CITYR,CITYR);tr++;}while(blockedAt(x,z)&&tr<16);
     if (typeof findSafeSpawn === 'function') { const s=findSafeSpawn(x,z,8); x=s.x; z=s.z; }
     p.position.set(x,0,z);p.rotation.y=rng()*6.28;
     const lb=makeLabel('♥','#ff2db5',1.1);lb.position.y=3.2;p.add(lb);
     p.userData={...p.userData,type:'ped',kind:'worker',name:pick(['CANDY','ROXY','JEWEL','LACE','VENUS']),line:'Lonely in The Block, holder? Keep moving.',heading:rng()*6.28,speed:rand(.4,1),turnT:rand(2,5)};
     scene.add(p);peds.push(p);}
-  for(let i=0;i<8;i++){const p=makeVoxelChar({});let x,z,tr=0;do{x=rand(-CITYR,CITYR);z=rand(-CITYR,CITYR);tr++;}while(blockedAt(x,z)&&tr<16);
+  for(let i=0;i<N;i++){const p=makeVoxelChar({});let x,z,tr=0;do{x=rand(-CITYR,CITYR);z=rand(-CITYR,CITYR);tr++;}while(blockedAt(x,z)&&tr<16);
     if (typeof findSafeSpawn === 'function') { const s=findSafeSpawn(x,z,8); x=s.x; z=s.z; }
     p.position.set(x,0,z);p.rotation.set(0,rng()*6.28,0.5);   // slumped
     const lb=makeLabel('…','#9aa',1.0);lb.position.y=2.6;p.add(lb);
@@ -2469,7 +2478,7 @@ function placeEntities(){
   df.position.set(LOT*0.6,0,LOT*0.6); df.position.y=groundY(df.position.x,df.position.z); attachGlow(df,0x39ff9e,false);
   const dl=makeLabel('DEALER','#ffffff');dl.position.y=3.3;df.add(dl);
   df.userData={...df.userData,type:'dealer'}; scene.add(df); dealer=df;
-  for(let i=0;i<16;i++){
+  for(let i=0;i<(isMobile?10:16);i++){
     const f=makeHoodlrFigure({label:pick(['hOodlrz','BRO','hOodlrz'])});
     let gx=rand(-CITYR,CITYR), gz=rand(-CITYR,CITYR);
     let gtries=0; while(blockedAt(gx,gz)&&gtries<14){gx=rand(-CITYR,CITYR);gz=rand(-CITYR,CITYR);gtries++;}
@@ -2479,7 +2488,7 @@ function placeEntities(){
     ring.rotation.x=-Math.PI/2;ring.position.y=.05;f.add(ring);
     f.userData={...f.userData,type:'gang',hp:4,heading:rng()*6.28,aggro:false,hitT:0,cd:0,down:false}; scene.add(f); gangs.push(f);
   }
-  makePedestrians(42);
+  makePedestrians(isMobile?24:42);
   // designate 3 informants (one per secret) among the crowd
   const shuffled=peds.slice().sort(()=>rng()-0.5);
   for(let i=0;i<secrets.length&&i<shuffled.length;i++){shuffled[i].userData.informant=secrets[i];}
@@ -2489,8 +2498,8 @@ function placeEntities(){
   for(let i=0;i<26;i++){let x,z,tr=0;do{x=rand(-CITYR,CITYR);z=rand(-CITYR,CITYR);tr++;}while(blockedAt(x,z)&&tr<14);spawnHoodz(x,z);}
   addWeaponPickup('Street Bat',0,-LOT*0.55);
   addWeaponPickup('Hood Blaster',-LOT*1.05,LOT*0.4);
-  makePolice(8);
-  makeSWAT(4);
+  makePolice(isMobile?5:8);
+  makeSWAT(isMobile?2:4);
   spawnPoliceVehicles();
   spawnAnimals();
   spawnUFOs();
@@ -2538,7 +2547,10 @@ const player={yaw:0,pitch:0,vy:0,onGround:true,bob:0,eye:PLAYER_EYE,crouch:false
 const keys={}; let locked=false, recoil=0, lastShot=0, firing=false, lockedTarget=null;
 function updateLockUI(){const el=$('lock');if(!el)return;const on=!!lockedTarget&&state.weapon==='Hood Blaster';
   el.classList.toggle('on',on);const cr=$('cross');if(cr)cr.classList.toggle('locked',on);}
-const settings={sens:1, invertY:false, headBob:true, fov:75, touch:false};
+// autoFire (mobile-only QoL: shoots automatically while a target is locked,
+// so the thumb doesn't have to hold the FIRE button while swiping to look)
+// and gyro (tilt the phone to fine-tune aim) default ON for touch users.
+const settings={sens:1, invertY:false, headBob:true, fov:75, touch:false, autoFire:true, gyro:false};
 const touch={moveX:0,moveY:0,lookDX:0,lookDY:0,sprint:false,fire:false,jump:false};
 const pad={moveX:0,moveY:0,lookX:0,lookY:0,sprint:false,fire:false,jump:false,act:false,_act:false,crouch:false};
 const state={playing:false,panelOpen:false,paused:false,journalOpen:false,shopOpen:false,combat:false,inside:null,inJail:false,hp:100,cash:0,hoodz:0,weapon:'Hood Blaster',oraclesTalked:0,knownClues:new Set(),journal:[],secretsFound:0,inventory:{},keys:new Set(),vaultsFound:0,day:1,floor:1,wallet:null,minted:new Set(),searching:false,faqOpen:false,jailUntil:0,jailCooldown:0,eaten:false,eatenUntil:0};
@@ -2947,8 +2959,14 @@ function updatePlayer(dt){
   const lookS=2.6;
   player.yaw-=pad.lookX*lookS*dt;
   player.pitch-=pad.lookY*lookS*dt*(settings.invertY?-1:1);
-  if(settings.touch){const ts=0.0030*settings.sens;
-    player.yaw-=touch.lookDX*ts; player.pitch-=touch.lookDY*ts*(settings.invertY?-1:1);
+  // Mobile look: 2.5× faster than the old 0.0030 rate so a single swipe
+  // can spin 90°+ without lifting the thumb. Square-rooted swipe speed
+  // gives a gentle acceleration curve (fast swipes turn faster than the
+  // linear sum of small drags would).
+  if(settings.touch){const ts=0.0075*settings.sens;
+    const accel = (v)=> Math.sign(v)*Math.pow(Math.abs(v), 1.15);
+    player.yaw-=accel(touch.lookDX)*ts;
+    player.pitch-=accel(touch.lookDY)*ts*(settings.invertY?-1:1);
     touch.lookDX=0; touch.lookDY=0;}
   player.pitch=Math.max(-1.4,Math.min(1.4,player.pitch));
 
@@ -2989,8 +3007,12 @@ function updatePlayer(dt){
   const tf=settings.fov+((sprinting&&speedNow>player.speed*0.6)?8:0);
   if(Math.abs(camera.fov-tf)>0.05){camera.fov+=(tf-camera.fov)*Math.min(1,8*dt);camera.updateProjectionMatrix();}
 
-  // fire (mouse hold / touch / gamepad) · cooldowns gate the rate
-  if(firing||touch.fire||pad.fire)onPrimary();
+  // fire (mouse hold / touch / gamepad) · cooldowns gate the rate.
+  // autoFire (mobile): when a hostile is locked in the crosshair, the
+  // game shoots without holding the FIRE button, so the player can use
+  // their thumb to swipe-look instead.
+  const _autoShoot = settings.autoFire && settings.touch && lockedTarget && state.weapon!=='Fists' && state.weapon!=='Street Bat';
+  if(firing||touch.fire||pad.fire||_autoShoot)onPrimary();
   if(recoil>0)recoil=Math.max(0,recoil-dt*0.9);
   player.holster+=((state.combat?0:1)-player.holster)*Math.min(1,7*dt);
   if(viewWeapon){const h=player.holster;
@@ -3967,7 +3989,13 @@ function updateEntities(dt,t){
   for(const o of oracles){o.userData.ring.rotation.z+=dt;if(o.userData.orb)o.userData.orb.position.y=3+Math.sin(t*2)*0.12;}
   if(dealer)dealer.userData.ring.rotation.z-=dt;
   for(const p of pickups){if(!p.parent)continue;p.userData.spin+=dt*2;p.rotation.y=p.userData.spin;p.position.y=1+Math.sin(t*2+p.userData.spin)*0.15;if(player.pos.distanceTo(p.position)<1.7)collectPickup(p);}
-  for(const g of gangs){const u=g.userData;if(u.down)continue;g.scale.setScalar(u.hitT>0?1+(u.hitT-=dt)*1.2:1);
+  // Distance culling — skips animation + collision for NPCs the player
+  // can't see. 40m on mobile (about 1.5 city lots), 100m on desktop.
+  const _cullD = isMobile ? 40 : 100;
+  for(const g of gangs){const u=g.userData;if(u.down)continue;
+    const _d=g.position.distanceTo(player.pos);
+    if(_d>_cullD && !u.aggro){g.visible=false;continue;} else g.visible=true;
+    g.scale.setScalar(u.hitT>0?1+(u.hitT-=dt)*1.2:1);
     const to=player.pos.clone().sub(g.position);to.y=0;const dP=to.length();let moving=true;
     if(u.aggro&&dP<24){to.normalize();g.position.addScaledVector(to,3.4*dt);g.rotation.y=Math.atan2(to.x,to.z);if(dP<2.2){if(u.cd<=0){damage(6);u.cd=0.8;}}if(u.cd>0)u.cd-=dt;}
     else{u.heading+=rand(-1,1)*dt;const nx=g.position.x+Math.sin(u.heading)*1.4*dt,nz=g.position.z+Math.cos(u.heading)*1.4*dt;
@@ -3982,7 +4010,11 @@ function updateEntities(dt,t){
   // pedestrian crowd
   for(const ped of peds){const u=ped.userData;
     if(u.talking){ped.position.y+=(groundY(ped.position.x,ped.position.z)-ped.position.y)*Math.min(1,12*dt);continue;}
-    if(player.pos.distanceTo(ped.position)<3.8){            // stop and look at the player so they can be talked to
+    // Distance cull pedestrians the same way as gangs (peds have no
+    // "aggro" state, so they always pause when out of sight).
+    const _dPed=ped.position.distanceTo(player.pos);
+    if(_dPed>_cullD){ped.visible=false;continue;} else ped.visible=true;
+    if(_dPed<3.8){            // stop and look at the player so they can be talked to
       faceObj(ped);
       ped.position.y+=(groundY(ped.position.x,ped.position.z)-ped.position.y)*Math.min(1,12*dt);
       animChar(ped,dt,false,0);continue;}
@@ -4004,12 +4036,17 @@ function updateEntities(dt,t){
     let best=null,bestDot=0.965;
     for(const g of gangs){if(g.userData.down)continue;const to=g.position.clone().add(new THREE.Vector3(0,1.2,0)).sub(o);const dd=to.length();if(dd>42)continue;to.normalize();const dp=to.dot(dir);if(dp>bestDot){bestDot=dp;best=g;}}
     lockedTarget=best;updateLockUI();}
-  if(embers){const pos=embers.geometry.attributes.position.array;for(let i=1;i<pos.length;i+=3){pos[i]+=dt*1.2;if(pos[i]>42)pos[i]=1;}embers.geometry.attributes.position.needsUpdate=true;}
+  // Mobile: throttle ambient cosmetics to ~15fps (every 4th frame). The
+  // user can't tell embers / sharks / UFOs / animals are running at
+  // 15fps but the GPU upload + CPU work is 4× cheaper. Particles stay
+  // realtime because projectile effects need to look snappy.
+  const _ambient = !isMobile || ((frame & 3) === 0);
+  if(embers && _ambient){const pos=embers.geometry.attributes.position.array;for(let i=1;i<pos.length;i+=3){pos[i]+=dt*1.2;if(pos[i]>42)pos[i]=1;}embers.geometry.attributes.position.needsUpdate=true;}
   updateGrad(t);
   updatePoliceVehicles(dt,t);
-  updateAnimals(dt);
-  updateSharks(dt);
-  updateUFOs(dt,t);
+  if(_ambient) updateAnimals(dt);
+  if(_ambient) updateSharks(dt);
+  if(_ambient) updateUFOs(dt,t);
   updateParticles(dt);
   // lake: stepping into the water gets you eaten by sharks
   if(!state.eaten&&!state.inJail&&!state.inside&&lakeBounds){const p=player.pos;
@@ -6796,6 +6833,115 @@ window.addEventListener('unhandledrejection',(ev)=>{
     document.addEventListener('DOMContentLoaded', wire);
   else
     wire();
+})();
+</script>
+
+<!-- ============================================================
+     Patch: mobile controls (split-screen touch + gyro aim toggle)
+     - The original #look zone used inset:0 (full screen), which
+       meant a single thumb couldn't both move the joystick AND
+       rotate the camera — you needed two fingers. We split the
+       screen: left half = joystick zone, right half = look zone.
+     - Adds settings toggles for Auto-fire (mobile QoL) and Gyro
+       aim (tilt the device to fine-tune yaw/pitch). iOS 13+ asks
+       permission on the first tap.
+============================================================ -->
+<style>
+  /* Split-screen touch zones — only on mobile / coarse-pointer.
+     The right-half look zone leaves the joystick area free so the
+     left thumb can move while the right thumb swipes to rotate. */
+  @media (max-width:760px), (pointer:coarse){
+    #look{left:35%!important;right:0!important;top:0!important;bottom:0!important}
+  }
+</style>
+
+<script>
+(function(){
+  const isMobile = !!window.isMobile;
+  if (!isMobile) return;
+
+  /* ---- Add the two new mobile toggles to the pause-menu settings ---- */
+  function injectToggles(){
+    const togs = document.querySelector('#resume .toggles');
+    if (!togs || document.getElementById('tgAutoFire')) return;
+    const af = document.createElement('div');
+    af.className = 'tg on';
+    af.id = 'tgAutoFire';
+    af.textContent = 'Auto-fire · ON';
+    togs.appendChild(af);
+    const gy = document.createElement('div');
+    gy.className = 'tg';
+    gy.id = 'tgGyro';
+    gy.textContent = 'Gyro aim · OFF';
+    togs.appendChild(gy);
+
+    af.addEventListener('click', () => {
+      if (typeof settings === 'undefined') return;
+      settings.autoFire = !settings.autoFire;
+      af.classList.toggle('on', settings.autoFire);
+      af.textContent = 'Auto-fire · ' + (settings.autoFire ? 'ON' : 'OFF');
+    });
+    gy.addEventListener('click', async () => {
+      if (typeof settings === 'undefined') return;
+      const want = !settings.gyro;
+      if (want) {
+        const ok = await enableGyro();
+        if (!ok) { try { if (typeof toast==='function') toast('Gyro denied or unsupported','warn'); } catch(_){} return; }
+      }
+      settings.gyro = want;
+      gy.classList.toggle('on', settings.gyro);
+      gy.textContent = 'Gyro aim · ' + (settings.gyro ? 'ON' : 'OFF');
+    });
+  }
+
+  /* ---- Gyroscope wiring (iOS asks permission on first request) ---- */
+  // The first deviceorientation event after enabling becomes the zero
+  // reference; subsequent events emit deltas that we add to player.yaw/
+  // pitch. Sensitivity is tuned to feel like a small console aim-assist
+  // — strong enough to fine-tune, gentle enough not to fight the swipe.
+  let gyroBase = null, gyroAttached = false;
+  function onOrientation(e){
+    if (typeof settings === 'undefined' || !settings.gyro) { gyroBase = null; return; }
+    if (typeof player === 'undefined') return;
+    const a = e.alpha, b = e.beta;
+    if (a == null || b == null) return;
+    if (gyroBase === null) { gyroBase = {a:a, b:b}; return; }
+    // alpha = compass (yaw), beta = front-to-back tilt (pitch)
+    const dA = (a - gyroBase.a) * Math.PI / 180;
+    const dB = (b - gyroBase.b) * Math.PI / 180;
+    gyroBase = {a:a, b:b};
+    // Damping × sensitivity slider. Cap each tick so a fast wobble
+    // doesn't suddenly spin the camera.
+    const k = 0.6 * (settings.sens || 1);
+    const clamp = (v, lim)=> Math.max(-lim, Math.min(lim, v));
+    player.yaw   -= clamp(dA, 0.25) * k;
+    player.pitch -= clamp(dB, 0.25) * k * (settings.invertY ? -1 : 1);
+    player.pitch  = Math.max(-1.4, Math.min(1.4, player.pitch));
+  }
+  function attachGyro(){
+    if (gyroAttached) return;
+    window.addEventListener('deviceorientation', onOrientation, true);
+    gyroAttached = true;
+  }
+  async function enableGyro(){
+    try {
+      const D = window.DeviceOrientationEvent;
+      if (!D) return false;
+      if (typeof D.requestPermission === 'function') {
+        const perm = await D.requestPermission();
+        if (perm !== 'granted') return false;
+      }
+      attachGyro();
+      return true;
+    } catch (_) { return false; }
+  }
+
+  // Run after the resume/settings DOM is built (which it already is by
+  // the time this script tag executes — the resume panel is static HTML).
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', injectToggles);
+  else
+    injectToggles();
 })();
 </script>
 </body>
