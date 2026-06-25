@@ -3244,9 +3244,15 @@ function openWalletPanel(b){
     openPanel('wallet','◇','SEALED WALLET',b.short+' · ???',`Something hums behind this wallet · a hidden soul. But no lead points here yet. Question the citizens; an informant knows which wallet holds which soul.`,'Locked · find the clue');return;}
   const owned=onchain.tokenImg(b.tokenId);
   const pic=owned?`<div class="nftpic"><img src="${owned}" alt=""></div>`:'';
+  // b.floors is the tower height baked at city-generation time, which
+  // is the wallet's NFT count at the last holders refresh. The live
+  // count from /api/hoodlrz/by-owner may differ (transfers since
+  // refresh). Both the subtitle ("X NFT") and the body sentence are
+  // rewritten with the live count once the API call returns, so the
+  // numbers always match the grid below.
   openPanel('wallet','⌂','WALLET',`${b.short} · ${b.floors} NFT`,
     `${pic}<div id="walletGrid" style="margin-top:6px"></div>`+
-    `A holder's tower. <em>${b.floors} Hoodlrz</em> live across ${b.floors} floors. ${onchain.live?'Real on-chain holder.':'Procedural holder.'}`,
+    `<span id="walletDesc">A holder's tower. <em>${b.floors} Hoodlrz</em> live across ${b.floors} floors. ${onchain.live?'Real on-chain holder.':'Procedural holder.'}</span>`,
     onchain.live?'The Block · live on-chain':'The Block · procedural');
   // Fetch + render the full on-chain collection this holder owns. /api/hoodlrz/by-owner
   // returns every token + image_url for that wallet from the same city_tokens cache
@@ -3258,11 +3264,26 @@ function openWalletPanel(b){
         .then(r=>r.ok?r.json():null)
         .then(data=>{
           const grid=document.getElementById('walletGrid');
-          if(!grid||!data||!Array.isArray(data.tokens)||!data.tokens.length)return;
+          if(!grid||!data||!Array.isArray(data.tokens))return;
+          const realCount=data.tokens.length;
+          // Rewrite subtitle + description so all three numbers (top
+          // line, grid header, body text) match the live on-chain
+          // count we just fetched. The tower height stays b.floors;
+          // we only mention it when it differs from the live count.
+          const sub=document.getElementById('panelSub');
+          if(sub) sub.textContent=`${b.short} · ${realCount} NFT`;
+          const desc=document.getElementById('walletDesc');
+          if(desc){
+            const floorNote = (realCount===b.floors)
+              ? `across ${b.floors} floors`
+              : `· tower built for ${b.floors} floors`;
+            desc.innerHTML = `A holder's tower. <em>${realCount} Hoodlrz</em> held on-chain ${floorNote}. Real on-chain holder.`;
+          }
+          if(!realCount)return;
           const items=data.tokens.slice(0,24);    // cap at 24 so the panel doesn't explode
           grid.innerHTML='<div style="font-size:10px;letter-spacing:.18em;color:var(--mut);'+
             'margin:8px 0 6px;text-transform:uppercase">'+
-            data.tokens.length+' NFT on-chain</div>'+
+            realCount+' NFT on-chain</div>'+
             '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:6px">'+
             items.map(t=>{
               const safeUrl=t.image?String(t.image).replace(/"/g,'&quot;'):'';
