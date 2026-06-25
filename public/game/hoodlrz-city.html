@@ -7408,6 +7408,49 @@ window.addEventListener('unhandledrejection',(ev)=>{
     window.meleeHit = wrapped;
   }
 
+  /* ---- HP bar above each wounded NPC ------------------------------- */
+  // Two stacked sprites: a dark-red background (full bar) + a green/
+  // yellow/red fill that scales with hp/maxHp. Fill anchors to the
+  // left edge via a position-offset trick (sprites are always centered).
+  function ensureHpBar(npc, type){
+    const u = npc.userData;
+    if (u.hpBar) return u.hpBar;
+    const info = KILL_INFO[type];
+    if (!info) return null;
+    const group = new THREE.Group();
+    group.position.y = info.yOff + 0.55;
+    group.renderOrder = 1000;
+    const W = 1.6, H = 0.16;
+    const bg = new THREE.Sprite(new THREE.SpriteMaterial({
+      color: 0x3a0a14, depthTest: false, transparent: true, opacity: 0.9
+    }));
+    bg.scale.set(W, H + 0.04, 1);
+    group.add(bg);
+    const fill = new THREE.Sprite(new THREE.SpriteMaterial({
+      color: 0x39ff9e, depthTest: false, transparent: true
+    }));
+    fill.scale.set(W, H, 1);
+    group.add(fill);
+    npc.add(group);
+    u.hpBar = group;
+    u.hpBarFill = fill;
+    u.hpBarW = W;
+    return group;
+  }
+  function updateHpBarFill(npc, ratio){
+    const fill = npc.userData.hpBarFill;
+    if (!fill) return;
+    const r = Math.max(0, Math.min(1, ratio));
+    const W = npc.userData.hpBarW || 1.6;
+    fill.scale.x = W * r;
+    // Anchor left: shift center by half of the missing width.
+    fill.position.x = -(W * (1 - r)) / 2;
+    const c = fill.material.color;
+    if (r > 0.66)      c.setHex(0x39ff9e);  // green
+    else if (r > 0.33) c.setHex(0xffd84d);  // yellow
+    else                c.setHex(0xff3d6e);  // red
+  }
+
   /* ---- Per-frame: refresh labels when weapon changes + cull distant - */
   let lastWeapon = '';
   function tick(){
@@ -7423,13 +7466,33 @@ window.addEventListener('unhandledrejection',(ev)=>{
     const camPos = camera.position;
     const D2 = 28 * 28;
     eachKillable(function(npc){
-      const sp = npc.userData && npc.userData.killLabel;
-      if (!sp) return;
-      // Gang killed via the original damageGang path won't have had
-      // its label cleaned up — drop it the first frame after death.
-      if (npc.userData.down) { npc.remove(sp); npc.userData.killLabel = null; return; }
+      const u = npc.userData; if (!u) return;
+      // Death cleanup for both the "shoot me" label AND the HP bar.
+      if (u.down) {
+        if (u.killLabel) { npc.remove(u.killLabel); u.killLabel = null; }
+        if (u.hpBar)     { npc.remove(u.hpBar);     u.hpBar     = null; u.hpBarFill = null; }
+        return;
+      }
       const dx = npc.position.x - camPos.x, dz = npc.position.z - camPos.z;
-      sp.visible = (dx * dx + dz * dz) < D2 && npc.visible !== false;
+      const inRange = (dx * dx + dz * dz) < D2 && npc.visible !== false;
+      if (u.killLabel) u.killLabel.visible = inRange;
+      // HP bar: ensure it exists once the NPC has been hit, and update
+      // its fill ratio. Hidden while at full HP so we don't clutter the
+      // peaceful-city view.
+      const type = getNPCType(npc);
+      if (type && u.hp != null) {
+        if (u.maxHp == null) u.maxHp = KILL_INFO[type] ? KILL_INFO[type].hp : u.hp;
+        const ratio = u.hp / u.maxHp;
+        if (u.hp < u.maxHp && u.hp > 0) {
+          const bar = ensureHpBar(npc, type);
+          if (bar) {
+            updateHpBarFill(npc, ratio);
+            bar.visible = inRange;
+          }
+        } else if (u.hpBar) {
+          u.hpBar.visible = false;
+        }
+      }
     });
   }
 
