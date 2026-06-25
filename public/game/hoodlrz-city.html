@@ -83,17 +83,28 @@
   /* minimap */
   #mini{position:absolute;right:20px;bottom:20px;width:184px;padding:8px 8px 6px;cursor:pointer;pointer-events:auto;transition:width .2s,height .2s,top .2s,right .2s,bottom .2s,padding .2s}
   #mini canvas{width:168px;height:168px;border-radius:8px;display:block;transition:width .2s,height .2s}
+  #mini .leg{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:6px;
+             font-size:10.5px;letter-spacing:.04em;color:#fff;font-weight:600}
+  #mini .leg span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  #mini .leg i.dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;
+                   box-shadow:0 0 4px rgba(0,0,0,.6)}
+  #mini .hint{display:none}
   /* Click the minimap to expand it. Works on desktop + mobile. */
   #mini.expanded{
     right:50%!important;top:50%!important;bottom:auto!important;
     width:min(70vmin,520px)!important;height:auto!important;
-    padding:10px!important;z-index:80;
+    padding:14px!important;z-index:80;
     transform:translate(50%,-50%);
   }
   #mini.expanded canvas{
     width:100%!important;
     height:min(70vmin,520px)!important;
+    cursor:crosshair;
   }
+  #mini.expanded .leg{font-size:14px;gap:14px;margin-top:10px}
+  #mini.expanded .leg i.dot{width:14px;height:14px}
+  #mini.expanded .hint{display:block;text-align:center;font-size:11px;color:rgba(255,255,255,.6);
+                       letter-spacing:.06em;margin-top:6px}
   #mini .leg{display:flex;justify-content:space-between;margin-top:6px;font-size:9px;
     letter-spacing:.05em;color:var(--mut)}
   #mini .leg span b{color:var(--paper)}
@@ -495,14 +506,17 @@
     <div class="sfoot">press <kbd>E</kbd> / <kbd>Esc</kbd> to leave</div>
   </div>
 
-  <div id="mini" class="panel-bg">
+  <div id="mini" class="panel-bg" title="Click to expand · click a tower for the holder">
     <canvas id="miniC" width="336" height="336"></canvas>
     <div class="leg">
       <span><i class="dot" style="background:#56e0ff"></i>Oracle</span>
       <span><i class="dot" style="background:#39ff9e"></i>Dealer</span>
       <span><i class="dot" style="background:#ff3d6e"></i>Gang</span>
-      <span><i class="dot" style="background:#ffd84d"></i>Genesis</span>
+      <span><i class="dot" style="background:#2d8bff"></i>Cop</span>
+      <span><i class="dot" style="background:#ffd84d"></i>Vault/Soul</span>
+      <span><i class="dot" style="background:#fff"></i>You</span>
     </div>
+    <div class="hint">Tap a tower square to see the holder &amp; their NFTs</div>
   </div>
 
   <div id="prompt" class="panel-bg"><span id="promptText"></span></div>
@@ -3835,20 +3849,34 @@ function buildJailCell(){
 function updateHUD(){$('hpFill').style.width=Math.max(0,state.hp)+'%';$('cashVal').textContent=state.cash.toLocaleString('en-US');$('hoodzVal').textContent=state.hoodz;
   if($('secVal'))$('secVal').textContent=state.secretsFound+'/3';
   if($('vaultVal'))$('vaultVal').textContent=state.vaultsFound+'/3';
-  // Weapon line: name · type · target list. Lets the player see at a
-  // glance which enemies their current weapon can damage.
+  // Weapon line. Renders as: NAME · TYPE, then a colour-coded chip
+  // row showing every enemy this weapon can damage. Chips are much
+  // easier to scan than the previous "vs A · B · C" comma list.
   const WEAP_META={
-    'Hood Blaster': { type:'RANGED', vs:'Gangs' },
-    'Street Bat':   { type:'MELEE',  vs:'Gangs · close range' },
-    'Bazooka':      { type:'SPLASH', vs:'Tanks · Military · Gangs' },
-    'Laser Cannon': { type:'BEAM',   vs:'Stay Puft · Tanks · Military · Gangs' },
-    'Fists':        { type:'MELEE',  vs:'Gangs · close range' },
+    'Hood Blaster': { type:'RANGED', kills:['gangs'] },
+    'Street Bat':   { type:'MELEE',  kills:['gangs'] },
+    'Bazooka':      { type:'SPLASH', kills:['tanks','military','gangs'] },
+    'Laser Cannon': { type:'BEAM',   kills:['bibendum','tanks','military','gangs'] },
+    'Fists':        { type:'MELEE',  kills:['gangs'] },
   };
-  const meta=WEAP_META[state.weapon]||{type:'',vs:''};
+  const KILL_CHIP={
+    bibendum:{label:'STAY PUFT', bg:'rgba(255,255,255,.85)', fg:'#000'},
+    tanks:   {label:'TANKS',     bg:'#56e0ff',               fg:'#001a26'},
+    military:{label:'MILITARY',  bg:'#ffd84d',               fg:'#3a2a00'},
+    gangs:   {label:'GANGS',     bg:'#ff2db5',               fg:'#fff'},
+  };
+  const meta=WEAP_META[state.weapon]||{type:'',kills:[]};
+  const chips=meta.kills.map(k=>{
+    const c=KILL_CHIP[k]; if(!c)return '';
+    return '<span style="background:'+c.bg+';color:'+c.fg+';font-weight:800;font-size:9px;'
+      +'letter-spacing:.06em;padding:2px 6px;border-radius:3px;margin-right:3px;display:inline-block">'
+      +c.label+'</span>';
+  }).join('');
   $('weapName').innerHTML=
     state.weapon+
     ' <span style="font-size:10px;letter-spacing:.12em;color:var(--mut)">· '+meta.type+'</span>'+
-    '<br><span style="font-size:9.5px;letter-spacing:.08em;color:#ff2db5;font-weight:700">vs '+meta.vs+'</span>';
+    '<div style="font-size:9px;letter-spacing:.14em;color:rgba(255,255,255,.55);margin:6px 0 3px;text-transform:uppercase">Kills</div>'+
+    '<div>'+chips+'</div>';
   // Mirror into the mobile top bar + drawer (no-op when those nodes don't exist).
   const hpPct=Math.max(0,state.hp)+'%';
   const elHp=document.getElementById('mHpFill'); if(elHp)elHp.style.width=hpPct;
@@ -5502,13 +5530,58 @@ window.addEventListener('unhandledrejection',(ev)=>{
       if (realFaq) realFaq.click();
     });
 
-    // Tap the minimap to toggle expanded view (mobile + desktop). The
-    // expanded version covers most of the viewport so the player can
-    // navigate by tapping a tower dot on the map. Tap again to shrink.
+    // Tap the minimap to:
+    //  - first tap: expand it to full-viewport size
+    //  - subsequent taps INSIDE the canvas: hit-test against building
+    //    positions and open that holder's wallet panel (showing the
+    //    wallet address + all of their on-chain NFTs)
+    //  - tap outside the canvas (legend area): shrink back to mini
     const mini = document.getElementById('mini');
-    if (mini) {
-      mini.addEventListener('click', () => {
-        mini.classList.toggle('expanded');
+    const miniCv = document.getElementById('miniC');
+    if (mini && miniCv) {
+      mini.addEventListener('click', (e) => {
+        if (!mini.classList.contains('expanded')) {
+          mini.classList.add('expanded');
+          return;
+        }
+        // Already expanded - see if the click is on the canvas
+        if (e.target !== miniCv) {
+          // Clicked outside the canvas (legend / hint) - shrink
+          mini.classList.remove('expanded');
+          return;
+        }
+        // Hit-test against buildings using the same world→canvas
+        // transform drawMinimap uses (S=336 in canvas-pixels)
+        const r = miniCv.getBoundingClientRect();
+        const cx = e.clientX - r.left;
+        const cy = e.clientY - r.top;
+        // Convert displayed click coords back into canvas-pixel space
+        const cw = r.width, ch = r.height;
+        const px = (cx / cw) * 336;
+        const py = (cy / ch) * 336;
+        const world = (typeof GRID !== 'undefined' && typeof LOT !== 'undefined') ? GRID * LOT + LOT : 480;
+        const S = 336;
+        // Find the building whose mini-square contains this pixel
+        let hit = null, bestD = 1e9;
+        for (const b of (typeof buildings !== 'undefined' ? buildings : [])) {
+          const bx = (b.x / world + 0.5) * S;
+          const bz = (b.z / world + 0.5) * S;
+          const w = Math.max(6, b.w / world * S);
+          if (px > bx - w/2 - 2 && px < bx + w/2 + 2 && py > bz - w/2 - 2 && py < bz + w/2 + 2) {
+            const d = Math.hypot(px - bx, py - bz);
+            if (d < bestD) { bestD = d; hit = b; }
+          }
+        }
+        if (hit) {
+          // Open the standard wallet panel for that holder (it already
+          // fetches /api/hoodlrz/by-owner and renders the NFT grid).
+          mini.classList.remove('expanded');
+          if (typeof window.openWalletPanel === 'function') window.openWalletPanel(hit);
+          else if (typeof openWalletPanel === 'function') openWalletPanel(hit);
+        } else {
+          // Tap on empty street - shrink back
+          mini.classList.remove('expanded');
+        }
       });
     }
 
