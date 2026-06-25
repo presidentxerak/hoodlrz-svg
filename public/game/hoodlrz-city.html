@@ -591,7 +591,7 @@
       <p>The street currency, shown as spinning <b>blue-green capsules</b>. Hit gangs to make them drop Hoodz, then walk over them to collect. Spend Hoodz in shops for health, drip and upgrades.</p>
 
       <h3>Combat &amp; target lock</h3>
-      <p>The <b>Hood Blaster only fires when an enemy is locked</b>: aim a gang into your crosshair and a red-magenta lock reticle appears, then fire. No lock means no projectile (so turning around never wastes shots). The <b>Street Bat</b> is a melee weapon and hits at close range. Every hit makes a gang drop Hoodz; downing one also pays $HOOD.</p>
+      <p>Every ranged weapon (Knife, Shuriken, Hood Blaster, Bazooka, Laser) only fires when a target is <b>locked</b>: aim into your crosshair and a red-magenta reticle appears, then fire. No lock means no projectile. The <b>Knife</b> is your starting throw (slow, heavy hit); the <b>Shuriken</b> is rapid-fire; the <b>Hood Blaster</b> is your standard sidearm. Every hit makes a gang drop Hoodz; downing one also pays $HOOD.</p>
 
       <h3>Police, SWAT &amp; jail</h3>
       <p>Officers (marked <b>POLICE</b>) and elite <b>SWAT</b> units patrol on foot, and <b>police cars and vans drive the streets</b>: when one gets close, its <b>gyrophare flashes red and blue and a siren wails</b>. If you are holding Hoodz near them, a POLICE NEARBY warning fires. Get busted and you are <b>locked up for 30 seconds</b>: pay 100 Hoodz to get out now, or wait it out.</p>
@@ -2463,16 +2463,30 @@ function addWeaponPickup(name,x,z){
   // embedded in a wall the hardcoded spawn coords happened to land in.
   const safe=findSafeSpawn(x,z,12); x=safe.x; z=safe.z;
   const g=new THREE.Group();
-  if(name==='Street Bat'){
-    const bat=new THREE.Mesh(new THREE.CylinderGeometry(.07,.14,1.3,8),inkMat());bat.rotation.z=.5;edges(bat,40);g.add(bat);
+  let labelText;
+  if(name==='Knife'){
+    // Thrown blade lying flat with the handle slightly raised.
+    const blade=new THREE.Mesh(new THREE.BoxGeometry(.1,.04,.7),new THREE.MeshBasicMaterial({color:WHITE}));
+    blade.position.z=0.05;
+    const handle=new THREE.Mesh(new THREE.BoxGeometry(.12,.1,.25),inkMat()); handle.position.z=-0.35; edges(handle,40);
+    g.add(blade,handle);
+    labelText='KNIFE';
+  }else if(name==='Shuriken'){
+    // Crossed boxes = ninja star.
+    const armA=new THREE.Mesh(new THREE.BoxGeometry(.55,.04,.1),new THREE.MeshBasicMaterial({color:WHITE}));
+    const armB=new THREE.Mesh(new THREE.BoxGeometry(.1,.04,.55),new THREE.MeshBasicMaterial({color:WHITE}));
+    g.add(armA,armB);
+    labelText='SHURIKEN';
   }else{
+    // Hood Blaster (and any other ranged) pickup mesh.
     const body=new THREE.Mesh(new THREE.BoxGeometry(.5,.28,.9),inkMat());edges(body);
     const cell=new THREE.Mesh(new THREE.BoxGeometry(.14,.14,.55),new THREE.MeshBasicMaterial({color:WHITE}));cell.position.set(0,.18,-.05);
     g.add(body,cell);
+    labelText='HOOD BLASTER';
   }
   g.position.set(x,1.1,z);g.userData={type:'weapon',name,spin:rng()*6};
   addBeacon(g,'collect');
-  const lb=makeLabel(name==='Street Bat'?'STREET BAT':'HOOD BLASTER','#2dffa6',1.8);lb.position.y=1.0;g.add(lb);
+  const lb=makeLabel(labelText,'#2dffa6',1.8);lb.position.y=1.0;g.add(lb);
   scene.add(g);pickups.push(g);
 }
 function placeEntities(){
@@ -2510,7 +2524,10 @@ function placeEntities(){
   const MERCH=[{name:'DRIP DEALER',stock:['cap','chain','sneakers']},{name:'TAG KING',stock:['spray','mask','boombox']},{name:'STREET DOC',stock:['health','armor','energy']},{name:'ICE TRADER',stock:['chain','mask','cap']}];
   for(let i=0;i<MERCH.length&&i+secrets.length<shuffled.length;i++){const p=shuffled[i+secrets.length];p.userData.merchant=MERCH[i];p.userData.name=MERCH[i].name;}
   for(let i=0;i<26;i++){let x,z,tr=0;do{x=rand(-CITYR,CITYR);z=rand(-CITYR,CITYR);tr++;}while(blockedAt(x,z)&&tr<14);spawnHoodz(x,z);}
-  addWeaponPickup('Street Bat',0,-LOT*0.55);
+  // Player starts with a Knife. A Shuriken sits near origin so they
+  // can swap to rapid-fire mode early; the Hood Blaster is its own
+  // pickup, slightly further out.
+  addWeaponPickup('Shuriken',0,-LOT*0.55);
   addWeaponPickup('Hood Blaster',-LOT*1.05,LOT*0.4);
   makePolice(isMobile?5:8);
   makeSWAT(isMobile?2:4);
@@ -2569,7 +2586,7 @@ function updateLockUI(){const el=$('lock');if(!el)return;
 const settings={sens:1, invertY:false, headBob:true, fov:75, touch:false, gyro:false};
 const touch={moveX:0,moveY:0,lookDX:0,lookDY:0,sprint:false,fire:false,jump:false};
 const pad={moveX:0,moveY:0,lookX:0,lookY:0,sprint:false,fire:false,jump:false,act:false,_act:false,crouch:false};
-const state={playing:false,panelOpen:false,paused:false,journalOpen:false,shopOpen:false,combat:false,inside:null,inJail:false,hp:100,cash:0,hoodz:0,weapon:'Hood Blaster',oraclesTalked:0,knownClues:new Set(),journal:[],secretsFound:0,inventory:{},keys:new Set(),vaultsFound:0,day:1,floor:1,wallet:null,minted:new Set(),searching:false,faqOpen:false,jailUntil:0,jailCooldown:0,eaten:false,eatenUntil:0};
+const state={playing:false,panelOpen:false,paused:false,journalOpen:false,shopOpen:false,combat:false,inside:null,inJail:false,hp:100,cash:0,hoodz:0,weapon:'Knife',oraclesTalked:0,knownClues:new Set(),journal:[],secretsFound:0,inventory:{},keys:new Set(),vaultsFound:0,day:1,floor:1,wallet:null,minted:new Set(),searching:false,faqOpen:false,jailUntil:0,jailCooldown:0,eaten:false,eatenUntil:0};
 
 /* ===================================================================
    ON-CHAIN LAYER  (real Hoodlrz wallets + NFTs)
@@ -3065,10 +3082,27 @@ function setWeaponView(name){
     viewWeapon.add(body,barrel,cell,ring,grip);
     muzzle=new THREE.Mesh(new THREE.SphereGeometry(.18,10,10),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
     muzzle.position.set(.4,-.36,-1.58); viewWeapon.add(muzzle);
-  }else if(name==='Street Bat'){
-    const bat=new THREE.Mesh(new THREE.CylinderGeometry(.04,.11,1.05,10),inkMat()); bat.position.set(.42,-.5,-.9); bat.rotation.set(-.5,0,.3); edges(bat,40);
-    const tape=new THREE.Mesh(new THREE.CylinderGeometry(.06,.06,.22,10),new THREE.MeshBasicMaterial({color:WHITE})); tape.position.set(.3,-.66,-.62); tape.rotation.set(-.5,0,.3);
-    viewWeapon.add(bat,tape); muzzle=null;
+  }else if(name==='Knife'){
+    // Held in the throwing hand: short white blade + black wrapped handle,
+    // tip pointed forward, ready to flick out at the locked target.
+    const blade=new THREE.Mesh(new THREE.BoxGeometry(.06,.02,.38),new THREE.MeshBasicMaterial({color:WHITE}));
+    blade.position.set(.42,-.36,-.9); blade.rotation.set(0,0,.15);
+    const guard=new THREE.Mesh(new THREE.BoxGeometry(.14,.04,.04),inkMat()); guard.position.set(.42,-.36,-.7); guard.rotation.set(0,0,.15);
+    const handle=new THREE.Mesh(new THREE.BoxGeometry(.07,.08,.18),inkMat()); handle.position.set(.42,-.4,-.58); handle.rotation.set(0,0,.15); edges(handle,40);
+    viewWeapon.add(blade,guard,handle); muzzle=null;
+  }else if(name==='Shuriken'){
+    // 4-point throwing star held flat between thumb and forefinger.
+    // Built as two crossed thin boxes (an "X") for the classic ninja star
+    // silhouette + a tiny center hub.
+    const armA=new THREE.Mesh(new THREE.BoxGeometry(.32,.02,.06),new THREE.MeshBasicMaterial({color:WHITE}));
+    armA.position.set(.42,-.34,-.8);
+    const armB=new THREE.Mesh(new THREE.BoxGeometry(.06,.02,.32),new THREE.MeshBasicMaterial({color:WHITE}));
+    armB.position.set(.42,-.34,-.8);
+    const hub=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.03,10),inkMat());
+    hub.rotation.x=Math.PI/2; hub.position.set(.42,-.34,-.8);
+    // gentle idle spin so it reads as a star
+    armA.rotation.y = 0.4; armB.rotation.y = 0.4;
+    viewWeapon.add(armA,armB,hub); muzzle=null;
   }else if(name==='Bazooka'){
     const tube=new THREE.Mesh(new THREE.CylinderGeometry(.14,.18,1.2,12),inkMat()); tube.rotation.x=Math.PI/2; tube.position.set(.42,-.4,-.9); edges(tube,40);
     const flange=new THREE.Mesh(new THREE.CylinderGeometry(.24,.18,.2,14),inkMat()); flange.rotation.x=Math.PI/2; flange.position.set(.42,-.4,-1.5); edges(flange,40);
@@ -3098,9 +3132,44 @@ function onPrimary(){
   if(state.panelOpen||state.journalOpen||state.shopOpen||state.inJail||state.eaten||state.faqOpen)return;
   player.holster=1;                                   // raise weapon when firing
   if(state.weapon==='Hood Blaster')fireProjectile();
+  else if(state.weapon==='Knife')fireKnife();
+  else if(state.weapon==='Shuriken')fireShuriken();
   else if(state.weapon==='Bazooka' && typeof window.fireBazooka==='function')window.fireBazooka();
   else if(state.weapon==='Laser Cannon' && typeof window.fireLaser==='function')window.fireLaser();
   else meleeHit();
+}
+// Knife throw: slower cadence, stronger per-hit than the blaster, and a
+// visible spinning blade as the projectile so it reads as a thrown
+// weapon. Hits soft targets (gangs, peds, cops, animals) — no armor
+// penetration on tanks / military / vehicles / bibendum.
+function fireKnife(){
+  if(!lockedTarget||lockedTarget.userData.down)return;
+  const now=performance.now(); if(now-lastShot<280)return; lastShot=now; recoil=0.10;
+  if(sfx&&sfx.shoot)sfx.shoot();
+  const start=camera.position.clone();
+  const dir=lockedTarget.position.clone().add(new THREE.Vector3(0,1.3,0)).sub(start).normalize();
+  start.add(dir.clone().multiplyScalar(1.3));
+  const blade=new THREE.Mesh(new THREE.BoxGeometry(.06,.02,.4),new THREE.MeshBasicMaterial({color:WHITE}));
+  const handle=new THREE.Mesh(new THREE.BoxGeometry(.07,.06,.14),inkMat()); handle.position.z=0.2; blade.add(handle);
+  blade.position.copy(start); scene.add(blade);
+  // Mark damage:3 so the projectile patch can apply the knife's bonus
+  // hit when it lands on a soft target.
+  projectiles.push({mesh:blade,vel:dir.clone().multiplyScalar(60),life:1.8,dmg:3,spin:true});
+}
+// Shuriken throw: super-fast cadence, low per-hit, spinning star. Same
+// soft-target kill list as the knife.
+function fireShuriken(){
+  if(!lockedTarget||lockedTarget.userData.down)return;
+  const now=performance.now(); if(now-lastShot<90)return; lastShot=now; recoil=0.06;
+  if(sfx&&sfx.shoot)sfx.shoot();
+  const start=camera.position.clone();
+  const dir=lockedTarget.position.clone().add(new THREE.Vector3(0,1.3,0)).sub(start).normalize();
+  start.add(dir.clone().multiplyScalar(1.3));
+  const armA=new THREE.Mesh(new THREE.BoxGeometry(.34,.02,.06),new THREE.MeshBasicMaterial({color:WHITE}));
+  const armB=new THREE.Mesh(new THREE.BoxGeometry(.06,.02,.34),new THREE.MeshBasicMaterial({color:WHITE}));
+  const star=new THREE.Group(); star.add(armA,armB);
+  star.position.copy(start); scene.add(star);
+  projectiles.push({mesh:star,vel:dir.clone().multiplyScalar(72),life:1.4,dmg:1,spin:true,spinAxis:'y',spinSpeed:24});
 }
 function fireProjectile(){
   if(!lockedTarget||lockedTarget.userData.down)return;   // only fires with a locked target
@@ -3116,7 +3185,7 @@ function fireProjectile(){
 }
 function meleeHit(){
   const now=performance.now(); if(now-lastShot<300)return; lastShot=now; recoil=0.12;
-  const dmg=state.weapon==='Street Bat'?3:1;
+  const dmg=1;   // Fists only — knife/shuriken/blaster have their own routes
   const origin=camera.position.clone(); const dir=new THREE.Vector3(); camera.getWorldDirection(dir);
   let best=null,bd=1e9;
   for(const g of gangs){if(g.userData.down)continue; const to=g.position.clone().setY(origin.y).sub(origin); const d=to.length(); if(d>4.6)continue; to.normalize(); if(to.dot(dir)>0.8&&d<bd){best=g;bd=d;}}
@@ -3181,7 +3250,7 @@ function updateProjectiles(dt){
     m.position.addScaledVector(p.vel,dt); p.life-=dt;
     let dead=p.life<=0||m.position.y<0.2;
     if(!dead)for(const g of gangs){if(g.userData.down)continue;
-      if(m.position.distanceTo(g.position.clone().setY(m.position.y))<1.3){damageGang(g,2,m.position);spawnImpact(m.position,0xff3d6e);dead=true;break;}}
+      if(m.position.distanceTo(g.position.clone().setY(m.position.y))<1.3){damageGang(g,(p.dmg||2),m.position);spawnImpact(m.position,0xff3d6e);dead=true;break;}}
     if(!dead)for(const c of colliders){if(Math.abs(m.position.x-c.x)<c.hw&&Math.abs(m.position.z-c.z)<c.hd){spawnImpact(m.position);dead=true;break;}}
     if(dead){scene.remove(m);projectiles.splice(i,1);}
   }
@@ -3907,8 +3976,9 @@ function updateHUD(){$('hpFill').style.width=Math.max(0,state.hp)+'%';$('cashVal
   // row showing every enemy this weapon can damage. Chips are much
   // easier to scan than the previous "vs A · B · C" comma list.
   const WEAP_META={
+    'Knife':        { type:'THROWN', kills:['gangs'] },
+    'Shuriken':     { type:'THROWN', kills:['gangs'] },
     'Hood Blaster': { type:'RANGED', kills:['gangs'] },
-    'Street Bat':   { type:'MELEE',  kills:['gangs'] },
     'Bazooka':      { type:'SPLASH', kills:['tanks','military','gangs'] },
     'Laser Cannon': { type:'BEAM',   kills:['bibendum','tanks','military','gangs'] },
     'Fists':        { type:'MELEE',  kills:['gangs'] },
@@ -7007,8 +7077,9 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // or beams. Hood Blaster can chip a cop car but takes 40 hits.
   const WEAPON_KILLS = {
     'Fists':        new Set(['gang','ped','animal']),
+    'Knife':        new Set(['gang','ped','cop','swat','animal']),
+    'Shuriken':     new Set(['gang','ped','cop','swat','animal']),
     'Hood Blaster': new Set(['gang','ped','cop','swat','animal','military','vehicle']),
-    'Street Bat':   new Set(['gang','ped','cop','swat','animal']),
     'Bazooka':      new Set(['gang','ped','cop','swat','animal','tank','military','vehicle','bibendum']),
     'Laser Cannon': new Set(['gang','ped','cop','swat','animal','tank','military','vehicle','bibendum']),
   };
@@ -7246,21 +7317,27 @@ window.addEventListener('unhandledrejection',(ev)=>{
     window.updateEntities = wrapped;
   }
 
-  // Projectiles: extend collision to peds/cops/animals + police cars.
-  // Vehicles use a much wider hit radius (3m) since they're 4-7m long
-  // boxes, not 1-m-radius humanoids.
+  // Projectiles: spin thrown weapons (knife / shuriken) and extend
+  // collision to peds/cops/animals + police cars. Runs AFTER the
+  // original update so positions are post-move and any projectile
+  // already consumed by a gang hit is gone from the array.
   function patchUpdateProjectiles(){
     if (typeof updateProjectiles !== 'function' || updateProjectiles.__killAllPatched) return;
     const orig = updateProjectiles;
     const wrapped = function(dt){
-      // Run our extra collision pass FIRST so a projectile that hits a
-      // ped doesn't continue on to a gang in the same frame.
+      const r = orig.apply(this, arguments);
       try {
         for (let i = projectiles.length - 1; i >= 0; i--) {
           const p = projectiles[i];
           if (p.isBazooka) continue;
           const m = p.mesh; if (!m) continue;
-          let hit = null, hitRadius = 1.2;
+          // Spin animation for thrown weapons (knife flips, shuriken whirls).
+          if (p.spin) {
+            const sp = p.spinSpeed || 18;
+            if (p.spinAxis === 'y') m.rotation.y += sp * dt;
+            else                    m.rotation.x += sp * dt;
+          }
+          let hit = null;
           for (const arr of [peds, cops, animals]) {
             if (!arr) continue;
             for (const npc of arr) {
@@ -7276,22 +7353,22 @@ window.addEventListener('unhandledrejection',(ev)=>{
           if (!hit && typeof policeVehicles !== 'undefined') {
             for (const v of policeVehicles) {
               if (!v || v.userData.down) continue;
-              const r = v.userData.van ? 3.5 : 2.4;
+              const r2 = v.userData.van ? 3.5 : 2.4;
               const yProbe = m.position.y;
-              if (m.position.distanceTo(v.position.clone().setY(yProbe)) < r) {
-                hit = v; hitRadius = r; break;
+              if (m.position.distanceTo(v.position.clone().setY(yProbe)) < r2) {
+                hit = v; break;
               }
             }
           }
           if (hit) {
-            damageNPC(hit, 2, m.position);
+            damageNPC(hit, p.dmg || 2, m.position);
             try { spawnImpact(m.position, 0xff3d6e); } catch(_){}
             scene.remove(m);
             projectiles.splice(i, 1);
           }
         }
       } catch(_){}
-      return orig.apply(this, arguments);
+      return r;
     };
     wrapped.__killAllPatched = true;
     updateProjectiles = wrapped;
@@ -7307,7 +7384,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
       const r = orig.apply(this, arguments);
       // Then sweep peds/cops/animals for an extra hit
       try {
-        const dmg = state.weapon === 'Street Bat' ? 3 : 1;
+        const dmg = 1;   // Fists only — every other weapon throws via its own path
         const origin = camera.position.clone();
         const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
         let best = null, bd = 1e9;
