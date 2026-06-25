@@ -3934,7 +3934,7 @@ function openPanel(accent,icon,who,sub,body,meta,opts){opts=opts||{};state.panel
   if(opts.type==='text')typeInto($('panelBody'),body.replace(/<\/?em>/g,'')); else $('panelBody').innerHTML=body;
   $('panelMeta').textContent=meta||'';
   $('panelAct').innerHTML=opts.action||'';
-  const p=$('panel');p.style.display='block';requestAnimationFrame(()=>p.classList.add('show'));
+  const p=$('panel');p.style.display='flex';requestAnimationFrame(()=>p.classList.add('show'));
   if(document.pointerLockElement)document.exitPointerLock();state.paused=false;$('resume').style.display='none';}
 function closePanel(){clearInterval(twTimer);state.panelOpen=false;if(talkingNPC){talkingNPC.userData.talking=false;talkingNPC=null;}const p=$('panel');p.classList.remove('show');setTimeout(()=>p.style.display='none',180);if(state.playing&&!settings.touch)renderer.domElement.requestPointerLock();}
 
@@ -6673,6 +6673,129 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // Hook into the existing start() chain by exposing patchWarOnTheStreets
   // on the same script-block scope. start() above calls it.
   window.patchWarOnTheStreets = patchWarOnTheStreets;
+})();
+</script>
+
+<!-- ============================================================
+     Patch: visible close buttons + scrollable info cards
+     - Adds a sticky ✕ to #panel, #journal, and the expanded #mini
+       so every modal has an obvious way out (touch + desktop).
+     - Caps #panel height to the viewport and makes its body
+       scrollable so wallet panels with long NFT grids aren't
+       cut off at the bottom of the screen.
+============================================================ -->
+<style>
+  /* Sticky close button shared across info modals. Sits in the top-right
+     corner above content; pointer-events:auto so it works even when the
+     parent disables pointer events. */
+  .xclose{position:absolute;top:8px;right:8px;width:34px;height:34px;
+    display:grid;place-items:center;border:1px solid rgba(255,255,255,.35);
+    background:rgba(0,0,0,.55);color:#fff;font-size:16px;line-height:1;
+    cursor:pointer;border-radius:8px;z-index:5;pointer-events:auto;
+    font-family:'Outfit',sans-serif;font-weight:700;padding:0}
+  .xclose:hover{background:#fff;color:#000}
+
+  /* The dialogue/wallet panel was bottom-anchored (bottom:120px) and
+     used overflow:hidden, so a tall wallet (12+ NFT grid) ran off the
+     top of the screen with no way to scroll. Re-anchor it to the
+     center of the viewport, cap its height, and switch to a flex
+     column so only the .body scrolls — keeps the close button + meta
+     row fixed relative to the panel. */
+  #panel{
+    top:50%!important;bottom:auto!important;
+    transform:translate(-50%,-50%) translateY(14px)!important;
+    max-height:calc(100vh - 40px)!important;
+    flex-direction:column!important;
+  }
+  #panel.show{
+    display:flex!important;
+    transform:translate(-50%,-50%) translateY(0)!important;
+  }
+  #panel .body{
+    overflow-y:auto!important;-webkit-overflow-scrolling:touch;
+    flex:1 1 auto!important;min-height:0!important;padding-bottom:14px;
+  }
+  #panel .head, #panel .pact, #panel .meta{flex:none}
+
+  /* The journal already scrolls; nudge its top padding so the close
+     button doesn't overlap the title text. */
+  #journal{padding-top:30px!important}
+
+  /* Expanded minimap close button. The legend/hint text sits below the
+     canvas, so this overlays the map corner without covering controls. */
+  #mini #miniClose{display:none;position:absolute;top:6px;right:6px;
+    width:34px;height:34px;place-items:center;border:1px solid rgba(255,255,255,.45);
+    background:rgba(0,0,0,.65);color:#fff;font-size:16px;line-height:1;
+    cursor:pointer;border-radius:8px;z-index:6;pointer-events:auto;
+    font-family:'Outfit',sans-serif;font-weight:700;padding:0}
+  #mini.expanded #miniClose{display:grid}
+  #mini #miniClose:hover{background:#fff;color:#000}
+
+  /* Mobile: 100dvh accounts for iOS Safari's collapsing bottom toolbar
+     so the bottom of the panel content is always reachable. */
+  @media (max-width:760px){
+    #panel{max-height:calc(100dvh - 60px)!important}
+    #journal{max-height:calc(100dvh - 60px)!important}
+    #shop{max-height:calc(100dvh - 60px)!important}
+  }
+</style>
+
+<script>
+(function(){
+  function injectClose(host, onClose){
+    if (!host || host.querySelector('.xclose')) return;
+    const b = document.createElement('button');
+    b.className = 'xclose';
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Close');
+    b.textContent = '✕';
+    b.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      ev.preventDefault();
+      try { onClose(); } catch (_) {}
+    });
+    host.appendChild(b);
+  }
+
+  function wire(){
+    // Wallet / dialogue panel
+    const panel = document.getElementById('panel');
+    if (panel) injectClose(panel, () => {
+      if (typeof window.closePanel === 'function') window.closePanel();
+      else if (typeof closePanel === 'function') closePanel();
+      else panel.style.display = 'none';
+    });
+
+    // Intel journal
+    const journal = document.getElementById('journal');
+    if (journal) injectClose(journal, () => {
+      if (typeof window.toggleJournal === 'function') window.toggleJournal();
+      else if (typeof toggleJournal === 'function') toggleJournal();
+      else journal.style.display = 'none';
+    });
+
+    // Expanded minimap: dedicated close button so users don't have to
+    // hunt for an empty patch of street to tap.
+    const mini = document.getElementById('mini');
+    if (mini && !document.getElementById('miniClose')){
+      const b = document.createElement('button');
+      b.id = 'miniClose';
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Close map');
+      b.textContent = '✕';
+      b.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        ev.preventDefault();
+        mini.classList.remove('expanded');
+      });
+      mini.appendChild(b);
+    }
+  }
+
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', wire);
+  else
+    wire();
 })();
 </script>
 </body>
