@@ -670,12 +670,15 @@ function initScene(){
   camera=new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.5, 350);
   camera.rotation.order='YXZ'; camera.position.set(0,PLAYER_EYE,0);
 
-  // Mobile: antialias off (the biggest fragment-shader cost on tile GPUs),
-  // pixelRatio capped to 1.0 (an iPhone DPR3 was rendering 3.8M pixels/frame).
-  // Desktop keeps 1.75× + AA for sharpness.
-  renderer=new THREE.WebGLRenderer({antialias:!isMobile,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+  // Antialias stays ON even on mobile: the whole art style is white
+  // outlines (THREE.LineSegments, 1 px wide) — without MSAA those
+  // lines under-sample and pixels visibly flicker in/out as the
+  // camera moves. PixelRatio caps at 1.5 on mobile (instead of the
+  // device's native 2-3) which gives crisp edges without rendering
+  // 3.8M pixels per frame.
+  renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
   renderer.setSize(innerWidth,innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.0 : 1.75));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.5 : 1.75));
   renderer.shadowMap.enabled=false;
   renderer.outputEncoding=THREE.sRGBEncoding;
   document.body.appendChild(renderer.domElement);
