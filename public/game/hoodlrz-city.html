@@ -209,7 +209,9 @@
   #joy{position:absolute;left:26px;bottom:26px;width:132px;height:132px;border-radius:50%;background:rgba(11,10,31,.5);border:1px solid rgba(255,255,255,.14);pointer-events:auto;touch-action:none;backdrop-filter:blur(4px)}
   #joyKnob{position:absolute;left:50%;top:50%;width:54px;height:54px;border-radius:50%;transform:translate(-50%,-50%);background:rgba(57,255,158,.5);border:1px solid var(--acid);box-shadow:0 0 16px rgba(57,255,158,.4)}
   #tbtns{position:absolute;right:22px;bottom:24px;width:188px;height:188px;pointer-events:none}
-  .tb{position:absolute;pointer-events:auto;touch-action:none;border:1px solid rgba(255,255,255,.16);border-radius:50%;background:rgba(11,10,31,.55);color:var(--paper);font-weight:800;font-size:13px;letter-spacing:.04em;backdrop-filter:blur(4px);display:grid;place-items:center;-webkit-user-select:none;user-select:none}
+  /* Touch buttons stay round. The global "button{border-radius:0
+     !important}" rule up top would otherwise force them square. */
+  .tb{position:absolute;pointer-events:auto;touch-action:none;border:1px solid rgba(255,255,255,.16);border-radius:50%!important;background:rgba(11,10,31,.55);color:var(--paper);font-weight:800;font-size:13px;letter-spacing:.04em;backdrop-filter:blur(4px);display:grid;place-items:center;-webkit-user-select:none;user-select:none}
   .tb:active{transform:scale(.94);background:rgba(57,255,158,.25)}
   #tFire{right:96px;bottom:0;width:88px;height:88px;font-size:15px;border-color:rgba(255,61,155,.5);color:#ff8fc4}
   #tJump{right:0;bottom:62px;width:70px;height:70px}
