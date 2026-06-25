@@ -2334,7 +2334,7 @@ function makePoliceVehicle(van){
   const roofY=(van?H:H+.8)+.55;
   const red=new THREE.Mesh(new THREE.BoxGeometry(.5,.22,.5),new THREE.MeshBasicMaterial({color:0xff1f4d}));red.position.set(-.45,roofY,0);g.add(red);
   const blue=new THREE.Mesh(new THREE.BoxGeometry(.5,.22,.5),new THREE.MeshBasicMaterial({color:0x2d8bff}));blue.position.set(.45,roofY,0);g.add(blue);
-  g.userData={red,blue,axis:rng()<.5?'x':'z',dir:rng()<.5?1:-1,speed:rand(7,11),lane:0,siren:0};
+  g.userData={type:'vehicle',hp:40,maxHp:40,down:false,van,red,blue,axis:rng()<.5?'x':'z',dir:rng()<.5?1:-1,speed:rand(7,11),lane:0,siren:0};
   scene.add(g);policeVehicles.push(g);
   return g;
 }
@@ -2350,6 +2350,7 @@ function spawnPoliceVehicles(){
 function updatePoliceVehicles(dt,t){
   const lim=GRID*LOT*0.5;let anyNear=false;
   for(const v of policeVehicles){const u=v.userData;
+    if(u.down)continue;                 // destroyed wrecks stay where they fell
     if(u.axis==='x'){v.position.x+=u.speed*u.dir*dt;if(Math.abs(v.position.x)>lim){u.dir*=-1;v.rotation.y=u.dir>0?Math.PI/2:-Math.PI/2;}}
     else{v.position.z+=u.speed*u.dir*dt;if(Math.abs(v.position.z)>lim){u.dir*=-1;v.rotation.y=u.dir>0?0:Math.PI;}}
     const d=player.pos.distanceTo(v.position);
@@ -6991,27 +6992,30 @@ window.addEventListener('unhandledrejection',(ev)=>{
     animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:1.0 },
     tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:3.4 },
     military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:2.6 },
+    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:3.6 },
     bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:8.0 },
   };
   // What each weapon can damage. Soft targets fall to everything;
-  // tank/military/bibendum need explosives or beams.
+  // armored targets (tank/military/vehicle/bibendum) need explosives
+  // or beams. Hood Blaster can chip a cop car but takes 40 hits.
   const WEAPON_KILLS = {
     'Fists':        new Set(['gang','ped','animal']),
-    'Hood Blaster': new Set(['gang','ped','cop','swat','animal','military']),
+    'Hood Blaster': new Set(['gang','ped','cop','swat','animal','military','vehicle']),
     'Street Bat':   new Set(['gang','ped','cop','swat','animal']),
-    'Bazooka':      new Set(['gang','ped','cop','swat','animal','tank','military','bibendum']),
-    'Laser Cannon': new Set(['gang','ped','cop','swat','animal','tank','military','bibendum']),
+    'Bazooka':      new Set(['gang','ped','cop','swat','animal','tank','military','vehicle','bibendum']),
+    'Laser Cannon': new Set(['gang','ped','cop','swat','animal','tank','military','vehicle','bibendum']),
   };
 
   function getNPCType(e){
     if (!e || !e.userData) return null;
     const u = e.userData;
-    if (u.type === 'gang') return 'gang';
-    if (u.type === 'ped')  return 'ped';
-    if (u.type === 'cop')  return u.swat ? 'swat' : 'cop';
+    if (u.type === 'gang')     return 'gang';
+    if (u.type === 'ped')      return 'ped';
+    if (u.type === 'cop')      return u.swat ? 'swat' : 'cop';
     if (u.kind === 'dog' || u.kind === 'cat') return 'animal';
     if (u.type === 'tank')     return 'tank';
     if (u.type === 'military') return 'military';
+    if (u.type === 'vehicle')  return 'vehicle';
     if (u.type === 'bibendum') return 'bibendum';
     return null;
   }
@@ -7108,6 +7112,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (typeof peds  !== 'undefined') for (const p of peds)  fn(p);
     if (typeof cops  !== 'undefined') for (const c of cops)  fn(c);
     if (typeof animals !== 'undefined') for (const a of animals) fn(a);
+    if (typeof policeVehicles !== 'undefined') for (const v of policeVehicles) fn(v);
     const war = window.__war;
     if (war) {
       if (Array.isArray(war.tanks))    for (const t of war.tanks)    fn(t);
@@ -7119,7 +7124,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
 
   function refreshAll(){ eachKillable(refreshLabel); }
 
-  /* ---- Generic damage (peds/cops/animals — gangs already handled) -- */
+  /* ---- Generic damage (peds/cops/animals/vehicles — gangs already handled) -- */
   function damageNPC(npc, dmg, from){
     const u = npc.userData;
     if (!u || u.down) return;
@@ -7141,7 +7146,8 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (typeof hitMarker === 'function') hitMarker();
     if (typeof sfx !== 'undefined' && sfx && sfx.hit) sfx.hit();
     try { spawnBurst(npc.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xff2db5, 10); } catch(_){}
-    if (from) {
+    // Vehicles don't get knocked back — they're on rails.
+    if (from && type !== 'vehicle') {
       const k = npc.position.clone().sub(from);
       k.y = 0;
       if (k.lengthSq() > 0) npc.position.add(k.normalize().multiplyScalar(0.4));
@@ -7149,22 +7155,30 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (u.hp <= 0) {
       const info = KILL_INFO[type];
       u.down = true;
-      npc.rotation.z = Math.PI / 2;
-      npc.position.y = type === 'animal' ? 0.25 : 0.5;
+      if (type === 'vehicle') {
+        // Big explosion, wreck stays where it died (rotation tilts so
+        // it looks crashed). updatePoliceVehicles skips down vehicles.
+        try { spawnBurst(npc.position.clone().add(new THREE.Vector3(0, 1.2, 0)), 0xff5b6e, 60); } catch(_){}
+        try { spawnBurst(npc.position.clone().add(new THREE.Vector3(0, 1.4, 0)), 0xffd84d, 40); } catch(_){}
+        npc.rotation.z = (Math.random() < 0.5 ? 1 : -1) * 0.45;
+        npc.position.y = -0.2;
+      } else {
+        npc.rotation.z = Math.PI / 2;
+        npc.position.y = type === 'animal' ? 0.25 : 0.5;
+      }
       if (typeof addCash === 'function' && info.cash > 0) addCash(info.cash);
-      // Drop Hoodz capsules around the body
-      const drops = Math.min(info.hood, 6);
+      // Drop Hoodz capsules around the body / wreck
+      const drops = Math.min(info.hood, type === 'vehicle' ? 10 : 6);
       for (let k = 0; k < drops; k++) {
-        try { spawnHoodz(npc.position.x + rand(-1.4, 1.4), npc.position.z + rand(-1.4, 1.4)); } catch(_){}
+        try { spawnHoodz(npc.position.x + rand(-1.8, 1.8), npc.position.z + rand(-1.8, 1.8)); } catch(_){}
       }
       try { spawnBurst(npc.position.clone().add(new THREE.Vector3(0, 1, 0)), 0xffffff, 18); } catch(_){}
       if (u.killLabel) { npc.remove(u.killLabel); u.killLabel = null; }
       if (typeof sfx !== 'undefined' && sfx && sfx.down) sfx.down();
-      // Killing a cop triggers immediate pursuit (the others go hot)
-      if ((type === 'cop' || type === 'swat') && typeof toast === 'function')
-        toast(type.toUpperCase() + ' down · +' + info.cash + ' $HOOD · +' + info.hood + ' Hoodz', 'win');
-      else if (typeof toast === 'function')
-        toast(type.toUpperCase() + ' down · +' + info.hood + ' Hoodz', 'win');
+      if (typeof toast === 'function') {
+        const niceName = type === 'vehicle' ? 'POLICE CAR' : type.toUpperCase();
+        toast(niceName + ' down · +' + info.cash + ' $HOOD · +' + info.hood + ' Hoodz', 'win');
+      }
     }
   }
 
@@ -7195,15 +7209,19 @@ window.addEventListener('unhandledrejection',(ev)=>{
     });
     return best;
   }
-  // The original lock pass runs at the end of updateEntities. Override
-  // it from a post-step in animate via patching lockedTarget right
-  // after the original pass.
+  // The original lock pass runs at the end of updateEntities. We run
+  // our broader scan right after and ALWAYS overwrite lockedTarget —
+  // including with null when nothing's in the cone, so a previously
+  // locked target that the player turned away from (or that just got
+  // killed in the same frame) doesn't stay stuck and silently block
+  // fireProjectile via its `lockedTarget.userData.down` check.
   function patchTargetLock(){
-    // Original logic only scanned gangs; we re-scan with our broader
-    // list and replace lockedTarget if we found something the player
-    // can actually hit.
-    const b = pickTarget();
-    if (b) lockedTarget = b;
+    try {
+      lockedTarget = pickTarget();
+    } catch (_) {
+      // pickTarget threw — keep whatever the original lock pass set so
+      // gameplay never breaks because of an unrelated patch issue.
+    }
     if (typeof updateLockUI === 'function') updateLockUI();
   }
 
@@ -7221,7 +7239,9 @@ window.addEventListener('unhandledrejection',(ev)=>{
     window.updateEntities = wrapped;
   }
 
-  // Projectiles: extend collision to peds/cops/animals.
+  // Projectiles: extend collision to peds/cops/animals + police cars.
+  // Vehicles use a much wider hit radius (3m) since they're 4-7m long
+  // boxes, not 1-m-radius humanoids.
   function patchUpdateProjectiles(){
     if (typeof updateProjectiles !== 'function' || updateProjectiles.__killAllPatched) return;
     const orig = updateProjectiles;
@@ -7233,7 +7253,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
           const p = projectiles[i];
           if (p.isBazooka) continue;
           const m = p.mesh; if (!m) continue;
-          let hit = null;
+          let hit = null, hitRadius = 1.2;
           for (const arr of [peds, cops, animals]) {
             if (!arr) continue;
             for (const npc of arr) {
@@ -7244,6 +7264,17 @@ window.addEventListener('unhandledrejection',(ev)=>{
               }
             }
             if (hit) break;
+          }
+          // Police cars: bigger hit box (van = 7m long, sedan = 4.4m)
+          if (!hit && typeof policeVehicles !== 'undefined') {
+            for (const v of policeVehicles) {
+              if (!v || v.userData.down) continue;
+              const r = v.userData.van ? 3.5 : 2.4;
+              const yProbe = m.position.y;
+              if (m.position.distanceTo(v.position.clone().setY(yProbe)) < r) {
+                hit = v; hitRadius = r; break;
+              }
+            }
           }
           if (hit) {
             damageNPC(hit, 2, m.position);
