@@ -859,9 +859,11 @@ const _WALL_BUILDERS = [
   _buildMetalTex,     // 4
   _buildGraffitiTex,  // 5
 ];
-function getWallTexFor(b){
-  // Hash b.short to pick a deterministic style per building.
-  const s = (b && b.short) ? b.short : 'default';
+function getWallTexFor(b, floorN){
+  // Hash (b.short + floor) so every floor gets a different style and
+  // a given tower visits its variants in a stable order. floorN
+  // defaults to 1 (ground floor) for callers that don't care.
+  const s = ((b && b.short) ? b.short : 'default') + ':' + (floorN || 1);
   let h = 0;
   for (let i = 0; i < s.length; i++) h = ((h * 31) + s.charCodeAt(i)) >>> 0;
   const idx = h % _WALL_BUILDERS.length;
@@ -3597,16 +3599,24 @@ function buildInterior(b){
   // Each holder's interior gets its own wall pattern picked from a deterministic
   // hash of their address, so successive visits show the same style for the
   // same tower but the city as a whole varies room to room.
-  const wallMap=getWallTexFor(b);
-  const brick=()=>new THREE.MeshBasicMaterial({color:0xffffff,map:wallMap});
+  const wallMap=getWallTexFor(b, 1);
+  // One material per wall so setFloor() can swap their map without
+  // touching geometry. Stored on interior.wallMats for later access.
+  const wallMats=[
+    new THREE.MeshBasicMaterial({color:0xffffff,map:wallMap}),
+    new THREE.MeshBasicMaterial({color:0xffffff,map:wallMap}),
+    new THREE.MeshBasicMaterial({color:0xffffff,map:wallMap}),
+    new THREE.MeshBasicMaterial({color:0xffffff,map:wallMap}),
+  ];
+  interior.wallMats=wallMats;
   // shell · black floor with white grid, brick walls, black ceiling
   const floor=new THREE.Mesh(new THREE.BoxGeometry(hw*2,0.4,hd*2),new THREE.MeshBasicMaterial({color:0,map:getSlabTex()}));
   floor.position.set(IC.x,INTERIOR_Y-0.2,IC.z);G.add(floor);
   G.add(edges(mesh(hw*2,0.3,hd*2,inkMat(),IC.x,INTERIOR_Y+roomH,IC.z)));                 // ceiling
-  G.add(mesh(hw*2,roomH,0.3,brick(),IC.x,INTERIOR_Y+roomH/2,IC.z+hd));                   // back
-  G.add(mesh(hw*2,roomH,0.3,brick(),IC.x,INTERIOR_Y+roomH/2,IC.z-hd));                   // front
-  G.add(mesh(0.3,roomH,hd*2,brick(),IC.x-hw,INTERIOR_Y+roomH/2,IC.z));                   // left
-  G.add(mesh(0.3,roomH,hd*2,brick(),IC.x+hw,INTERIOR_Y+roomH/2,IC.z));                   // right
+  G.add(mesh(hw*2,roomH,0.3,wallMats[0],IC.x,INTERIOR_Y+roomH/2,IC.z+hd));               // back
+  G.add(mesh(hw*2,roomH,0.3,wallMats[1],IC.x,INTERIOR_Y+roomH/2,IC.z-hd));               // front
+  G.add(mesh(0.3,roomH,hd*2,wallMats[2],IC.x-hw,INTERIOR_Y+roomH/2,IC.z));               // left
+  G.add(mesh(0.3,roomH,hd*2,wallMats[3],IC.x+hw,INTERIOR_Y+roomH/2,IC.z));               // right
   // GALLERY · square NFT canvas centred on the back wall, white outline
   // frame, per-floor highlight strip that travels up as the player uses
   // the elevator. Aspect is forced 1:1 because the Hoodlrz art is square.
@@ -3878,7 +3888,13 @@ function setFloor(n){state.floor=n;const galH=interior.galSide||interior.gallery
   if(interior.elevInd){interior.elevInd.material.map=policeTextTex('▲ '+n);interior.elevInd.material.needsUpdate=true;}
   if(interior.floorLabel)interiorGroup.remove(interior.floorLabel);
   interior.floorLabel=makeFloatingLabel('FLOOR '+n+' / '+interior.b.floors+'  ·  '+interior.b.short,'#ffffff',new THREE.Vector3(IC.x,INTERIOR_Y+interior.roomH-0.7,IC.z+interior.hd-1));
-  interiorGroup.add(interior.floorLabel);}
+  interiorGroup.add(interior.floorLabel);
+  // Different wall texture per floor: deterministic per (b.short, n)
+  // so the elevator ride visually feels like a new room every time.
+  if (interior.wallMats && interior.wallMats.length){
+    const tex = getWallTexFor(interior.b, n);
+    for (const m of interior.wallMats){ m.map = tex; m.needsUpdate = true; }
+  }}
 const ARTISTS=[['VØID KING','TECHNO'],['LIL CIPHER','RAP'],['NEON WIDOW','ELECTRO'],['BASS GHOST','TECHNO'],['MC HEXA','RAP'],['SYNTH WOLF','ELECTRO'],['DJ NULLBYTE','HOUSE'],['YUNG PIXEL','TRAP'],['GLITCH SAINT','TECHNO']];
 function makeMusicPoster(){
   const cv=document.createElement('canvas');cv.width=256;cv.height=340;const c=cv.getContext('2d');
@@ -4114,7 +4130,22 @@ function drawMinimap(){const S=336,world=GRID*LOT+LOT,to=(x,z)=>[(x/world+.5)*S,
   for(const g of gangs){if(g.userData.down)continue;const[x,y]=to(g.position.x,g.position.z);mc.fillStyle='#ff2db5';mc.fillRect(x-3,y-3,6,6);}
   for(const cp of cops){const[x,y]=to(cp.position.x,cp.position.z);mc.fillStyle='#2d8bff';mc.beginPath();mc.arc(x,y,3.5,0,7);mc.fill();mc.strokeStyle='#bcd4ff';mc.lineWidth=1;mc.stroke();}
   for(const pk of pickups){if(!pk.parent)continue;const t=pk.userData.type;if(t!=='key'&&t!=='hoodz'&&t!=='weapon')continue;const[x,y]=to(pk.position.x,pk.position.z);mc.fillStyle=t==='key'?'#2dffa6':'rgba(45,255,166,.6)';mc.fillRect(x-2,y-2,4,4);}
-  const[px,py]=to(player.pos.x,player.pos.z);mc.save();mc.translate(px,py);mc.rotate(player.yaw);mc.fillStyle='#fff';mc.beginPath();mc.moveTo(0,-9);mc.lineTo(7,8);mc.lineTo(-7,8);mc.closePath();mc.fill();mc.restore();}
+  // Hero marker: a bigger arrow that blinks on/off-ish via alpha
+  // pulse so the player's position is instantly findable on a busy
+  // minimap (was a small white triangle that disappeared into the
+  // grid).
+  const[px,py]=to(player.pos.x,player.pos.z);
+  const blink=0.55+0.45*Math.sin(performance.now()*0.0075);
+  mc.save();mc.translate(px,py);mc.rotate(player.yaw);
+  // Magenta glow underlay for visibility against any building outline.
+  mc.fillStyle='rgba(255,45,181,'+(blink*0.55).toFixed(2)+')';
+  mc.beginPath();mc.moveTo(0,-16);mc.lineTo(12,12);mc.lineTo(-12,12);mc.closePath();mc.fill();
+  // White arrowhead body.
+  mc.fillStyle='rgba(255,255,255,'+blink.toFixed(2)+')';
+  mc.beginPath();mc.moveTo(0,-13);mc.lineTo(9,10);mc.lineTo(-9,10);mc.closePath();mc.fill();
+  // Dark outline so it reads against bright/light areas too.
+  mc.strokeStyle='#000';mc.lineWidth=1.5;mc.stroke();
+  mc.restore();}
 let searchHit=null,searchPulse=false;
 
 /* ===================================================================
@@ -7696,6 +7727,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
     try { if (typeof sfx !== 'undefined' && sfx && sfx.pickup) sfx.pickup(); } catch(_){}
     try { if (typeof toast === 'function') toast('Equipped ' + name, 'win'); } catch(_){}
     refreshMobileChip();
+    try { refreshWeaponBar(); } catch(_){}
   }
   function cycle(dir){
     const list = ownedList();
@@ -7773,17 +7805,101 @@ window.addEventListener('unhandledrejection',(ev)=>{
     btn.addEventListener('touchstart', onTap, { passive: false });
   }
 
+  /* ---- 5-slot weapon bar (visible on desktop AND mobile) ---------- */
+  // Built once and kept up to date by refreshWeaponBar(). Click/tap
+  // an owned slot to equip; unowned slots are dimmed and inert.
+  const SLOT_LABEL = {
+    'Knife':        'KNIFE',
+    'Shuriken':     'SHURIKEN',
+    'Hood Blaster': 'BLASTER',
+    'Bazooka':      'BAZOOKA',
+    'Laser Cannon': 'LASER',
+  };
+  function injectWeaponBar(){
+    if (document.getElementById('weapBar')) return;
+    const css = document.createElement('style');
+    css.textContent = `
+      #weapBar{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);
+        z-index:55;display:flex;gap:6px;pointer-events:auto;
+        background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
+        border:1px solid rgba(255,255,255,.18);padding:6px;border-radius:10px}
+      #weapBar .ws{display:flex;flex-direction:column;align-items:center;
+        min-width:64px;padding:6px 8px;border:1px solid rgba(255,255,255,.22);
+        border-radius:8px;background:rgba(255,255,255,.04);cursor:pointer;
+        color:#fff;font-family:'Outfit',sans-serif;line-height:1.1;
+        transition:.12s;user-select:none;-webkit-user-select:none}
+      #weapBar .ws.dim{opacity:.32;cursor:not-allowed;filter:saturate(.2)}
+      #weapBar .ws.on{border-color:#ff2db5;background:rgba(255,45,181,.22);
+        box-shadow:0 0 12px rgba(255,45,181,.55)}
+      #weapBar .ws .k{font-family:Consolas,monospace;font-size:10px;color:#9aa;
+        margin-bottom:2px;letter-spacing:.06em}
+      #weapBar .ws.on .k{color:#ff2db5}
+      #weapBar .ws .n{font-size:11px;font-weight:800;letter-spacing:.04em}
+      @media (max-width:760px){
+        #weapBar{bottom:auto;top:44px;padding:4px;gap:4px}
+        #weapBar .ws{min-width:54px;padding:4px 5px}
+        #weapBar .ws .k{font-size:9px;margin-bottom:1px}
+        #weapBar .ws .n{font-size:10px}
+      }
+    `;
+    document.head.appendChild(css);
+
+    const bar = document.createElement('div');
+    bar.id = 'weapBar';
+    bar.style.display = 'none';
+    for (let i = 0; i < ORDER.length; i++){
+      const name = ORDER[i];
+      const slot = document.createElement('div');
+      slot.className = 'ws';
+      slot.dataset.weap = name;
+      slot.innerHTML =
+        '<div class="k">' + (i + 1) + '</div>' +
+        '<div class="n">' + SLOT_LABEL[name] + '</div>';
+      const onTap = function(ev){
+        if (ev && ev.preventDefault) ev.preventDefault();
+        if (!ownsWeapon(name)) return;
+        equip(name);
+      };
+      slot.addEventListener('click', onTap);
+      slot.addEventListener('touchstart', onTap, { passive: false });
+      bar.appendChild(slot);
+    }
+    document.body.appendChild(bar);
+  }
+  function refreshWeaponBar(){
+    const bar = document.getElementById('weapBar');
+    if (!bar) return;
+    if (typeof state === 'undefined' || !state.playing) {
+      bar.style.display = 'none';
+      return;
+    }
+    // Hide while any modal is open so it doesn't overlap with shop / etc.
+    if (state.panelOpen || state.shopOpen || state.journalOpen || state.faqOpen) {
+      bar.style.display = 'none';
+      return;
+    }
+    bar.style.display = 'flex';
+    const cur = state.weapon;
+    for (const slot of bar.children){
+      const w = slot.dataset.weap;
+      slot.classList.toggle('dim', !ownsWeapon(w));
+      slot.classList.toggle('on', w === cur);
+    }
+  }
+
   function init(){
     if (typeof state === 'undefined') return;
     ownedList();  // ensure state.weapons exists
     patchCollectPickup();
     wireMobileChip();
     refreshMobileChip();
+    injectWeaponBar();
+    refreshWeaponBar();
   }
   // Poll until the game's state is up; then we wire once.
   let wired = false;
   setInterval(function(){
-    if (wired) { refreshMobileChip(); return; }
+    if (wired) { refreshMobileChip(); refreshWeaponBar(); return; }
     if (typeof state === 'undefined') return;
     wired = true;
     init();
