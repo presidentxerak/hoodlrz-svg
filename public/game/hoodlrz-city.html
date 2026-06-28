@@ -98,8 +98,12 @@
   #mini.expanded{
     right:50%!important;top:50%!important;bottom:auto!important;
     width:min(70vmin,520px)!important;height:auto!important;
-    padding:14px!important;z-index:80;
+    padding:14px!important;
+    /* z-index:100 + a full-viewport box-shadow scrim hides any HUD
+       (weapon bar, ctrlHint, top strip, etc.) behind the open map. */
+    z-index:100!important;
     transform:translate(50%,-50%);
+    box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 0 100vmax rgba(0,0,0,.78)!important;
   }
   #mini.expanded canvas{
     width:100%!important;
@@ -4516,8 +4520,11 @@ window.addEventListener('unhandledrejection',(ev)=>{
       max-width: 360px !important; max-height: 360px !important;
       top: 50% !important; right: 50% !important;
       transform: translate(50%, -50%) !important;
-      z-index: 60 !important;
+      /* z-index:100 + scrim so it cleanly overlays the top strip,
+         weapon bar and touch HUD on mobile too. */
+      z-index: 100 !important;
       padding: 8px !important;
+      box-shadow: 0 0 0 100vmax rgba(0,0,0,.82) !important;
     }
     #mini.expanded canvas{ width: 100% !important; height: 100% !important; }
 
@@ -7638,9 +7645,11 @@ window.addEventListener('unhandledrejection',(ev)=>{
     });
     const edgeGeom = new THREE.EdgesGeometry(geom);
     const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff });
-    // ENTER label as a shared canvas → texture → sprite material.
-    function makeEnterLabel(){
-      const W = 256, H = 64;
+    // ENTER label is per-building: each chip shows the actual place
+    // name ("HOODZ MART", "POLICE", "WALLET 0xab…cd") so the player
+    // knows what's inside before walking in.
+    function makeEnterLabel(text){
+      const W = 384, H = 64;
       const cv = document.createElement('canvas');
       cv.width = W; cv.height = H;
       const ctx = cv.getContext('2d');
@@ -7657,14 +7666,31 @@ window.addEventListener('unhandledrejection',(ev)=>{
       ctx.quadraticCurveTo(2, 2, r, 2);
       ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#04121a';
-      ctx.font = "bold 26px 'Outfit', Arial, sans-serif";
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('ENTER ▾', W / 2, H / 2 + 2);
+      // Auto-shrink so long shop names ("TATTOO PARLOR") still fit.
+      let fs = 24;
+      ctx.font = "bold " + fs + "px 'Outfit', Arial, sans-serif";
+      while (ctx.measureText(text).width > W - 24 && fs > 12) {
+        fs -= 1;
+        ctx.font = "bold " + fs + "px 'Outfit', Arial, sans-serif";
+      }
+      ctx.fillText(text, W / 2, H / 2 + 2);
       const tex = new THREE.CanvasTexture(cv);
       tex.encoding = THREE.sRGBEncoding;
       return tex;
     }
-    const labelTex = makeEnterLabel();
+    // Derive a short, ALL-CAPS place name from each building.
+    function placeNameFor(b){
+      if (b.shop && b.shop.name) return b.shop.name.toUpperCase();
+      // entranceLabel for special buildings (police, etc.) starts with
+      // "Enter · X" — strip the prefix, keep the rest.
+      if (b.entranceLabel) {
+        const m = b.entranceLabel.match(/^enter\s*[·:-]\s*(.+)$/i);
+        if (m) return m[1].toUpperCase();
+      }
+      // Plain holder tower: show the wallet shortform.
+      return 'WALLET ' + (b.short || '0x????');
+    }
     for (const b of buildings) {
       if (!b || !b.doorPos) continue;
       // Vaults aren't enterable — they're sealed until a key is found.
@@ -7673,12 +7699,14 @@ window.addEventListener('unhandledrejection',(ev)=>{
       arrow.rotation.x = Math.PI;             // tip pointing DOWN at the door
       arrow.position.set(b.doorPos.x, 4.2, b.doorPos.z + 0.6);
       arrow.add(new THREE.LineSegments(edgeGeom, edgeMat));
-      // ENTER chip floats just below the cone.
+      // Per-building chip: "ENTER · {place name}" floats just below the cone.
+      const text = 'ENTER · ' + placeNameFor(b);
       const labelMat = new THREE.SpriteMaterial({
-        map: labelTex, transparent: true, depthWrite: false,
+        map: makeEnterLabel(text), transparent: true, depthWrite: false,
       });
       const sp = new THREE.Sprite(labelMat);
-      sp.scale.set(2.2, 0.55, 1);
+      // Aspect 6:1 to fit the longer text without distortion.
+      sp.scale.set(3.3, 0.55, 1);
       sp.position.y = 1.0;       // below the cone, so cone-base is overhead
       arrow.add(sp);
       arrow.renderOrder = 5;
