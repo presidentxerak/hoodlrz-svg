@@ -3442,53 +3442,59 @@ let currentShop=null;
 // in-game playlist. We don't ship audio files yet, so the "track" is a short
 // procedural beat sequence driven by the existing SFX synth, tinted per
 // genre, plus a NOW PLAYING toast. Replace beatLoop with real audio later.
+// Real Hoodlrz tracks shipped under /audio. Filenames are dashed and
+// authoritative — title + genre are display labels only.
 const DJ_TRACKS = [
-  { artist: 'VØID KING',     title: 'BLACKLIGHT REIGN',    genre: 'TECHNO', bpm: 132, key: 'A min' },
-  { artist: 'LIL CIPHER',    title: 'WALLET WORD',          genre: 'RAP',    bpm: 88,  key: 'D min' },
-  { artist: 'NEON WIDOW',    title: 'GHOST IN THE HAZE',    genre: 'ELECTRO',bpm: 124, key: 'F# min' },
-  { artist: 'BASS GHOST',    title: 'TOWER #0000',          genre: 'TECHNO', bpm: 138, key: 'C min' },
-  { artist: 'MC HEXA',       title: 'HOLDERS UP',           genre: 'RAP',    bpm: 92,  key: 'A min' },
-  { artist: 'SYNTH WOLF',    title: 'CHROMA PHANTOM',       genre: 'ELECTRO',bpm: 128, key: 'G min' },
-  { artist: 'DJ NULLBYTE',   title: 'HOOD HOUSE 808',       genre: 'HOUSE',  bpm: 124, key: 'B min' },
-  { artist: 'YUNG PIXEL',    title: 'COP STATIC',           genre: 'TRAP',   bpm: 70,  key: 'E min' },
-  { artist: 'GLITCH SAINT',  title: 'GENESIS HOODLR',       genre: 'TECHNO', bpm: 140, key: 'D min' },
+  { file: '/audio/Hoodlrz-Acid-Teddy-Bear-by-XERAK.mp3',                          title: 'Acid Teddy Bear',              artist: 'XERAK', genre: 'TECHNO'  },
+  { file: '/audio/Hoodlrz-Dolphins-Are-Not-Your-Friends.mp3',                     title: 'Dolphins Are Not Your Friends',artist: 'XERAK', genre: 'ELECTRO' },
+  { file: '/audio/Hoodlrz-Go-Go-Godzilla-by-XERAK.mp3',                           title: 'Go Go Godzilla',               artist: 'XERAK', genre: 'HOUSE'   },
+  { file: '/audio/Hoodlrz-Hello-Bitcoins-by-XERAK.mp3',                           title: 'Hello Bitcoins',               artist: 'XERAK', genre: 'RAP'     },
+  { file: '/audio/Hoodlrz-Kill-Your-Computer-Internet-Kids-Assault-by-XERAK.mp3', title: 'Kill Your Computer',           artist: 'XERAK', genre: 'PUNK'    },
+  { file: '/audio/Hoodlrz-Make-Some-Noise-by-XERAK.mp3',                          title: 'Make Some Noise',              artist: 'XERAK', genre: 'TECHNO'  },
+  { file: '/audio/Hoodlrz-On-Your-Face-by-XERAK.mp3',                             title: 'On Your Face',                 artist: 'XERAK', genre: 'TRAP'    },
+  { file: '/audio/Hoodlrz-Rich-Frog-by-XERAK.mp3',                                title: 'Rich Frog',                    artist: 'XERAK', genre: 'ELECTRO' },
+  { file: '/audio/Hoodlrz-Testuo-Techno-by-XERAK.mp3',                            title: 'Tetsuo Techno',                artist: 'XERAK', genre: 'TECHNO'  },
 ];
-let djPlayingTimer = null;
+let djAudio = null;
 function djStop(){
-  if(djPlayingTimer){clearInterval(djPlayingTimer);djPlayingTimer=null;}
+  if (djAudio) { try { djAudio.pause(); djAudio.src=''; } catch (_) {} djAudio = null; }
 }
 function djPlay(track){
   djStop();
-  if(!sfx||!sfx.tone){toast('Now playing: '+track.title+' · '+track.artist,'gold');return;}
-  const bpm=track.bpm||120, step=60/bpm/2;
-  let beat=0;
+  try {
+    djAudio = new Audio(track.file);
+    djAudio.volume = 0.65;
+    djAudio.play().catch((err) => {
+      console.warn('[dj] autoplay blocked:', err);
+      toast('Tap allowed audio: '+track.title,'warn');
+    });
+  } catch (err) {
+    console.warn('[dj] play failed:', err);
+  }
   toast('🎧 NOW PLAYING · '+track.title+' · '+track.artist+' ('+track.genre+')','gold');
-  djPlayingTimer=setInterval(()=>{
-    beat++;
-    // Kick on 1, snare on 2, hat on every 8th (rough four-on-the-floor)
-    if(beat%4===1) sfx.tone(60,  0.18, 'sine',     0.18, 80);   // kick
-    if(beat%4===3) sfx.tone(220, 0.06, 'triangle', 0.14, 220);  // snare-ish
-    if(beat%2===0) sfx.tone(8000,0.02, 'square',   0.05, 80);   // hat
-    // Track length ~ 16 seconds (16 bars at ~32 beats with this step)
-    if(beat>32) djStop();
-  }, step*1000);
 }
+window.djStop = djStop;
+window.djPlay = djPlay;
 function openDjPanel(){
   const list=DJ_TRACKS.map((t,i)=>
     `<button class="actbtn" onclick="djPlay(window.__DJ_TRACKS[${i}])"
             style="margin:4px 0;text-align:left;padding:10px 12px;display:block;width:100%">
        <b>${t.title}</b><br>
        <span style="font-size:10px;letter-spacing:.1em;opacity:.7">
-         ${t.artist} · ${t.genre} · ${t.bpm} BPM
+         ${t.artist} · ${t.genre}
        </span>
      </button>`
   ).join('');
+  // A stop button so the player can end a track without picking another.
+  const stopBtn = `<button class="actbtn" onclick="djStop()"
+    style="margin:8px 0 4px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.25);color:#fff">
+    ◼ Stop track</button>`;
   window.__DJ_TRACKS = DJ_TRACKS;
   openPanel('citizen','♪','DJ BOOTH',
     'Resident DJ · '+(state.inside&&state.inside.shop?state.inside.shop.name:'Club'),
-    '"Pick a track, holder. I\'ll spin it." Stops automatically after ~16 bars.',
+    '"Pick a track, holder. I\'ll spin it." Plays through; tap another track or Stop to switch.',
     'Tap a track to play',
-    {action:list});
+    {action:list+stopBtn});
 }
 function talkToOwner(b){
   const s=b.shop; if(!s)return;
@@ -7819,26 +7825,26 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (document.getElementById('weapBar')) return;
     const css = document.createElement('style');
     css.textContent = `
-      #weapBar{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);
+      /* Bottom of the screen but above the WASD / SHIFT / E... control
+         hint strip (which sits at bottom:10px). 40px clears it. */
+      #weapBar{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);
         z-index:55;display:flex;gap:6px;pointer-events:auto;
         background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
         border:1px solid rgba(255,255,255,.18);padding:6px;border-radius:10px}
       #weapBar .ws{display:flex;flex-direction:column;align-items:center;
-        min-width:64px;padding:6px 8px;border:1px solid rgba(255,255,255,.22);
+        min-width:64px;padding:7px 10px;border:1px solid rgba(255,255,255,.22);
         border-radius:8px;background:rgba(255,255,255,.04);cursor:pointer;
         color:#fff;font-family:'Outfit',sans-serif;line-height:1.1;
         transition:.12s;user-select:none;-webkit-user-select:none}
       #weapBar .ws.dim{opacity:.32;cursor:not-allowed;filter:saturate(.2)}
       #weapBar .ws.on{border-color:#ff2db5;background:rgba(255,45,181,.22);
         box-shadow:0 0 12px rgba(255,45,181,.55)}
-      #weapBar .ws .k{font-family:Consolas,monospace;font-size:10px;color:#9aa;
-        margin-bottom:2px;letter-spacing:.06em}
-      #weapBar .ws.on .k{color:#ff2db5}
-      #weapBar .ws .n{font-size:11px;font-weight:800;letter-spacing:.04em}
+      #weapBar .ws .n{font-size:12px;font-weight:800;letter-spacing:.04em}
       @media (max-width:760px){
+        /* Mobile: keep it at the top, under the strip. No ctrlHint
+           on mobile so no collision risk. */
         #weapBar{bottom:auto;top:44px;padding:4px;gap:4px}
-        #weapBar .ws{min-width:54px;padding:4px 5px}
-        #weapBar .ws .k{font-size:9px;margin-bottom:1px}
+        #weapBar .ws{min-width:54px;padding:5px 6px}
         #weapBar .ws .n{font-size:10px}
       }
     `;
@@ -7852,9 +7858,8 @@ window.addEventListener('unhandledrejection',(ev)=>{
       const slot = document.createElement('div');
       slot.className = 'ws';
       slot.dataset.weap = name;
-      slot.innerHTML =
-        '<div class="k">' + (i + 1) + '</div>' +
-        '<div class="n">' + SLOT_LABEL[name] + '</div>';
+      slot.title = 'Equip ' + name + ' (key ' + (i + 1) + ')';
+      slot.innerHTML = '<div class="n">' + SLOT_LABEL[name] + '</div>';
       const onTap = function(ev){
         if (ev && ev.preventDefault) ev.preventDefault();
         if (!ownsWeapon(name)) return;
