@@ -522,6 +522,7 @@
       <span><i class="dot" style="background:#ff3d6e"></i>Gang</span>
       <span><i class="dot" style="background:#2d8bff"></i>Cop</span>
       <span><i class="dot" style="background:#ffd84d"></i>Vault/Soul</span>
+      <span><i class="dot" style="background:#ff2db5"></i>DJ ♪</span>
       <span><i class="dot" style="background:#fff"></i>You</span>
     </div>
     <div class="hint">Tap a tower square to see the holder &amp; their NFTs</div>
@@ -4136,6 +4137,20 @@ function drawMinimap(){const S=336,world=GRID*LOT+LOT,to=(x,z)=>[(x/world+.5)*S,
   for(const g of gangs){if(g.userData.down)continue;const[x,y]=to(g.position.x,g.position.z);mc.fillStyle='#ff2db5';mc.fillRect(x-3,y-3,6,6);}
   for(const cp of cops){const[x,y]=to(cp.position.x,cp.position.z);mc.fillStyle='#2d8bff';mc.beginPath();mc.arc(x,y,3.5,0,7);mc.fill();mc.strokeStyle='#bcd4ff';mc.lineWidth=1;mc.stroke();}
   for(const pk of pickups){if(!pk.parent)continue;const t=pk.userData.type;if(t!=='key'&&t!=='hoodz'&&t!=='weapon')continue;const[x,y]=to(pk.position.x,pk.position.z);mc.fillStyle=t==='key'?'#2dffa6':'rgba(45,255,166,.6)';mc.fillRect(x-2,y-2,4,4);}
+  // DJ booth marker: every building whose shop is a Nightclub gets a
+  // pulsing magenta ♪ glyph on the map so players can find a track.
+  {const pulse=0.55+0.45*Math.sin(performance.now()*0.005);
+   for(const b of buildings){
+     if(!b.shop||b.shop.kind!=='club')continue;
+     const[x,y]=to(b.x,b.z);
+     mc.fillStyle='rgba(255,45,181,'+pulse.toFixed(2)+')';
+     mc.beginPath();mc.arc(x,y,5,0,7);mc.fill();
+     mc.strokeStyle='rgba(255,255,255,.85)';mc.lineWidth=1;mc.stroke();
+     mc.fillStyle='#fff';
+     mc.font='bold 9px Consolas,monospace';
+     mc.textAlign='center';mc.textBaseline='middle';
+     mc.fillText('♪',x,y+0.5);
+   }}
   // Hero marker: a bigger arrow that blinks on/off-ish via alpha
   // pulse so the player's position is instantly findable on a busy
   // minimap (was a small white triangle that disappeared into the
