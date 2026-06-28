@@ -105,6 +105,15 @@
     transform:translate(50%,-50%);
     box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 0 100vmax rgba(0,0,0,.78)!important;
   }
+  /* Hide every floating HUD bar while the map is open. :has() is
+     supported on every browser we ship on (Safari 15.4+, Chrome 105+). */
+  body:has(#mini.expanded) #weapBar,
+  body:has(#mini.expanded) #ctrlHint,
+  body:has(#mini.expanded) #plockHint,
+  body:has(#mini.expanded) #copalert,
+  body:has(#mini.expanded) #obj,
+  body:has(#mini.expanded) #weap,
+  body:has(#mini.expanded) #ops{display:none!important}
   #mini.expanded canvas{
     width:100%!important;
     height:min(70vmin,520px)!important;
@@ -5807,23 +5816,52 @@ window.addEventListener('unhandledrejection',(ev)=>{
         const py = (cy / ch) * 336;
         const world = (typeof GRID !== 'undefined' && typeof LOT !== 'undefined') ? GRID * LOT + LOT : 480;
         const S = 336;
-        // Find the building whose mini-square contains this pixel
+        // Find the building closest to the click. Generous 6 px tolerance
+        // around the building square + a 12 px fallback radius if the
+        // tap lands on a street (so taps on the ♪ DJ dot pick the
+        // underlying nightclub even when the tap is slightly off).
         let hit = null, bestD = 1e9;
-        for (const b of (typeof buildings !== 'undefined' ? buildings : [])) {
+        const bs = (typeof buildings !== 'undefined' ? buildings : []);
+        for (const b of bs) {
           const bx = (b.x / world + 0.5) * S;
           const bz = (b.z / world + 0.5) * S;
           const w = Math.max(6, b.w / world * S);
-          if (px > bx - w/2 - 2 && px < bx + w/2 + 2 && py > bz - w/2 - 2 && py < bz + w/2 + 2) {
+          if (px > bx - w/2 - 6 && px < bx + w/2 + 6 && py > bz - w/2 - 6 && py < bz + w/2 + 6) {
             const d = Math.hypot(px - bx, py - bz);
             if (d < bestD) { bestD = d; hit = b; }
           }
         }
+        // Fallback: nearest building within 14 px if no rect matched.
+        if (!hit) {
+          let nearD = 14;
+          for (const b of bs) {
+            const bx = (b.x / world + 0.5) * S;
+            const bz = (b.z / world + 0.5) * S;
+            const d = Math.hypot(px - bx, py - bz);
+            if (d < nearD) { nearD = d; hit = b; }
+          }
+        }
         if (hit) {
-          // Open the standard wallet panel for that holder (it already
-          // fetches /api/hoodlrz/by-owner and renders the NFT grid).
+          // Teleport straight to the door instead of opening the wallet
+          // panel — the player wants to GO to the place they tapped,
+          // not just read about it. Special hint for clubs so they
+          // know the DJ booth is inside, not on the street.
           mini.classList.remove('expanded');
-          if (typeof window.openWalletPanel === 'function') window.openWalletPanel(hit);
-          else if (typeof openWalletPanel === 'function') openWalletPanel(hit);
+          if (typeof window.teleportToBuilding === 'function') {
+            window.teleportToBuilding(hit);
+            if (hit.shop && hit.shop.kind === 'club') {
+              setTimeout(function(){
+                if (typeof toast === 'function') toast('Walk in and press E · DJ booth ♪ inside', 'gold');
+              }, 500);
+            } else if (hit.shop && hit.shop.name) {
+              setTimeout(function(){
+                if (typeof toast === 'function') toast('Walk in · ' + hit.shop.name, 'gold');
+              }, 500);
+            }
+          } else if (typeof window.openWalletPanel === 'function') {
+            // Fallback if the teleport helper isn't wired yet.
+            window.openWalletPanel(hit);
+          }
         } else {
           // Tap on empty street - shrink back
           mini.classList.remove('expanded');
@@ -7157,15 +7195,15 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // label to show. Tank/military still need a heavy weapon; bibendum
   // is the boss. The damage handler picks rewards from this table.
   const KILL_INFO = {
-    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:2.6 },
-    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:2.6 },
-    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:2.8 },
-    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:2.8 },
-    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:1.0 },
-    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:3.4 },
-    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:2.6 },
-    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:3.6 },
-    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:8.0 },
+    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:3.5 },
+    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:3.5 },
+    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:3.7 },
+    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:3.7 },
+    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:1.6 },
+    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:4.4 },
+    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:3.5 },
+    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:4.4 },
+    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:9.5 },
   };
   // What each weapon can damage. Soft targets fall to everything;
   // armored targets (tank/military/vehicle/bibendum) need explosives
@@ -7640,11 +7678,17 @@ window.addEventListener('unhandledrejection',(ev)=>{
     if (!buildings.length) return;
     arrowsBuilt = true;
     const geom = new THREE.ConeGeometry(0.55, 1.1, 4);
+    // Wayfinding cone: visible through walls so the arrow keeps
+    // guiding the player even when a building corner is between them
+    // and the door.
     const mat = new THREE.MeshBasicMaterial({
-      color: 0x39ff9e, transparent: true, opacity: 0.92, depthWrite: false,
+      color: 0x39ff9e, transparent: true, opacity: 0.92,
+      depthTest: false, depthWrite: false,
     });
     const edgeGeom = new THREE.EdgesGeometry(geom);
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0xffffff });
+    const edgeMat = new THREE.LineBasicMaterial({
+      color: 0xffffff, transparent: true, depthTest: false,
+    });
     // ENTER label is per-building: each chip shows the actual place
     // name ("HOODZ MART", "POLICE", "WALLET 0xab…cd") so the player
     // knows what's inside before walking in.
@@ -7700,14 +7744,19 @@ window.addEventListener('unhandledrejection',(ev)=>{
       arrow.position.set(b.doorPos.x, 4.2, b.doorPos.z + 0.6);
       arrow.add(new THREE.LineSegments(edgeGeom, edgeMat));
       // Per-building chip: "ENTER · {place name}" floats just below the cone.
+      // depthTest:false so a wall corner standing between the camera
+      // and the door can't clip the text mid-letter ("ALLET" instead
+      // of "WALLET"). Distance cull keeps clutter down anyway.
       const text = 'ENTER · ' + placeNameFor(b);
       const labelMat = new THREE.SpriteMaterial({
-        map: makeEnterLabel(text), transparent: true, depthWrite: false,
+        map: makeEnterLabel(text), transparent: true,
+        depthTest: false, depthWrite: false,
       });
       const sp = new THREE.Sprite(labelMat);
       // Aspect 6:1 to fit the longer text without distortion.
       sp.scale.set(3.3, 0.55, 1);
       sp.position.y = 1.0;       // below the cone, so cone-base is overhead
+      sp.renderOrder = 10;
       arrow.add(sp);
       arrow.renderOrder = 5;
       scene.add(arrow);
