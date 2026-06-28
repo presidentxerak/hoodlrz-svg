@@ -7826,8 +7826,10 @@ window.addEventListener('unhandledrejection',(ev)=>{
     const css = document.createElement('style');
     css.textContent = `
       /* Bottom of the screen but above the WASD / SHIFT / E... control
-         hint strip (which sits at bottom:10px). 40px clears it. */
-      #weapBar{position:fixed;left:50%;bottom:42px;transform:translateX(-50%);
+         hint strip. ctrlHint sits at bottom:10 and wraps on two lines
+         (~52 px total), so we lift the weapon bar to bottom:80 to clear
+         the full strip with breathing room. */
+      #weapBar{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);
         z-index:55;display:flex;gap:6px;pointer-events:auto;
         background:rgba(0,0,0,.55);backdrop-filter:blur(6px);
         border:1px solid rgba(255,255,255,.18);padding:6px;border-radius:10px}
