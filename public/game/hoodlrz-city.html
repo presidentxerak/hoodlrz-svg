@@ -105,15 +105,22 @@
     transform:translate(50%,-50%);
     box-shadow:0 24px 70px rgba(0,0,0,.6),0 0 0 100vmax rgba(0,0,0,.78)!important;
   }
-  /* Hide every floating HUD bar while the map is open. :has() is
-     supported on every browser we ship on (Safari 15.4+, Chrome 105+). */
-  body:has(#mini.expanded) #weapBar,
-  body:has(#mini.expanded) #ctrlHint,
-  body:has(#mini.expanded) #plockHint,
-  body:has(#mini.expanded) #copalert,
-  body:has(#mini.expanded) #obj,
-  body:has(#mini.expanded) #weap,
-  body:has(#mini.expanded) #ops{display:none!important}
+  /* Hide every floating HUD bar while the map is open. The
+     body.map-open class is toggled by a MutationObserver watching
+     #mini's class list (see the patch script at the bottom). Using a
+     JS-driven class instead of :has() so this works in every browser
+     the game runs in, not just recent Safari / Chrome. */
+  body.map-open #weapBar,
+  body.map-open #ctrlHint,
+  body.map-open #plockHint,
+  body.map-open #copalert,
+  body.map-open #obj,
+  body.map-open #weap,
+  body.map-open #ops,
+  body.map-open #mTopBar,
+  body.map-open #touch,
+  body.map-open #cross,
+  body.map-open #lock{display:none!important}
   #mini.expanded canvas{
     width:100%!important;
     height:min(70vmin,520px)!important;
@@ -7195,15 +7202,15 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // label to show. Tank/military still need a heavy weapon; bibendum
   // is the boss. The damage handler picks rewards from this table.
   const KILL_INFO = {
-    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:3.5 },
-    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:3.5 },
-    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:3.7 },
-    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:3.7 },
-    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:1.6 },
-    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:4.4 },
-    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:3.5 },
-    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:4.4 },
-    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:9.5 },
+    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:5.0 },
+    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:5.0 },
+    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:5.2 },
+    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:5.2 },
+    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:2.4 },
+    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:5.8 },
+    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:5.0 },
+    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:5.8 },
+    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:11.0 },
   };
   // What each weapon can damage. Soft targets fall to everything;
   // armored targets (tank/military/vehicle/bibendum) need explosives
@@ -7668,6 +7675,25 @@ window.addEventListener('unhandledrejection',(ev)=>{
 ============================================================ -->
 <script>
 (function(){
+  // Reflect #mini's expanded state into a body.map-open class so
+  // ALL floating HUDs (weapon bar, ctrlHint, top strip, touch HUD,
+  // etc.) can be hidden with a single CSS rule. Runs as soon as the
+  // #mini element exists.
+  function wireMapObserver(){
+    const mini = document.getElementById('mini');
+    if (!mini || mini.__mapObs) return;
+    mini.__mapObs = true;
+    const sync = () => {
+      document.body.classList.toggle('map-open', mini.classList.contains('expanded'));
+    };
+    sync();
+    new MutationObserver(sync).observe(mini, { attributes: true, attributeFilter: ['class'] });
+  }
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', wireMapObserver);
+  else
+    wireMapObserver();
+
   // Shared geometry + materials so 100+ buildings still draw cheap.
   let arrowsBuilt = false;
   const arrows = [];
@@ -7741,7 +7767,11 @@ window.addEventListener('unhandledrejection',(ev)=>{
       if (b.vault) continue;
       const arrow = new THREE.Mesh(geom, mat);
       arrow.rotation.x = Math.PI;             // tip pointing DOWN at the door
-      arrow.position.set(b.doorPos.x, 4.2, b.doorPos.z + 0.6);
+      // Push the arrow ~2.5 m OUT from the building's front face
+      // (was +0.6). That way the chip sprite (3.3 m wide) never sits
+      // half-inside the neighbouring wall, and its whole width stays
+      // in open air even from oblique camera angles.
+      arrow.position.set(b.doorPos.x, 5.0, b.doorPos.z + 2.5);
       arrow.add(new THREE.LineSegments(edgeGeom, edgeMat));
       // Per-building chip: "ENTER · {place name}" floats just below the cone.
       // depthTest:false so a wall corner standing between the camera
@@ -7755,12 +7785,12 @@ window.addEventListener('unhandledrejection',(ev)=>{
       const sp = new THREE.Sprite(labelMat);
       // Aspect 6:1 to fit the longer text without distortion.
       sp.scale.set(3.3, 0.55, 1);
-      sp.position.y = 1.0;       // below the cone, so cone-base is overhead
-      sp.renderOrder = 10;
+      sp.position.y = 1.1;       // below the cone, so cone-base is overhead
+      sp.renderOrder = 1000;     // render dead last so nothing else layers over
       arrow.add(sp);
-      arrow.renderOrder = 5;
+      arrow.renderOrder = 999;
       scene.add(arrow);
-      arrows.push({ mesh: arrow, baseY: 4.2, phase: (b.x + b.z) * 0.07 });
+      arrows.push({ mesh: arrow, baseY: 5.0, phase: (b.x + b.z) * 0.07 });
     }
   }
   function tick(){
