@@ -7244,18 +7244,19 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // label to show. Tank/military still need a heavy weapon; bibendum
   // is the boss. The damage handler picks rewards from this table.
   const KILL_INFO = {
-    // yOff = world-space Y above the NPC's base (feet at 0), tuned
-    // so the label chip sits ~30 cm above the head — 2 m humanoids
-    // read at 2.3-2.4 m, vehicles at ~2.8 m, boss types scaled up.
-    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:2.4 },
-    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:2.4 },
-    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:2.5 },
-    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:2.5 },
-    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:1.2 },
-    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:3.6 },
-    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:2.5 },
-    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:3.0 },
-    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:9.5 },
+    // yOff = world-space Y above the NPC's base (feet at 0). Gangs +
+    // peds use a 2.5 m tall billboard plane (head at ~2.5 m), so
+    // yOff must be > 2.5 m to clear the head. Everyone tuned to sit
+    // ~60-80 cm above their top so labels never overlap the body.
+    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:3.3 },
+    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:3.3 },
+    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:3.4 },
+    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:3.4 },
+    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:1.7 },
+    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:4.5 },
+    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:3.3 },
+    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:4.0 },
+    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:11.0 },
   };
   // What each weapon can damage. Soft targets fall to everything;
   // armored targets (tank/military/vehicle/bibendum) need explosives
