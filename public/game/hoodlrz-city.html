@@ -3704,16 +3704,51 @@ function buildInterior(b){
   if(b.floors>1){
     const ex=IC.x+hw-1.2, ez=IC.z-hd+3;
     interior.elevator=new THREE.Vector3(IC.x+hw-1.8,INTERIOR_Y,IC.z-hd+3);
+    // ---- shaft + two flanking pillars for a proper doorframe ----
     G.add(edges(mesh(2.4,roomH-0.4,2.2,inkMat(),ex,INTERIOR_Y+roomH/2,ez)));               // shaft
-    // two sliding door panels
-    G.add(edges(mesh(0.95,2.6,0.12,new THREE.MeshBasicMaterial({color:0x141414}),ex-0.5,INTERIOR_Y+1.3,ez+1.06)));
-    G.add(edges(mesh(0.95,2.6,0.12,new THREE.MeshBasicMaterial({color:0x141414}),ex+0.5,INTERIOR_Y+1.3,ez+1.06)));
-    G.add(edges(mesh(2.1,0.18,0.14,inkMat(),ex,INTERIOR_Y+2.75,ez+1.06)));                  // lintel
-    // floor indicator + call button
-    const ind=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.4),new THREE.MeshBasicMaterial({map:policeTextTex('▲ '+1),transparent:true}));
-    ind.position.set(ex,INTERIOR_Y+3.0,ez+1.12);G.add(ind);interior.elevInd=ind;
-    const call=new THREE.Mesh(new THREE.RingGeometry(.12,.2,12),gradMat.collect);call.position.set(ex+1.35,INTERIOR_Y+1.4,ez+1.0);G.add(call);
-    G.add(makeFloatingLabel('ELEVATOR · E to change floor','#2dffa6',new THREE.Vector3(ex,INTERIOR_Y+roomH-0.6,ez)));
+    // Corner pillars (white outline against black brick)
+    for(const sx of[-1,1]){
+      G.add(edges(mesh(0.15,2.9,0.15,new THREE.MeshBasicMaterial({color:0xffffff}),ex+sx*1.15,INTERIOR_Y+1.45,ez+1.06)));
+    }
+    // Two sliding door panels — brushed grey instead of pure black
+    G.add(edges(mesh(0.95,2.6,0.12,new THREE.MeshBasicMaterial({color:0x1e1e28}),ex-0.5,INTERIOR_Y+1.3,ez+1.06)));
+    G.add(edges(mesh(0.95,2.6,0.12,new THREE.MeshBasicMaterial({color:0x1e1e28}),ex+0.5,INTERIOR_Y+1.3,ez+1.06)));
+    G.add(edges(mesh(2.1,0.28,0.14,inkMat(),ex,INTERIOR_Y+2.75,ez+1.06)));                  // lintel
+    // LED strip under the lintel: acid-green glowing bar
+    G.add(mesh(1.9,0.06,0.02,new THREE.MeshBasicMaterial({color:0x2dffa6,transparent:true,opacity:.85}),ex,INTERIOR_Y+2.61,ez+1.14));
+    // Floor indicator (bigger + backlit)
+    const ind=new THREE.Mesh(new THREE.PlaneGeometry(1.2,0.55),new THREE.MeshBasicMaterial({map:policeTextTex('▲ '+1),transparent:true}));
+    ind.position.set(ex,INTERIOR_Y+3.05,ez+1.13);G.add(ind);interior.elevInd=ind;
+    // Backlit black plate behind the indicator
+    G.add(mesh(1.25,0.6,0.02,new THREE.MeshBasicMaterial({color:0x0a0a12}),ex,INTERIOR_Y+3.05,ez+1.12));
+    // Call button: a glowing ring with UP + DOWN triangles above/below
+    const call=new THREE.Mesh(new THREE.RingGeometry(.14,.24,16),gradMat.collect);
+    call.position.set(ex+1.35,INTERIOR_Y+1.4,ez+1.0);G.add(call);
+    const upTri=new THREE.Mesh(new THREE.CircleGeometry(0.08,3),new THREE.MeshBasicMaterial({color:0x2dffa6}));
+    upTri.rotation.z=Math.PI/2;
+    upTri.position.set(ex+1.35,INTERIOR_Y+1.63,ez+1.02);G.add(upTri);
+    const dnTri=new THREE.Mesh(new THREE.CircleGeometry(0.08,3),new THREE.MeshBasicMaterial({color:0x2dffa6}));
+    dnTri.rotation.z=-Math.PI/2;
+    dnTri.position.set(ex+1.35,INTERIOR_Y+1.17,ez+1.02);G.add(dnTri);
+    // BIG bouncing "ELEVATOR ▾" chip floating in front of the door
+    G.add(makeFloatingLabel('▲ ELEVATOR ▲ · press E','#2dffa6',new THREE.Vector3(ex,INTERIOR_Y+roomH-0.4,ez+0.4)));
+    // Green floor pad in front of the door so the player knows where
+    // to stand.
+    const pad=new THREE.Mesh(new THREE.RingGeometry(0.8,1.1,32),new THREE.MeshBasicMaterial({color:0x2dffa6,transparent:true,opacity:.35,depthWrite:false}));
+    pad.rotation.x=-Math.PI/2;pad.position.set(ex,INTERIOR_Y+0.03,ez+1.6);G.add(pad);
+    // Cone arrow pointing DOWN at the pad, same style as the outside
+    // ENTER arrows — same "walk here" language.
+    const arrowGeom=new THREE.ConeGeometry(0.35,0.8,4);
+    const arrowMat=new THREE.MeshBasicMaterial({color:0x2dffa6,transparent:true,opacity:.9,depthTest:false,depthWrite:false});
+    const arrow=new THREE.Mesh(arrowGeom,arrowMat);
+    arrow.rotation.x=Math.PI;arrow.position.set(ex,INTERIOR_Y+roomH-1.4,ez+1.6);
+    arrow.renderOrder=1000;
+    const eArr=new THREE.LineSegments(new THREE.EdgesGeometry(arrowGeom),new THREE.LineBasicMaterial({color:0xffffff,transparent:true,depthTest:false}));
+    arrow.add(eArr);
+    G.add(arrow);
+    // Bounce animation via an interior clock update — reuse the
+    // interior tick that already runs each frame via updateBuildingDetail.
+    interior.elevArrow = { mesh: arrow, baseY: arrow.position.y };
     addInteriorCollider(ex, 0, ez, 1.2, 1.1);
   }
   // Wallet terminal in front of the gallery (registered as a small collider
@@ -4292,6 +4327,13 @@ let frame=0;
 function animate(){requestAnimationFrame(animate);const dt=Math.min(clock.getDelta(),0.05),t=clock.elapsedTime;
   if(state.playing&&!state.panelOpen&&!state.paused&&!state.journalOpen&&!state.shopOpen&&!state.faqOpen&&!state.inJail&&!state.eaten){if(settings.touch||locked)updatePlayer(dt);else syncCamera();updateEntities(dt,t);if(!state.inside)updateBuildingDetail();updatePrompt();if((frame++&3)===0)drawMinimap();}
   else syncCamera();
+  // Bouncing elevator arrow inside buildings — same "walk here"
+  // language as the outside ENTER arrows.
+  if(state.inside && interior && interior.elevArrow){
+    const a=interior.elevArrow;
+    a.mesh.position.y = a.baseY + Math.sin(t * 2.2) * 0.25;
+    a.mesh.rotation.y += 0.03;
+  }
   renderer.render(scene,camera);}
 
 /* ===================================================================
@@ -7202,15 +7244,15 @@ window.addEventListener('unhandledrejection',(ev)=>{
   // label to show. Tank/military still need a heavy weapon; bibendum
   // is the boss. The damage handler picks rewards from this table.
   const KILL_INFO = {
-    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:5.0 },
-    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:5.0 },
-    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:5.2 },
-    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:5.2 },
-    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:2.4 },
-    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:5.8 },
-    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:5.0 },
-    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:5.8 },
-    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:11.0 },
+    gang:     { label:'ANY',     hp:8,   hood:5,    cash:40,  yOff:6.5 },
+    ped:      { label:'ANY',     hp:6,   hood:3,    cash:15,  yOff:6.5 },
+    cop:      { label:'ANY',     hp:12,  hood:10,   cash:80,  yOff:6.8 },
+    swat:     { label:'ANY',     hp:20,  hood:20,   cash:150, yOff:6.8 },
+    animal:   { label:'ANY',     hp:4,   hood:1,    cash:0,   yOff:3.2 },
+    tank:     { label:'BAZOOKA', hp:50,  hood:30,   cash:120, yOff:7.4 },
+    military: { label:'BAZOOKA', hp:12,  hood:5,    cash:30,  yOff:6.5 },
+    vehicle:  { label:'BAZOOKA', hp:40,  hood:50,   cash:200, yOff:7.4 },
+    bibendum: { label:'LASER',   hp:200, hood:1000, cash:500, yOff:13.0 },
   };
   // What each weapon can damage. Soft targets fall to everything;
   // armored targets (tank/military/vehicle/bibendum) need explosives
@@ -7767,11 +7809,10 @@ window.addEventListener('unhandledrejection',(ev)=>{
       if (b.vault) continue;
       const arrow = new THREE.Mesh(geom, mat);
       arrow.rotation.x = Math.PI;             // tip pointing DOWN at the door
-      // Push the arrow ~2.5 m OUT from the building's front face
-      // (was +0.6). That way the chip sprite (3.3 m wide) never sits
-      // half-inside the neighbouring wall, and its whole width stays
-      // in open air even from oblique camera angles.
-      arrow.position.set(b.doorPos.x, 5.0, b.doorPos.z + 2.5);
+      // 1 m out from the front face — depthTest:false on the chip
+      // keeps it readable regardless of neighbouring geometry, so we
+      // don't need to push it far into the street.
+      arrow.position.set(b.doorPos.x, 4.5, b.doorPos.z + 1.0);
       arrow.add(new THREE.LineSegments(edgeGeom, edgeMat));
       // Per-building chip: "ENTER · {place name}" floats just below the cone.
       // depthTest:false so a wall corner standing between the camera
@@ -7790,7 +7831,7 @@ window.addEventListener('unhandledrejection',(ev)=>{
       arrow.add(sp);
       arrow.renderOrder = 999;
       scene.add(arrow);
-      arrows.push({ mesh: arrow, baseY: 5.0, phase: (b.x + b.z) * 0.07 });
+      arrows.push({ mesh: arrow, baseY: 4.5, phase: (b.x + b.z) * 0.07 });
     }
   }
   function tick(){
@@ -8033,6 +8074,497 @@ window.addEventListener('unhandledrejection',(ev)=>{
     wired = true;
     init();
   }, 300);
+})();
+</script>
+
+<!-- ============================================================
+     Patch: weather + boss enemies
+     - Weather rotates through clear/rain/snow/lightning every ~90 s.
+       Rain and snow are single THREE.Points systems (≤600 particles,
+       CPU animation, one geometry upload/frame). Lightning is a
+       scene-background flash + audio boom, no per-frame cost.
+       Tornado is one moving mesh with a spinning stripe texture.
+     - Bosses: giant robot (Gundam-style), Godzilla, giant spider.
+       Only one active at a time. Spawns every 3-5 minutes if the
+       arena is clear. Only Bazooka + Laser damage them; each drops
+       a big pile of Hoodz on death.
+============================================================ -->
+<script>
+(function(){
+  // Wait until the game world exists (scene, buildings, player).
+  function ready(){
+    return typeof scene !== 'undefined'
+        && typeof state !== 'undefined'
+        && typeof player !== 'undefined' && player.pos
+        && typeof buildings !== 'undefined';
+  }
+  let wired = false;
+  const bootTimer = setInterval(function(){
+    if (wired) return;
+    if (!ready()) return;
+    wired = true;
+    clearInterval(bootTimer);
+    initWeather();
+    initBosses();
+  }, 400);
+
+  /* ============================================================
+     WEATHER
+  ============================================================ */
+  let weatherState = 'clear';
+  let weatherStarted = 0;
+  let rainPts = null, snowPts = null, tornadoMesh = null;
+  let lightningTimer = 0, lightningFlash = 0;
+  const CITY_HALF = 120;   // rough radius for weather bounds
+  const MOBILE = !!window.isMobile;
+
+  function makeRain(){
+    const n = MOBILE ? 300 : 600;
+    const pos = new Float32Array(n * 3);
+    const vel = new Float32Array(n);
+    for (let i = 0; i < n; i++){
+      pos[i*3]   = (Math.random() * 2 - 1) * CITY_HALF;
+      pos[i*3+1] = Math.random() * 60 + 10;
+      pos[i*3+2] = (Math.random() * 2 - 1) * CITY_HALF;
+      vel[i] = 40 + Math.random() * 25;   // m/s downward
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({
+      color: 0xa9c5ff, size: 0.35, transparent: true, opacity: 0.55,
+      depthWrite: false,
+    });
+    const p = new THREE.Points(g, m);
+    p.userData = { vel: vel, kind: 'rain' };
+    return p;
+  }
+  function makeSnow(){
+    const n = MOBILE ? 250 : 500;
+    const pos = new Float32Array(n * 3);
+    const vel = new Float32Array(n);
+    const drift = new Float32Array(n);
+    for (let i = 0; i < n; i++){
+      pos[i*3]   = (Math.random() * 2 - 1) * CITY_HALF;
+      pos[i*3+1] = Math.random() * 60 + 10;
+      pos[i*3+2] = (Math.random() * 2 - 1) * CITY_HALF;
+      vel[i] = 1.5 + Math.random() * 2.0;
+      drift[i] = Math.random() * 6.28;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({
+      color: 0xffffff, size: 0.65, transparent: true, opacity: 0.9,
+      depthWrite: false,
+    });
+    const p = new THREE.Points(g, m);
+    p.userData = { vel: vel, drift: drift, kind: 'snow' };
+    return p;
+  }
+  function makeTornado(){
+    // Single tall cone + spinning stripe texture look via low segments
+    const geom = new THREE.ConeGeometry(6, 40, 12, 6, true);
+    const cv = document.createElement('canvas');
+    cv.width = 128; cv.height = 128;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#1a1a24'; ctx.fillRect(0, 0, 128, 128);
+    for (let y = 0; y < 128; y += 4){
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.1 + Math.random() * 0.3) + ')';
+      ctx.fillRect(0, y, 128, 1 + Math.random() * 2);
+    }
+    const tex = new THREE.CanvasTexture(cv);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(2, 4);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, opacity: 0.75, side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const m = new THREE.Mesh(geom, mat);
+    m.userData = {
+      x: (Math.random() * 2 - 1) * CITY_HALF, z: -CITY_HALF - 10,
+      dx: (Math.random() * 2 - 1) * 0.4, dz: 0.6,   // moves +z across
+      life: 40, kind: 'tornado', tex: tex,
+    };
+    m.position.set(m.userData.x, 18, m.userData.z);
+    return m;
+  }
+
+  function setWeather(kind){
+    if (weatherState === kind) return;
+    // Clear whatever's active
+    if (rainPts) { scene.remove(rainPts); rainPts.geometry.dispose(); rainPts.material.dispose(); rainPts = null; }
+    if (snowPts) { scene.remove(snowPts); snowPts.geometry.dispose(); snowPts.material.dispose(); snowPts = null; }
+    if (tornadoMesh) { scene.remove(tornadoMesh); tornadoMesh.geometry.dispose(); tornadoMesh.material.dispose(); tornadoMesh = null; }
+    weatherState = kind;
+    weatherStarted = performance.now();
+    if (kind === 'rain'){
+      rainPts = makeRain(); scene.add(rainPts);
+      try { if (typeof toast === 'function') toast('🌧  Rain rolls in', 'warn'); } catch(_){}
+    } else if (kind === 'snow'){
+      snowPts = makeSnow(); scene.add(snowPts);
+      try { if (typeof toast === 'function') toast('❄  Snow starts falling', 'warn'); } catch(_){}
+    } else if (kind === 'lightning'){
+      // Lightning is a burst effect, not a persistent particle system.
+      // Also spawn rain in the background so it feels like a storm.
+      rainPts = makeRain(); scene.add(rainPts);
+      lightningTimer = 0.5;
+      try { if (typeof toast === 'function') toast('⚡  Thunderstorm', 'warn'); } catch(_){}
+    } else if (kind === 'tornado'){
+      tornadoMesh = makeTornado(); scene.add(tornadoMesh);
+      try { if (typeof toast === 'function') toast('🌪  Tornado sighted', 'warn'); } catch(_){}
+    }
+  }
+
+  function pickWeather(){
+    // Weighted random: clear favored so the city usually plays out
+    // "normally". Tornado is rare.
+    const r = Math.random();
+    if (r < 0.45) return 'clear';
+    if (r < 0.65) return 'rain';
+    if (r < 0.78) return 'snow';
+    if (r < 0.92) return 'lightning';
+    return 'tornado';
+  }
+
+  function updateWeather(dt){
+    const t = performance.now();
+    // Rotate weather every 75-150 s.
+    if (t - weatherStarted > (75000 + Math.random() * 75000)){
+      setWeather(pickWeather());
+    }
+    // Rain particles
+    if (rainPts){
+      const pos = rainPts.geometry.attributes.position.array;
+      const vel = rainPts.userData.vel;
+      for (let i = 0; i < vel.length; i++){
+        pos[i*3+1] -= vel[i] * dt;
+        if (pos[i*3+1] < 0){
+          pos[i*3+1] = 60;
+          pos[i*3]   = player.pos.x + (Math.random() * 2 - 1) * CITY_HALF;
+          pos[i*3+2] = player.pos.z + (Math.random() * 2 - 1) * CITY_HALF;
+        }
+      }
+      rainPts.geometry.attributes.position.needsUpdate = true;
+    }
+    // Snow particles
+    if (snowPts){
+      const pos = snowPts.geometry.attributes.position.array;
+      const vel = snowPts.userData.vel;
+      const drift = snowPts.userData.drift;
+      for (let i = 0; i < vel.length; i++){
+        pos[i*3+1] -= vel[i] * dt;
+        drift[i] += dt * 1.4;
+        pos[i*3] += Math.sin(drift[i]) * 0.25 * dt;
+        if (pos[i*3+1] < 0){
+          pos[i*3+1] = 60;
+          pos[i*3]   = player.pos.x + (Math.random() * 2 - 1) * CITY_HALF;
+          pos[i*3+2] = player.pos.z + (Math.random() * 2 - 1) * CITY_HALF;
+        }
+      }
+      snowPts.geometry.attributes.position.needsUpdate = true;
+    }
+    // Lightning flashes during lightning weather
+    if (weatherState === 'lightning'){
+      lightningTimer -= dt;
+      if (lightningTimer <= 0){
+        lightningFlash = 0.3;      // 300 ms flash
+        lightningTimer = 4 + Math.random() * 8;
+        try { if (typeof sfx !== 'undefined' && sfx && sfx.tone) sfx.tone(60, 0.35, 'sine', 0.5, 200); } catch(_){}
+      }
+    }
+    if (lightningFlash > 0){
+      lightningFlash -= dt;
+      const f = Math.max(0, lightningFlash / 0.3);
+      if (scene.background){
+        try {
+          const c = new THREE.Color();
+          c.setRGB(f * 0.8, f * 0.9, f * 1.0);
+          scene.background = c;
+        } catch(_){}
+      }
+    } else if (scene.background && scene.background.getHex && scene.background.getHex() !== 0) {
+      // Reset to black once flash ends
+      try { scene.background = new THREE.Color(0x000000); } catch(_){}
+    }
+    // Tornado motion
+    if (tornadoMesh){
+      const u = tornadoMesh.userData;
+      u.x += u.dx * dt * 4;
+      u.z += u.dz * dt * 4;
+      tornadoMesh.position.set(u.x, 18, u.z);
+      tornadoMesh.rotation.y += dt * 2.4;
+      if (u.tex) u.tex.offset.y -= dt * 1.2;
+      u.life -= dt;
+      // Bounce off the edges
+      if (Math.abs(u.x) > CITY_HALF) u.dx *= -1;
+      if (u.z > CITY_HALF || u.life <= 0){
+        setWeather('clear');
+      }
+    }
+  }
+
+  function initWeather(){
+    weatherStarted = performance.now();
+    // First transition in 40-90 s so the player has clear skies to
+    // start with.
+    weatherStarted -= (75000 - 40000 - Math.random() * 50000);
+    // Hook into animate via a lightweight RAF loop.
+    let last = performance.now();
+    function tick(){
+      requestAnimationFrame(tick);
+      if (!state.playing) return;
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - last) * 0.001);
+      last = now;
+      updateWeather(dt);
+    }
+    tick();
+  }
+
+  /* ============================================================
+     BOSSES: Gundam / Godzilla / Spider
+     One at a time; only Bazooka / Laser damage them; huge Hoodz drop.
+  ============================================================ */
+  let activeBoss = null;
+  let bossSpawnAt = 0;
+
+  function makeGundam(){
+    const g = new THREE.Group();
+    const ink = new THREE.MeshBasicMaterial({ color: 0x141420 });
+    const white = 0xffffff;
+    function box(w,h,d,x,y,z){
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), ink);
+      m.position.set(x,y,z);
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: white }));
+      m.add(e);
+      g.add(m);
+      return m;
+    }
+    box(3.0, 3.0, 2.0, 0, 8.0, 0);        // torso
+    box(1.6, 1.2, 1.4, 0, 10.4, 0);       // head
+    // eye slit
+    const eye = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.15), new THREE.MeshBasicMaterial({ color: 0xff2db5 }));
+    eye.position.set(0, 10.4, 0.72); g.add(eye);
+    box(1.0, 3.0, 1.0, -2.2, 8.0, 0);     // L arm
+    box(1.0, 3.0, 1.0,  2.2, 8.0, 0);     // R arm
+    box(1.2, 4.5, 1.2, -0.9, 3.8, 0);     // L leg
+    box(1.2, 4.5, 1.2,  0.9, 3.8, 0);     // R leg
+    box(1.4, 0.6, 0.7, -0.9, 1.4, 0);     // L foot
+    box(1.4, 0.6, 0.7,  0.9, 1.4, 0);     // R foot
+    return g;
+  }
+  function makeGodzilla(){
+    const g = new THREE.Group();
+    const ink = new THREE.MeshBasicMaterial({ color: 0x0d1a0d });
+    const white = 0xffffff;
+    function seg(w,h,d,x,y,z){
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d), ink);
+      m.position.set(x,y,z);
+      m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: white })));
+      g.add(m); return m;
+    }
+    seg(3.5, 4.0, 3.0, 0, 7.0, 0);         // body
+    seg(2.2, 1.8, 2.4, 0, 10.5, 1.6);      // head/muzzle
+    // dorsal spikes
+    for (let i = 0; i < 5; i++){
+      const s = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.2, 4), ink);
+      s.position.set(0, 9.2, -1.8 + i * 0.9);
+      g.add(s);
+    }
+    seg(1.4, 4.0, 1.4, -1.5, 3.0, 0);      // L leg
+    seg(1.4, 4.0, 1.4,  1.5, 3.0, 0);      // R leg
+    // tail
+    for (let i = 0; i < 4; i++){
+      const t = new THREE.Mesh(new THREE.BoxGeometry(1.8 - i * 0.35, 1.2 - i * 0.2, 1.6 - i * 0.3), ink);
+      t.position.set(0, 6.4 - i * 0.3, -2.0 - i * 1.6);
+      g.add(t);
+    }
+    // glowing eyes
+    for (const sx of [-0.6, 0.6]){
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffd84d }));
+      e.position.set(sx, 10.9, 2.6); g.add(e);
+    }
+    return g;
+  }
+  function makeSpider(){
+    const g = new THREE.Group();
+    const ink = new THREE.MeshBasicMaterial({ color: 0x0f0f18 });
+    const white = 0xffffff;
+    // abdomen (big sphere)
+    const abd = new THREE.Mesh(new THREE.SphereGeometry(2.6, 12, 10), ink);
+    abd.position.set(0, 3.5, 0);
+    abd.add(new THREE.LineSegments(new THREE.EdgesGeometry(abd.geometry), new THREE.LineBasicMaterial({ color: white })));
+    g.add(abd);
+    // cephalothorax
+    const head = new THREE.Mesh(new THREE.SphereGeometry(1.5, 10, 8), ink);
+    head.position.set(0, 3.5, 3.0);
+    head.add(new THREE.LineSegments(new THREE.EdgesGeometry(head.geometry), new THREE.LineBasicMaterial({ color: white })));
+    g.add(head);
+    // eyes
+    for (const sx of [-0.5, 0.5]){
+      const e = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff2db5 }));
+      e.position.set(sx, 4.2, 4.2); g.add(e);
+    }
+    // 8 legs (four each side, cardinal split)
+    for (let i = 0; i < 4; i++){
+      const ang = (i - 1.5) * 0.4;
+      for (const sx of [-1, 1]){
+        const dir = new THREE.Vector3(sx * Math.cos(ang), -0.4, Math.sin(ang)).normalize();
+        // upper segment
+        const l1 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 3.0, 6), ink);
+        l1.position.set(sx * 1.4, 4.5, i * 0.6 - 1);
+        l1.lookAt(l1.position.clone().add(dir.clone().multiplyScalar(3)));
+        l1.rotateX(Math.PI / 2);
+        g.add(l1);
+        // foot
+        const foot = new THREE.Mesh(new THREE.SphereGeometry(0.22, 6, 6), ink);
+        foot.position.copy(l1.position.clone().add(dir.clone().multiplyScalar(2.5)));
+        foot.position.y = 0.2;
+        g.add(foot);
+      }
+    }
+    return g;
+  }
+
+  const BOSSES = [
+    { name: 'GUNDAM',   make: makeGundam,   hp: 500, hood: 500, cash: 800, y: 0,   label: 'GIANT ROBOT' },
+    { name: 'GODZILLA', make: makeGodzilla, hp: 600, hood: 700, cash:1000, y: 0,   label: 'GODZILLA'    },
+    { name: 'SPIDER',   make: makeSpider,   hp: 400, hood: 400, cash: 600, y: 0.5, label: 'GIANT SPIDER'},
+  ];
+
+  function spawnBoss(){
+    if (activeBoss) return;
+    const def = BOSSES[Math.floor(Math.random() * BOSSES.length)];
+    const boss = def.make();
+    // Pick a random spot near an edge of the city, non-blocking.
+    let x, z, tr = 0;
+    do {
+      const ang = Math.random() * Math.PI * 2;
+      const R = 60 + Math.random() * 30;
+      x = Math.cos(ang) * R;
+      z = Math.sin(ang) * R;
+      tr++;
+    } while (typeof blockedAt === 'function' && blockedAt(x, z) && tr < 20);
+    boss.position.set(x, def.y, z);
+    boss.userData = {
+      def: def, hp: def.hp, maxHp: def.hp,
+      heading: Math.random() * 6.28, turnT: 3, walkPhase: 0, cd: 0, down: false, isBoss: true,
+      type: 'boss',
+    };
+    scene.add(boss);
+    // Big HP label above the boss.
+    try {
+      if (typeof makeLabel === 'function'){
+        const lbl = makeLabel(def.label + ' · ' + def.hp + ' HP', '#ff2db5', 4);
+        lbl.position.y = 14;
+        boss.add(lbl);
+        boss.userData.label = lbl;
+      }
+    } catch(_){}
+    activeBoss = boss;
+    try { if (typeof toast === 'function') toast('🚨  ' + def.label + ' inbound — use BAZOOKA or LASER', 'gold'); } catch(_){}
+  }
+
+  function damageBoss(dmg){
+    if (!activeBoss || activeBoss.userData.down) return;
+    const u = activeBoss.userData;
+    u.hp -= dmg;
+    u.hitT = 0.2;
+    try { if (typeof hitMarker === 'function') hitMarker(); } catch(_){}
+    try { if (typeof spawnBurst === 'function') spawnBurst(activeBoss.position.clone().add(new THREE.Vector3(0, 6, 0)), 0xff2db5, 20); } catch(_){}
+    // Update HP label
+    if (u.label && u.label.parent){
+      try {
+        activeBoss.remove(u.label);
+        u.label = (typeof makeLabel === 'function') ? makeLabel(u.def.label + ' · ' + Math.max(0, u.hp) + ' HP', '#ff2db5', 4) : null;
+        if (u.label){ u.label.position.y = 14; activeBoss.add(u.label); }
+      } catch(_){}
+    }
+    if (u.hp <= 0){
+      u.down = true;
+      try { spawnBurst(activeBoss.position.clone().add(new THREE.Vector3(0, 4, 0)), 0xff5b6e, 90); } catch(_){}
+      try { spawnBurst(activeBoss.position.clone().add(new THREE.Vector3(0, 4, 0)), 0xffd84d, 60); } catch(_){}
+      try { if (typeof addCash === 'function') addCash(u.def.cash); } catch(_){}
+      // Drop the boss reward as Hoodz capsules around the corpse.
+      const drops = Math.min(u.def.hood, 40);
+      for (let k = 0; k < drops; k++){
+        try { spawnHoodz(activeBoss.position.x + (Math.random() * 2 - 1) * 6, activeBoss.position.z + (Math.random() * 2 - 1) * 6); } catch(_){}
+      }
+      try { if (typeof toast === 'function') toast('★ ' + u.def.label + ' DOWN · +' + u.def.cash + ' $HOOD · +' + u.def.hood + ' Hoodz', 'gold'); } catch(_){}
+      // Remove after a beat so the death burst reads
+      setTimeout(function(){
+        try { scene.remove(activeBoss); } catch(_){}
+        activeBoss = null;
+        // Schedule the next one
+        bossSpawnAt = performance.now() + 120000 + Math.random() * 120000;
+      }, 800);
+    }
+  }
+
+  // Bosses walk toward the player when close, otherwise wander.
+  function updateBoss(dt){
+    if (!activeBoss || activeBoss.userData.down) return;
+    const b = activeBoss, u = b.userData, def = u.def;
+    const to = player.pos.clone().sub(b.position); to.y = 0;
+    const d = to.length();
+    if (d < 60){
+      to.normalize();
+      b.position.addScaledVector(to, 2.4 * dt);
+      b.rotation.y = Math.atan2(to.x, to.z);
+    } else {
+      u.turnT -= dt;
+      if (u.turnT <= 0){ u.heading += (Math.random() - 0.5) * 1.4; u.turnT = 3 + Math.random() * 3; }
+      const nx = b.position.x + Math.sin(u.heading) * 1.6 * dt;
+      const nz = b.position.z + Math.cos(u.heading) * 1.6 * dt;
+      if (typeof blockedAt === 'function' && !blockedAt(nx, nz)){ b.position.x = nx; b.position.z = nz; }
+      else u.heading += 2.4;
+      b.rotation.y = u.heading;
+    }
+    // Bob for walking animation
+    u.walkPhase += dt * 4;
+    b.position.y = def.y + Math.abs(Math.sin(u.walkPhase)) * 0.2;
+    // If touching player, deal contact damage
+    if (d < 4){
+      if (u.cd <= 0){ try { if (typeof damage === 'function') damage(18); } catch(_){} u.cd = 1.2; }
+    }
+    if (u.cd > 0) u.cd -= dt;
+  }
+
+  // Hook Bazooka + Laser damage into the boss. Both weapons already
+  // have their own fire flows in the war patch; we listen for the
+  // projectile hits by checking spawned projectiles each frame.
+  function scanProjectiles(){
+    if (!activeBoss || activeBoss.userData.down) return;
+    if (typeof projectiles === 'undefined') return;
+    for (let i = projectiles.length - 1; i >= 0; i--){
+      const p = projectiles[i]; if (!p) continue;
+      const m = p.mesh; if (!m) continue;
+      // Only heavy weapons damage the boss.
+      if (!p.isBazooka && !p.isLaser) continue;
+      const to = activeBoss.position.clone().add(new THREE.Vector3(0, 5, 0));
+      if (m.position.distanceTo(to) < 6){
+        damageBoss(p.isBazooka ? 90 : 30);
+        try { scene.remove(m); } catch(_){}
+        projectiles.splice(i, 1);
+      }
+    }
+  }
+
+  function initBosses(){
+    // First boss ~3-5 min in.
+    bossSpawnAt = performance.now() + 180000 + Math.random() * 120000;
+    let last = performance.now();
+    function tick(){
+      requestAnimationFrame(tick);
+      if (!state.playing) return;
+      const now = performance.now();
+      const dt = Math.min(0.05, (now - last) * 0.001);
+      last = now;
+      if (!activeBoss && now >= bossSpawnAt) spawnBoss();
+      updateBoss(dt);
+      scanProjectiles();
+    }
+    tick();
+  }
 })();
 </script>
 </body>
