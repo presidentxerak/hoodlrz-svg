@@ -40,6 +40,11 @@ export async function createChain() {
   });
 
   return {
+    /** EVM et contexte de bloc, exposes pour que le shim JSON-RPC puisse
+     *  presenter cette chaine a un client ethers (voir rpc-shim.mjs). */
+    evm,
+    blockCtx,
+
     get now() { return timestamp; },
     /** Avance l'horloge de la chaine. */
     warpTo(t) { timestamp = BigInt(t); },
