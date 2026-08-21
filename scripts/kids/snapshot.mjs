@@ -166,6 +166,15 @@ writeFileSync(`${OUTDIR}/holders.json`, JSON.stringify({ ...meta, holders: clean
 writeFileSync(`${OUTDIR}/proofs.json`, JSON.stringify({ merkleRoot: tree.root, proofs }, null, 2));
 writeFileSync(`${OUTDIR}/meta.json`, JSON.stringify(meta, null, 2));
 
+/* Publication. L'allowlist est servie en statique par le site : la page de
+ * mint y lit la preuve du wallet connecte, et n'importe qui peut
+ * telecharger la liste complete pour recalculer la racine. Une allowlist
+ * qu'on ne peut pas verifier ne vaut rien pour ceux qui n'en font pas
+ * partie. */
+mkdirSync('public/kids', { recursive: true });
+writeFileSync('public/kids/allowlist.json', JSON.stringify({ ...meta, proofs }));
+writeFileSync('public/kids/holders.json', JSON.stringify({ ...meta, holders: clean }, null, 2));
+
 // Report dans la config, pour que la racine vive au meme endroit que le
 // reste. Les essais (--file, --dry) n'y touchent pas : une racine de
 // fixture qui traine dans la config est exactement le genre de detail qui

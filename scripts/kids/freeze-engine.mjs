@@ -32,7 +32,7 @@
  * Usage : node scripts/kids/freeze-engine.mjs
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 const SRC = 'kids/engine/source.html';
@@ -237,6 +237,13 @@ const manifest = {
   pre: preChunks.map((c) => c.length),
   post: postChunks.map((c) => c.length),
 };
+
+/* Copie servie par le site pour l'apercu de la page de mint. C'est le
+ * MEME fichier que celui stocke on-chain : le visiteur voit ce qu'il
+ * recevra, pas une maquette. Le marqueur reste en place - l'hote sait
+ * le reconnaitre comme non substitue et retombe sur ?hash=. */
+mkdirSync('public/kids', { recursive: true });
+writeFileSync('public/kids/engine.html', buf);
 
 writeFileSync('kids/build/engine-pre.json', JSON.stringify(preChunks.map(toHex)));
 writeFileSync('kids/build/engine-post.json', JSON.stringify(postChunks.map(toHex)));
