@@ -23,7 +23,8 @@
     "kids:snapshot": "node scripts/kids/snapshot.mjs",
     "kids:verify-chain": "node scripts/kids/verify-onchain.mjs",
     "kids:verifier": "node test/kids/verify-onchain.test.mjs",
-    "kids:addresses": "node scripts/kids/set-addresses.mjs"
+    "kids:addresses": "node scripts/kids/set-addresses.mjs",
+    "kids:doctor": "node scripts/kids/doctor.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",

@@ -1,0 +1,170 @@
+/**
+ * Diagnostic de l'installation Hoodlrz Kids.
+ *
+ * Repond a une seule question : "ou j'en suis, et qu'est-ce que je fais
+ * maintenant ?" Chaque controle qui echoue affiche la commande exacte
+ * qui le corrige.
+ *
+ * Ne modifie rien et n'affiche JAMAIS de secret : la cle privee est
+ * seulement signalee presente ou absente, jamais sa valeur.
+ *
+ * Usage : npm run kids:doctor
+ */
+
+import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { execSync } from 'node:child_process';
+
+const C = {
+  ok: '\x1b[32m', bad: '\x1b[31m', warn: '\x1b[33m',
+  dim: '\x1b[2m', bold: '\x1b[1m', off: '\x1b[0m',
+};
+const steps = [];
+const add = (n, label, state, detail, fix) => steps.push({ n, label, state, detail, fix });
+
+const sh = (cmd) => {
+  try { return execSync(cmd, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); }
+  catch { return null; }
+};
+
+/* 1 ── Bon dossier ------------------------------------------------- */
+let inProject = false;
+try {
+  const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+  inProject = pkg.name === 'hoodlrz-app';
+  add(1, 'Dossier du projet', inProject ? 'ok' : 'bad',
+      inProject ? process.cwd() : `package.json trouve mais ce n'est pas hoodlrz-app (${pkg.name})`,
+      inProject ? null : 'cd vers le dossier hoodlrz-svg');
+} catch {
+  add(1, 'Dossier du projet', 'bad', 'aucun package.json ici : ' + process.cwd(),
+      'cd vers le dossier hoodlrz-svg');
+}
+
+if (!inProject) { render(); process.exit(1); }
+
+/* 2 ── Node -------------------------------------------------------- */
+{
+  const major = Number(process.version.slice(1).split('.')[0]);
+  add(2, 'Node.js', major >= 20 ? 'ok' : 'bad', process.version,
+      major >= 20 ? null : 'installer Node 20 ou plus recent');
+}
+
+/* 3 ── Dependances ------------------------------------------------- */
+{
+  const has = existsSync('node_modules') && existsSync('node_modules/ethers');
+  add(3, 'Dependances installees', has ? 'ok' : 'bad',
+      has ? 'node_modules present' : 'node_modules absent ou incomplet',
+      has ? null : 'npm install');
+}
+
+/* 4 ── Branche git ------------------------------------------------- */
+{
+  const branch = sh('git branch --show-current');
+  const expected = 'claude/update-pfp-collection-details-7hvhM';
+  const behind = sh(`git rev-list --count HEAD..origin/${branch} 2>/dev/null`);
+  const good = branch === expected;
+  add(4, 'Branche git', good ? (behind && behind !== '0' ? 'warn' : 'ok') : 'warn',
+      good
+        ? (behind && behind !== '0' ? `${branch} (${behind} commit(s) de retard)` : branch)
+        : `${branch ?? 'inconnue'} au lieu de ${expected}`,
+      good
+        ? (behind && behind !== '0' ? 'git pull' : null)
+        : `git checkout ${expected} && git pull`);
+}
+
+/* 5 ── Moteur gele ------------------------------------------------- */
+{
+  const p = 'kids/engine/frozen.html';
+  if (!existsSync(p)) {
+    add(5, 'Moteur gele', 'bad', 'absent', 'npm run kids:freeze');
+  } else {
+    const sha = createHash('sha256').update(readFileSync(p)).digest('hex');
+    const declared = existsSync('kids/build/engine.sha256')
+      ? readFileSync('kids/build/engine.sha256', 'utf8').split(' ')[0] : null;
+    const match = declared === sha;
+    add(5, 'Moteur gele', match ? 'ok' : 'bad',
+        match ? `${sha.slice(0, 16)}… · ${(readFileSync(p).length / 1024).toFixed(1)} Ko`
+              : 'empreinte differente de celle enregistree',
+        match ? null : 'npm run kids:freeze');
+  }
+}
+
+/* 6 ── Adresses ---------------------------------------------------- */
+let addressesOk = false;
+{
+  const cfg = JSON.parse(readFileSync('kids/config.json', 'utf8'));
+  const roles = ['deployer', 'reserveReceiver', 'royaltyReceiver'];
+  const filled = roles.filter((r) => /^0x[0-9a-fA-F]{40}$/.test(cfg.addresses?.[r] ?? ''));
+  addressesOk = filled.length === roles.length;
+  add(6, 'Adresses de deploiement', addressesOk ? 'ok' : 'bad',
+      addressesOk
+        ? cfg.addresses.deployer
+        : `${filled.length}/3 renseignees — manque ${roles.filter((r) => !filled.includes(r)).join(', ')}`,
+      addressesOk ? null : 'npm run kids:addresses -- 0xTonAdresse');
+}
+
+/* 7 ── Cle privee -------------------------------------------------- */
+{
+  // On ne lit QUE la presence de la ligne. La valeur n'est jamais
+  // affichee, jamais journalisee.
+  if (!existsSync('.env.local')) {
+    add(7, 'Cle du deployeur', 'bad', '.env.local absent',
+        'cp .env.local.example .env.local  puis renseigner DEPLOYER_PRIVATE_KEY');
+  } else {
+    const env = readFileSync('.env.local', 'utf8');
+    const m = env.match(/^DEPLOYER_PRIVATE_KEY\s*=\s*(.*)$/m);
+    const v = (m?.[1] ?? '').trim();
+    const isPlaceholder = !v || v.includes('...') || /^0x0+$/.test(v);
+    const looksValid = /^0x[0-9a-fA-F]{64}$/.test(v);
+    add(7, 'Cle du deployeur', looksValid ? 'ok' : 'bad',
+        looksValid ? 'presente et bien formee (valeur non affichee)'
+          : isPlaceholder ? 'ligne encore a l exemple'
+          : `format inattendu : ${v.length} caracteres au lieu de 66`,
+        looksValid ? null : 'renseigner DEPLOYER_PRIVATE_KEY dans .env.local');
+  }
+}
+
+/* 8 ── .env.local bien ignore par git ------------------------------ */
+{
+  const tracked = sh('git ls-files .env.local');
+  const safe = !tracked;
+  add(8, 'Cle protegee de git', safe ? 'ok' : 'bad',
+      safe ? '.env.local non suivi par git'
+           : 'ATTENTION : .env.local est suivi par git',
+      safe ? null : 'git rm --cached .env.local  puis changer la cle : elle est compromise');
+}
+
+/* 9 ── Chaine ------------------------------------------------------ */
+{
+  const env = existsSync('.env.local') ? readFileSync('.env.local', 'utf8') : '';
+  const rpc = env.match(/^RH_TESTNET_RPC\s*=\s*(\S+)$/m)?.[1] ?? '';
+  add(9, 'RPC Robinhood Chain', rpc ? 'warn' : 'warn',
+      rpc ? `${rpc} — a confirmer sur docs.robinhood.com/chain` : 'non renseigne',
+      'confirmer chain ID, RPC et limite de bytecode avant tout deploiement');
+}
+
+render();
+
+const blocking = steps.filter((s) => s.state === 'bad');
+process.exit(blocking.length ? 1 : 0);
+
+/* ------------------------------------------------------------------ */
+function render() {
+  const icon = { ok: `${C.ok}OK  ${C.off}`, bad: `${C.bad}A FAIRE${C.off}`, warn: `${C.warn}NOTE${C.off}` };
+  console.log(`\n${C.bold}Diagnostic Hoodlrz Kids${C.off}\n`);
+  for (const s of steps) {
+    const pad = s.state === 'ok' ? '    ' : s.state === 'warn' ? '  ' : '';
+    console.log(`  ${icon[s.state]}${pad} ${s.n}. ${s.label}`);
+    if (s.detail) console.log(`           ${C.dim}${s.detail}${C.off}`);
+    if (s.fix) console.log(`           ${C.bold}->${C.off} ${s.fix}`);
+  }
+
+  const bad = steps.filter((s) => s.state === 'bad');
+  console.log('');
+  if (!bad.length) {
+    console.log(`  ${C.ok}Tout est en place.${C.off} Prochaine etape : npm run kids:test\n`);
+  } else {
+    console.log(`  ${bad.length} point(s) a regler. Commence par le premier :\n`);
+    console.log(`    ${C.bold}${bad[0].fix}${C.off}\n`);
+  }
+}
