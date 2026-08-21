@@ -3,3 +3,7 @@
 # constituent la reference de ce qui part on-chain.
 build/*.png
 build/reference/
+# Snapshot : les preuves et la liste sont publiees a part le jour J,
+# pas versionnees pendant le developpement.
+build/snapshot/
+build/holders-raw.json

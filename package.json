@@ -17,7 +17,10 @@
     "kids:verify": "node scripts/kids/verify-frozen.mjs",
     "kids:parity": "node test/kids/parity.test.mjs 8888",
     "kids:e2e": "node test/kids/e2e.test.mjs",
-    "kids:test": "npm run kids:verify && npm run kids:parity && npm run kids:e2e"
+    "kids:test": "npm run kids:verify && npm run kids:merkle && npm run kids:parity && npm run kids:e2e",
+    "kids:merkle": "node test/kids/merkle.test.mjs",
+    "kids:phases": "node scripts/kids/phases.mjs",
+    "kids:snapshot": "node scripts/kids/snapshot.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",

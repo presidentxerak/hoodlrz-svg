@@ -1,0 +1,48 @@
+{
+  "_lisezMoi": [
+    "Parametres de la collection Hoodlrz Kids.",
+    "",
+    "Ce fichier est VERSIONNE et PUBLIC. Il ne contient que des adresses",
+    "publiques et des dates. Aucune cle privee ne doit y figurer : elles",
+    "vivent dans .env.local, qui est ignore par git.",
+    "",
+    "Les dates sont en UTC. Le contrat compare a block.timestamp, qui est",
+    "en UTC : ecrire une heure de Paris ici decalerait le mint de 2 h."
+  ],
+  "collection": {
+    "name": "Hoodlrz Kids",
+    "symbol": "KIDS",
+    "maxSupply": 8888,
+    "reserve": 300,
+    "maxPerWallet": 10,
+    "royaltyBps": 500
+  },
+  "phases": {
+    "_note": "11 septembre 2026, heures de Paris (CEST, UTC+2) converties en UTC.",
+    "snapshotParis": "2026-09-11T16:00:00+02:00",
+    "allowlistStartParis": "2026-09-11T17:00:00+02:00",
+    "publicStartParis": "2026-09-11T18:00:00+02:00",
+    "mintEndParis": "2026-09-18T18:00:00+02:00",
+    "_attention": [
+      "mintEnd a ete recu comme '11 septembre 2036' - lu comme une faute de",
+      "frappe pour 2026 et fixe ici a J+7. Dix ans de mint ouvert auraient",
+      "empeche revealSeed() jusqu'en 2036, laissant la collection en",
+      "placeholder tout ce temps. A confirmer avant setPhases()."
+    ]
+  },
+  "addresses": {
+    "_note": "A remplir avant tout deploiement. Adresses PUBLIQUES uniquement.",
+    "deployer": "",
+    "reserveReceiver": "",
+    "royaltyReceiver": ""
+  },
+  "snapshot": {
+    "_note": "Renseigne automatiquement par scripts/kids/snapshot.mjs.",
+    "contract": "0xdde5f965f9d80da49c5cb2951d046156f26ebfa2",
+    "chain": "eth-mainnet",
+    "takenAt": null,
+    "blockNumber": null,
+    "holderCount": null,
+    "merkleRoot": null
+  }
+}

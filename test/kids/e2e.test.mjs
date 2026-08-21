@@ -16,8 +16,8 @@
 import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { keccak256, solidityPacked, getBytes } from 'ethers';
 import { createChain, ACCOUNTS } from '../../scripts/kids/chain.mjs';
+import { buildTree, proofFor, leafOf } from '../../scripts/kids/merkle.mjs';
 
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const DAY = 86400;
@@ -28,39 +28,6 @@ const ok = (label, cond, detail = '') => {
   cond ? pass++ : fail++;
 };
 const section = (t) => console.log(`\n${t}`);
-
-/* ------------------------------------------------------------------ *
- * Arbre de Merkle minimal pour l'allowlist.
- * ------------------------------------------------------------------ */
-function hashLeaf(addr) {
-  return keccak256(solidityPacked(['address'], [addr]));
-}
-function buildMerkle(leaves) {
-  let level = [...leaves].sort();
-  const layers = [level];
-  while (level.length > 1) {
-    const next = [];
-    for (let i = 0; i < level.length; i += 2) {
-      if (i + 1 === level.length) { next.push(level[i]); continue; }
-      const [a, b] = [level[i], level[i + 1]].sort();
-      next.push(keccak256(new Uint8Array([...getBytes(a), ...getBytes(b)])));
-    }
-    level = next;
-    layers.push(level);
-  }
-  return { root: level[0], layers };
-}
-function merkleProof({ layers }, leaf) {
-  const proof = [];
-  let idx = layers[0].indexOf(leaf);
-  for (let l = 0; l < layers.length - 1; l++) {
-    const level = layers[l];
-    const sib = idx ^ 1;
-    if (sib < level.length) proof.push(level[sib]);
-    idx = Math.floor(idx / 2);
-  }
-  return proof;
-}
 
 /* ================================================================== */
 console.log('\nParcours complet Hoodlrz Kids sur EVM locale');
@@ -143,19 +110,19 @@ const AL = T0 + DAY, PUB = T0 + 2 * DAY, END = T0 + 9 * DAY;
 await nft.call('setPhases', [AL, PUB, END]);
 
 const allow = [ACCOUNTS.ALICE.toString(), ACCOUNTS.BOB.toString(), '0x' + 'cc'.repeat(20)];
-const tree = buildMerkle(allow.map(hashLeaf));
+const tree = buildTree(allow);
 await nft.call('setAllowlistRoot', [tree.root]);
 
 ok('allowlist refusee avant ouverture',
-   (await nft.expectRevert('mintAllowlist', [1, merkleProof(tree, hashLeaf(ACCOUNTS.ALICE.toString()))],
+   (await nft.expectRevert('mintAllowlist', [1, proofFor(tree, leafOf(ACCOUNTS.ALICE.toString()))],
      { from: ACCOUNTS.ALICE })) === 'MintClosed');
 
 chain.warpTo(AL + 60);
-await nft.call('mintAllowlist', [5, merkleProof(tree, hashLeaf(ACCOUNTS.ALICE.toString()))], { from: ACCOUNTS.ALICE });
+await nft.call('mintAllowlist', [5, proofFor(tree, leafOf(ACCOUNTS.ALICE.toString()))], { from: ACCOUNTS.ALICE });
 ok('holder allowliste peut minter', (await nft.call('balanceOf', [ACCOUNTS.ALICE.toString()])) === 5n);
 
 ok('preuve invalide rejetee',
-   (await nft.expectRevert('mintAllowlist', [1, merkleProof(tree, hashLeaf(ACCOUNTS.ALICE.toString()))],
+   (await nft.expectRevert('mintAllowlist', [1, proofFor(tree, leafOf(ACCOUNTS.ALICE.toString()))],
      { from: ACCOUNTS.CAROL })) === 'BadProof',
    'carol hors allowlist, preuve d alice');
 

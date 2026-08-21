@@ -29,6 +29,22 @@ const config: HardhatUserConfig = {
       url: `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
       accounts: hasKey ? [DEPLOYER_PRIVATE_KEY] : [],
     },
+    // ── Robinhood Chain (Hoodlrz Kids) ────────────────────────────────
+    // Chain IDs et RPC issus de résumés de recherche, PAS de la doc lue
+    // directement : à confirmer sur docs.robinhood.com/chain avant tout
+    // déploiement. C'est le premier point de la checklist testnet.
+    rhTestnet: {
+      type: "http",
+      chainId: 46630,
+      url: process.env.RH_TESTNET_RPC || "https://rpc.testnet.chain.robinhood.com",
+      accounts: hasKey ? [DEPLOYER_PRIVATE_KEY] : [],
+    },
+    rhMainnet: {
+      type: "http",
+      chainId: 4663,
+      url: process.env.RH_MAINNET_RPC || "",
+      accounts: hasKey ? [DEPLOYER_PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: ETHERSCAN_API_KEY,
