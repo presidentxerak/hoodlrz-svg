@@ -1,0 +1,5 @@
+# Artefacts de build : reproductibles via `npm run kids:freeze`.
+# Le moteur gele et ses empreintes sont versionnes, eux, parce qu'ils
+# constituent la reference de ce qui part on-chain.
+build/*.png
+build/reference/

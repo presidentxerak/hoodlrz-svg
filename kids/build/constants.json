@@ -1,0 +1,135 @@
+{
+  "arrays": {
+    "FACE_COLORS": [
+      "#ffffff"
+    ],
+    "HOOD_COLORS": [
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#ffffff",
+      "#2f7bff",
+      "#ffcf1a",
+      "#22c55e"
+    ],
+    "HAT_COLORS": [
+      "#2f7bff",
+      "#ff3b3b",
+      "#ff36c8",
+      "#22c55e",
+      "#ff8a1e",
+      "#00c2d1",
+      "#ffcf1a",
+      "#ffffff"
+    ],
+    "HAT_TYPES": [
+      "snapback",
+      "snapback",
+      "fitted",
+      "capback",
+      "bucket",
+      "beanie",
+      "beaniePom",
+      "cowboy",
+      "crown",
+      "visor"
+    ],
+    "LABELS": [
+      "HOODLRZ",
+      "HOODLRZ",
+      "HOODLRZ",
+      "HOODZ",
+      "GM",
+      "MINT"
+    ],
+    "HAIR_STYLES": [
+      "none",
+      "none",
+      "strands",
+      "sidebangs",
+      "spikes"
+    ],
+    "NEON": [
+      "#2f7bff",
+      "#ff36c8",
+      "#ffcf1a",
+      "#7b2fff",
+      "#22c55e",
+      "#00c2d1",
+      "#ff5a3c"
+    ],
+    "QUOTE_COLORS": [
+      "#ff36c8",
+      "#2f7bff",
+      "#ffcf1a",
+      "#7b2fff",
+      "#22c55e",
+      "#00c2d1"
+    ],
+    "BOTTOM_WORDS": [
+      "MINT",
+      "KID",
+      "HODLRZ",
+      "GM",
+      "DEGEN",
+      "BASED",
+      "WAGMI"
+    ],
+    "PENDANTS": [
+      "$",
+      "coin",
+      "skull",
+      "key"
+    ],
+    "BG_STYLES": [
+      "bricks",
+      "city",
+      "miami",
+      "club",
+      "trading",
+      "posters",
+      "metro",
+      "penthouse",
+      "bricks",
+      "city"
+    ],
+    "TAG_WORDS": [
+      "HOODLRZ",
+      "BURN",
+      "MINT",
+      "FORK",
+      "WAGMI",
+      "HODL",
+      "REKT",
+      "GM"
+    ],
+    "EXPRESSIONS": [
+      "CHILL",
+      "HYPED",
+      "SHOOK",
+      "SAD",
+      "GREEDY",
+      "DEAD",
+      "SMUG",
+      "GLITCH",
+      "SLEEPY",
+      "RAGE"
+    ]
+  },
+  "thresholds": {
+    "0.3": 1288490189,
+    "0.6": 2576980378,
+    "0.78": 3350074491,
+    "0.92": 3951369913,
+    "0.26": 1116691497,
+    "0.7": 3006477108,
+    "0.22": 944892806,
+    "0.34": 1460288881,
+    "0.28": 1202590843,
+    "0.24": 1030792152,
+    "0.5": 2147483648,
+    "0.9": 3865470567,
+    "0.55": 2362232013
+  }
+}

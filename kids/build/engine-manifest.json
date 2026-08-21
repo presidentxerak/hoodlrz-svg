@@ -1,0 +1,19 @@
+{
+  "sha256": "e3c896eb39c5bbb6e1767fb84d6688a31d8fca3d5b7c9b78dba271f3088d3bca",
+  "frozenBytes": 118868,
+  "storedBytes": 118860,
+  "markerBytes": 8,
+  "marker": "__HASH__",
+  "previewT": 3,
+  "chunkMax": 24000,
+  "pre": [
+    238
+  ],
+  "post": [
+    24000,
+    24000,
+    24000,
+    24000,
+    22622
+  ]
+}
