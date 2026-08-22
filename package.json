@@ -24,7 +24,10 @@
     "kids:verify-chain": "node scripts/kids/verify-onchain.mjs",
     "kids:verifier": "node test/kids/verify-onchain.test.mjs",
     "kids:addresses": "node scripts/kids/set-addresses.mjs",
-    "kids:doctor": "node scripts/kids/doctor.mjs"
+    "kids:doctor": "node scripts/kids/doctor.mjs",
+    "kids:rarity": "node scripts/kids/render-reference.mjs --rarity",
+    "kids:sheets": "node scripts/kids/render-reference.mjs --sheets 4 --grid 16 --tile 130",
+    "kids:render": "node scripts/kids/render-reference.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",
