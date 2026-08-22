@@ -17,7 +17,7 @@
     "kids:verify": "node scripts/kids/verify-frozen.mjs",
     "kids:parity": "node test/kids/parity.test.mjs 8888",
     "kids:e2e": "node test/kids/e2e.test.mjs",
-    "kids:test": "npm run kids:verify && npm run kids:merkle && npm run kids:parity && npm run kids:e2e && npm run kids:soldout && npm run kids:verifier",
+    "kids:test": "npm run kids:verify && npm run kids:merkle && npm run kids:parity && npm run kids:e2e && npm run kids:soldout && npm run kids:resume && npm run kids:verifier",
     "kids:merkle": "node test/kids/merkle.test.mjs",
     "kids:phases": "node scripts/kids/phases.mjs",
     "kids:snapshot": "node scripts/kids/snapshot.mjs",
@@ -30,7 +30,8 @@
     "kids:render": "node scripts/kids/render-reference.mjs",
     "kids:soldout": "node test/kids/soldout.test.mjs",
     "kids:sync-env": "node scripts/kids/sync-env.mjs",
-    "kids:update": "git checkout -- package-lock.json && git pull && npm install"
+    "kids:update": "git checkout -- package-lock.json && git pull && npm install",
+    "kids:resume": "node test/kids/resume.test.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",
