@@ -23,6 +23,7 @@
  *   node scripts/kids/snapshot.mjs --file kids/build/holders-raw.json
  */
 
+import { need } from './env.mjs';   // charge .env.local avant tout le reste
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { buildTree, proofFor, leafOf, verify } from './merkle.mjs';
 
@@ -45,8 +46,8 @@ mkdirSync(OUTDIR, { recursive: true });
  * ------------------------------------------------------------------ */
 
 async function fromAlchemy() {
-  const key = process.env.ALCHEMY_API_KEY;
-  if (!key) throw new Error('ALCHEMY_API_KEY absent de l environnement');
+  const key = need('ALCHEMY_API_KEY',
+    'Cle gratuite sur dashboard.alchemy.com, a coller dans .env.local.');
   const chain = config.snapshot.chain;
   const base = `https://${chain}.g.alchemy.com/nft/v3/${key}`;
 
@@ -60,7 +61,19 @@ async function fromAlchemy() {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_blockNumber', params: [] }),
     });
+    // Alchemy repond en HTML sur une cle inconnue. Tenter de le parser en
+    // JSON donne une erreur de deserialisation qui n'apprend rien.
+    if (!r.ok) {
+      throw new Error(
+        `Alchemy a refuse la requete (HTTP ${r.status}).\n` +
+        (r.status === 401 || r.status === 403
+          ? "La cle ALCHEMY_API_KEY est invalide ou n'a pas acces au reseau " +
+            `${chain}.\n  Verifie-la sur dashboard.alchemy.com.`
+          : 'Reessayer dans un instant, ou verifier le reseau.')
+      );
+    }
     const j = await r.json();
+    if (!j.result) throw new Error('Alchemy n a pas renvoye de numero de bloc : ' + JSON.stringify(j).slice(0, 200));
     block = parseInt(j.result, 16);
   }
   block = Number(block);
@@ -116,9 +129,16 @@ if (!mode) {
 console.log(`\nSnapshot Hoodlrz  (${mode})`);
 console.log(`  contrat ${CONTRACT}\n`);
 
+// Une trace de pile ne dit rien a qui lance ce script le jour du
+// snapshot. Les erreurs previsibles - cle absente, cle refusee, reseau -
+// sortent en une phrase et un code d'erreur, pas en vingt lignes de
+// chemins internes a Node.
 const { owners, block, source } = await (
   mode === 'alchemy' ? fromAlchemy() : mode === 'api' ? fromApi() : Promise.resolve(fromFile())
-);
+).catch((e) => {
+  console.error('\n  ECHEC\n  ' + String(e.message).split('\n').join('\n  ') + '\n');
+  process.exit(1);
+});
 
 // Filtre defensif : adresses valides, hors adresse nulle. Un burn address
 // dans l'allowlist serait un slot perdu.
