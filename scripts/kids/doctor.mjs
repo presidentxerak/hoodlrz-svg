@@ -68,9 +68,12 @@ if (!inProject) { render(); process.exit(1); }
       good
         ? (behind && behind !== '0' ? `${branch} (${behind} commit(s) de retard)` : branch)
         : `${branch ?? 'inconnue'} au lieu de ${expected}`,
+      // kids:update plutot que git pull : npm 11 reecrit package-lock.json
+      // a chaque install, ce qui fait echouer la fusion suivante. La
+      // commande jette d'abord ce fichier genere.
       good
-        ? (behind && behind !== '0' ? 'git pull' : null)
-        : `git checkout ${expected} && git pull`);
+        ? (behind && behind !== '0' ? 'npm run kids:update' : null)
+        : `git checkout ${expected} && npm run kids:update`);
 }
 
 /* 5 ── Moteur gele ------------------------------------------------- */
