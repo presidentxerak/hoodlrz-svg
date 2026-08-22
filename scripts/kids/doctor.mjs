@@ -97,9 +97,13 @@ let addressesOk = false;
   const roles = ['deployer', 'reserveReceiver', 'royaltyReceiver'];
   const filled = roles.filter((r) => /^0x[0-9a-fA-F]{40}$/.test(cfg.addresses?.[r] ?? ''));
   addressesOk = filled.length === roles.length;
+  // Les trois roles sont affiches, pas seulement le deployeur. Un
+  // controle qui dit "OK" sans montrer sur quoi il porte oblige a le
+  // croire sur parole - or c'est precisement ici qu'on veut relire, et
+  // ce sont des adresses publiques.
   add(6, 'Adresses de deploiement', addressesOk ? 'ok' : 'bad',
       addressesOk
-        ? cfg.addresses.deployer
+        ? roles.map((r) => `${r.padEnd(16)} ${cfg.addresses[r]}`).join('\n           ')
         : `${filled.length}/3 renseignees — manque ${roles.filter((r) => !filled.includes(r)).join(', ')}`,
       addressesOk ? null : 'npm run kids:addresses -- 0xTonAdresse');
 }
@@ -133,7 +137,12 @@ let addressesOk = false;
         clash.map(([c, e]) => `${e} = ${envOf(e)}  mais config.${c} = ${cfg.addresses?.[c] || '(vide)'}`).join('\n           '),
         'npm run kids:sync-env   (kids/config.json fait foi)');
   } else {
-    add(7, 'Destinataires reserve et royalties', 'ok', 'identiques a kids/config.json');
+    // Meme raison qu'au controle 6 : on montre la valeur sur laquelle
+    // porte le OK. "Identiques" ne dit pas identiques a quoi, et c'est
+    // justement la question qu'on se pose en lisant cette ligne.
+    add(7, 'Destinataires reserve et royalties', 'ok',
+        pairs.map(([, e]) => `${e.padEnd(16)} ${envOf(e)}`).join('\n           ')
+        + '\n           identiques a kids/config.json');
   }
 }
 
