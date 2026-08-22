@@ -39,8 +39,8 @@
   "addresses": {
     "_note": "A remplir avant tout deploiement. Adresses PUBLIQUES uniquement.",
     "deployer": "0x520008eA14F6d9FC8606383d6196e013256dd91d",
-    "reserveReceiver": "0x520008eA14F6d9FC8606383d6196e013256dd91d",
-    "royaltyReceiver": "0x520008eA14F6d9FC8606383d6196e013256dd91d"
+    "reserveReceiver": "0x2606C3Ea4cFb66c467b57DEa7a2117d6905ca143",
+    "royaltyReceiver": "0x2606C3Ea4cFb66c467b57DEa7a2117d6905ca143"
   },
   "snapshot": {
     "_note": "Renseigne automatiquement par scripts/kids/snapshot.mjs.",
