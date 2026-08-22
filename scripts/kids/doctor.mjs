@@ -14,6 +14,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
+import { Wallet } from 'ethers';
 
 const C = {
   ok: '\x1b[32m', bad: '\x1b[31m', warn: '\x1b[33m',
@@ -153,12 +154,33 @@ let addressesOk = false;
     // echec que rencontre quiconque suit la procedure, et un simple
     // "format inattendu : 64 caracteres" n'aide personne a le voir.
     const missingPrefix = /^[0-9a-fA-F]{64}$/.test(v);
-    add(8, 'Cle du deployeur', looksValid ? 'ok' : 'bad',
-        looksValid ? 'presente et bien formee (valeur non affichee)'
+
+    // Une cle bien formee peut tres bien etre celle d'un AUTRE wallet.
+    // Le deploiement reussirait quand meme, mais les trois contrats
+    // appartiendraient a une adresse que kids/config.json ne declare
+    // pas - et Ownable ne se transfere qu'a chaud, en esperant s'en
+    // apercevoir a temps. On derive donc l'adresse depuis la cle et on
+    // compare. Le calcul est local, la cle ne sort pas de la machine et
+    // n'est jamais affichee ; l'adresse derivee, elle, est publique.
+    let derived = null;
+    if (looksValid) {
+      try { derived = new Wallet(v).address; } catch { /* cle invalide malgre le format */ }
+    }
+    const cfgDeployer = JSON.parse(readFileSync('kids/config.json', 'utf8')).addresses?.deployer ?? '';
+    const sameWallet = derived && cfgDeployer &&
+                       derived.toLowerCase() === cfgDeployer.toLowerCase();
+
+    const good = looksValid && sameWallet;
+    add(8, 'Cle du deployeur', good ? 'ok' : 'bad',
+        good ? `celle de ${derived} (valeur non affichee)`
+          : derived ? `cette cle est celle de ${derived},\n           `
+                      + `or kids/config.json declare ${cfgDeployer || '(vide)'}`
+          : looksValid ? 'cle illisible malgre un format correct'
           : missingPrefix ? 'il manque le 0x devant (MetaMask exporte sans)'
           : isPlaceholder ? 'ligne encore a l exemple'
           : `format inattendu : ${v.length} caracteres au lieu de 66`,
-        looksValid ? null
+        good ? null
+          : derived ? 'soit exporter la cle du bon wallet, soit npm run kids:addresses -- ' + derived
           : missingPrefix ? 'ajouter 0x juste apres le = dans .env.local'
           : 'renseigner DEPLOYER_PRIVATE_KEY dans .env.local');
   }
