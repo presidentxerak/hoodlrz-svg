@@ -37,17 +37,17 @@ export function humanError(err: unknown): string {
     (err as { message?: string })?.message ??
     String(err);
 
-  if (raw.includes("MintClosed")) return "Le mint n'est pas ouvert.";
+  if (raw.includes("MintClosed")) return "Minting is not open.";
   if (raw.includes("WalletCapReached"))
-    return "Tu as atteint la limite de 10 pièces par wallet.";
-  if (raw.includes("SupplyExhausted")) return "Il ne reste plus de pièces.";
+    return "You have reached the limit of 10 pieces per wallet.";
+  if (raw.includes("SupplyExhausted")) return "No pieces left.";
   if (raw.includes("BadProof"))
-    return "Ce wallet n'est pas dans l'allowlist des holders Hoodlrz.";
+    return "This wallet is not on the Hoodlrz holders allowlist.";
   if (raw.includes("ReserveFirst"))
-    return "La réserve créateur n'a pas encore été mintée.";
+    return "The creator reserve has not been minted yet.";
   if (raw.includes("user rejected") || raw.includes("ACTION_REJECTED"))
-    return "Transaction annulée.";
+    return "Transaction cancelled.";
   if (raw.includes("insufficient funds"))
-    return "Fonds insuffisants pour payer le gas.";
+    return "Not enough funds to cover gas.";
   return raw.slice(0, 160);
 }

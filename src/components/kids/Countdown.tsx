@@ -38,7 +38,7 @@ export default function Countdown({
   // Espace insecable plutot qu'une chaine vide : evite que la ligne
   // sursaute au moment de l'hydratation.
   if (left === null) return <span className="font-mono tabular-nums">&nbsp;</span>;
-  if (left <= 0) return <span className="font-mono tabular-nums">maintenant</span>;
+  if (left <= 0) return <span className="font-mono tabular-nums">now</span>;
 
   const d = Math.floor(left / 86400);
   const h = Math.floor((left % 86400) / 3600);
@@ -48,7 +48,7 @@ export default function Countdown({
 
   return (
     <span className="font-mono tabular-nums">
-      {d > 0 && `${d}j `}
+      {d > 0 && `${d}d `}
       {pad(h)}:{pad(m)}:{pad(s)}
     </span>
   );

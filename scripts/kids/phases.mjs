@@ -53,8 +53,10 @@ check('public avant la fin', pub < end);
 check('contrainte du contrat : alStart <= pubStart < mintEnd', al <= pub && pub < end);
 check('dates dans le futur', al > Math.floor(Date.now() / 1000),
       'sinon le mint s ouvre des le setPhases');
-check('annee coherente', new Date(P.mintEndParis).getFullYear() < 2030,
-      'une fin lointaine bloque revealSeed() et laisse la collection en placeholder');
+// La duree du mint n'est plus un controle bloquant : une fenetre longue
+// est un choix editorial, pas une erreur. Elle a en revanche une
+// consequence qu'il faut rappeler a chaque fois (voir plus bas).
+check('fin apres le debut du public', end > pub);
 
 console.log('\nControles');
 let bad = 0;
@@ -64,7 +66,12 @@ for (const c of checks) {
 }
 
 /* ---- Fenetres ------------------------------------------------------ */
-const h = (s) => (s / 3600).toFixed(1) + ' h';
+// Une duree se lit dans l'unite qui lui va : 87 672 h ne dit rien a
+// personne, 10 ans si.
+const h = (s) =>
+  s >= 730 * 86400 ? (s / 31536000).toFixed(1) + ' ans'
+  : s >= 2 * 86400 ? (s / 86400).toFixed(1) + ' j'
+  : (s / 3600).toFixed(1) + ' h';
 console.log('\nFenetres');
 console.log(`  snapshot -> allowlist   ${h(al - snap)}   (court = bon : pas le temps de gamer la liste)`);
 console.log(`  allowlist                ${h(pub - al)}`);
@@ -74,6 +81,18 @@ if (pub - al < 6 * 3600) {
   console.log('\n  Note : la fenetre allowlist est courte. Avec ' +
               (config.snapshot.holderCount ?? '~117') +
               ' holders, une partie ne la verra pas passer.');
+}
+
+// Une fenetre longue n'est pas une erreur, mais elle deplace le moment de
+// la revelation. Autant que ce soit dit a chaque lancement plutot que
+// decouvert le jour ou l'on cherche pourquoi tout est en placeholder.
+const days = (end - pub) / 86400;
+if (days > 365) {
+  console.log(`\n  Fenetre de mint de ${(days / 365).toFixed(1)} an(s).`);
+  console.log('  revealSeed() se declenchera donc au premier des deux :');
+  console.log('    - les 8888 pieces mintees  ->  revelation immediate');
+  console.log(`    - sinon la fin de fenetre  ->  ${new Date(P.mintEndParis).getFullYear()}`);
+  console.log('  Jusque la, tokenURI renvoie un placeholder. C est voulu.');
 }
 
 console.log('\nAppel a passer :');

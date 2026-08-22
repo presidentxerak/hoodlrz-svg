@@ -1,399 +1,530 @@
 "use client";
 
 /**
- * Page de mint Hoodlrz Kids.
+ * Page de drop Hoodlrz Kids.
  *
- * Trois etats se combinent et la page doit rester juste dans tous les
- * cas : la phase (avant / allowlist / public / termine), l'etat du
- * wallet (deconnecte / mauvaise chaine / pret), et l'appartenance a
- * l'allowlist. Le contrat reste l'arbitre - l'interface ne fait que
- * refleter ce qu'il autorise, elle ne le devine pas.
+ * Construite sur le meme squelette que la page de drop Hoodlrz
+ * (/collection/hoodlrz) : hero video, statistiques, compte a rebours,
+ * puis les explications. Un visiteur qui connait l'une doit se reperer
+ * dans l'autre sans effort.
  *
- * Tant qu'aucune adresse n'est configuree, la page fonctionne en mode
- * vitrine : l'apercu du moteur tourne, les compteurs affichent les
- * parametres, et le bouton de mint explique qu'il n'y a rien a minter.
+ * Une difference de fond, qui commande la mise en page : une piece
+ * Hoodlrz est une image fixe, une piece Kids est un programme qui tourne.
+ * L'apercu n'est donc pas une vignette mais le moteur lui-meme, joue en
+ * direct - c'est le seul moyen honnete de montrer ce qu'on achete.
+ *
+ * Tout ce qui depend de l'heure passe par un composant client monte
+ * apres coup : la page est prerendue, et lire l'horloge au premier rendu
+ * produirait une erreur d'hydratation.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BrowserProvider, Contract, JsonRpcProvider } from "ethers";
-import Countdown from "@/components/kids/Countdown";
+import { useEffect, useState } from "react";
+import Button from "@/components/ui/Button";
+import Countdown from "@/components/ui/Countdown";
 import EnginePreview from "@/components/kids/EnginePreview";
+import MintPanel from "@/components/kids/MintPanel";
 import {
   KIDS,
   PHASES,
+  PHASE_ISO,
   KIDS_CHAIN,
-  KIDS_ADDRESS,
-  isDeployed,
-  chainParams,
+  fmtDate,
+  fmtDateTime,
   phaseAt,
-  type Phase,
 } from "@/lib/kids/config";
-import { KIDS_ABI, humanError } from "@/lib/kids/abi";
-
-type Eip1193 = {
-  request: (a: { method: string; params?: unknown[] }) => Promise<unknown>;
-  on?: (e: string, cb: (...a: unknown[]) => void) => void;
-  removeListener?: (e: string, cb: (...a: unknown[]) => void) => void;
-};
-declare global {
-  interface Window { ethereum?: Eip1193 }
-}
-
-interface Allowlist {
-  merkleRoot: string;
-  proofs: Record<string, string[]>;
-}
 
 export default function KidsPage() {
-  // La page est prerendue statiquement : lire l'horloge au premier rendu
-  // donnerait un HTML serveur different du client, donc une erreur
-  // d'hydratation. `now` reste a null jusqu'au montage, et tout ce qui
-  // depend du temps attend cette valeur.
+  return (
+    <div className="flex flex-col items-center">
+      <Hero />
+
+      <div className="mx-auto w-full max-w-5xl px-4 pb-24">
+        <Stats />
+        <DropCountdown />
+        <Preview />
+        <Mint />
+        <Schedule />
+        <HowItWorks />
+        <Details />
+        <Faq />
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Hero
+ * ------------------------------------------------------------------ */
+
+function Hero() {
+  return (
+    <section className="relative flex min-h-[50vh] w-full flex-col items-center justify-center overflow-hidden px-4 pb-16 pt-20 sm:pb-20 sm:pt-28">
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 h-full w-full object-cover"
+      >
+        <source src="/hero-collection.mp4" type="video/mp4" />
+        <source src="/hero-collection.mov" type="video/quicktime" />
+      </video>
+      <div className="absolute inset-0 bg-black/75" />
+
+      <div className="relative z-10 flex flex-col items-center gap-4 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-white sm:text-[56px]">
+            Hoodlrz Kids
+          </h1>
+          <span className="border border-[#627eea]/30 bg-[#627eea]/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-[#627eea]">
+            Fully On-Chain
+          </span>
+        </div>
+
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
+          {KIDS.maxSupply.toLocaleString("en-GB")} generative pieces. Not a
+          picture stored somewhere — a rendering engine written into the
+          blockchain itself. Every Kid redraws itself from its own seed, live,
+          forever. Free mint.
+        </p>
+
+        <div className="mt-6 flex flex-col items-center gap-1">
+          <span className="text-[10px] uppercase tracking-widest text-white/50">
+            Drop Date
+          </span>
+          <p className="font-hoodlrz text-2xl font-bold tracking-wider text-[#627eea] sm:text-3xl">
+            {fmtDate(PHASE_ISO.publicStart).toUpperCase()}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Statistiques
+ * ------------------------------------------------------------------ */
+
+function Stats() {
+  return (
+    <div className="mt-10 flex flex-wrap justify-center gap-8">
+      <Stat label="Supply" value={KIDS.maxSupply.toLocaleString("en-GB")} />
+      <Stat label="Public" value={KIDS.publicSupply.toLocaleString("en-GB")} />
+      <Stat label="Price" value="Free" />
+      <Stat label="Per wallet" value={String(KIDS.maxPerWallet)} />
+      <Stat label="Royalties" value={`${KIDS.royaltyBps / 100}%`} />
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-muted">
+        {label}
+      </span>
+      <span className="font-hoodlrz text-2xl font-bold leading-none text-foreground">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Compte a rebours
+ * ------------------------------------------------------------------ */
+
+/**
+ * Le compte a rebours vise la prochaine echeance, pas une date fixe :
+ * une fois l'allowlist ouverte, afficher encore le snapshot n'aurait
+ * plus de sens.
+ *
+ * La fin de mint n'est jamais visee. La fenetre court sur dix ans, et un
+ * compteur a quatre chiffres de jours ne dit rien a personne.
+ */
+function DropCountdown() {
   const [now, setNow] = useState<number | null>(null);
-  const [account, setAccount] = useState("");
-  const [chainId, setChainId] = useState<number | null>(null);
-  const [allowlist, setAllowlist] = useState<Allowlist | null>(null);
-  const [supply, setSupply] = useState<{ total: number; mine: number } | null>(null);
-  const [qty, setQty] = useState(1);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
-
-  const mounted = now !== null;
-  const phase: Phase = phaseAt(now ?? 0);
-  const deployed = isDeployed();
-
-  /* ── Horloge ─────────────────────────────────────────────────────── */
   useEffect(() => {
     setNow(Math.floor(Date.now() / 1000));
     const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
     return () => clearInterval(id);
   }, []);
 
-  /* ── Allowlist publiee ───────────────────────────────────────────── */
-  // Publiee comme fichier statique pour que n'importe qui puisse
-  // recalculer la racine et verifier le snapshot.
-  useEffect(() => {
-    fetch("/kids/allowlist.json")
-      .then((r) => (r.ok ? r.json() : null))
-      .then(setAllowlist)
-      .catch(() => setAllowlist(null));
-  }, []);
+  if (now === null) return <div className="mt-12 h-[90px]" aria-hidden />;
 
-  const proof = useMemo(() => {
-    if (!allowlist || !account) return null;
-    return allowlist.proofs[account.toLowerCase()] ?? null;
-  }, [allowlist, account]);
+  const phase = phaseAt(now);
 
-  const inAllowlist = proof !== null;
-
-  /* ── Wallet ──────────────────────────────────────────────────────── */
-  const readAccounts = useCallback(async () => {
-    if (!window.ethereum) return;
-    const accs = (await window.ethereum.request({ method: "eth_accounts" })) as string[];
-    setAccount(accs?.[0] ?? "");
-    const cid = (await window.ethereum.request({ method: "eth_chainId" })) as string;
-    setChainId(parseInt(cid, 16));
-  }, []);
-
-  useEffect(() => {
-    readAccounts();
-    const eth = window.ethereum;
-    if (!eth?.on) return;
-    const onAcc = () => readAccounts();
-    const onChain = () => readAccounts();
-    eth.on("accountsChanged", onAcc);
-    eth.on("chainChanged", onChain);
-    return () => {
-      eth.removeListener?.("accountsChanged", onAcc);
-      eth.removeListener?.("chainChanged", onChain);
-    };
-  }, [readAccounts]);
-
-  const connect = async () => {
-    if (!window.ethereum) {
-      setMsg({ kind: "err", text: "Aucun wallet détecté. Installe MetaMask pour minter." });
-      return;
-    }
-    try {
-      await window.ethereum.request({ method: "eth_requestAccounts" });
-      await readAccounts();
-    } catch (e) {
-      setMsg({ kind: "err", text: humanError(e) });
-    }
-  };
-
-  const switchChain = async () => {
-    if (!window.ethereum) return;
-    const hex = "0x" + KIDS_CHAIN.id.toString(16);
-    try {
-      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hex }] });
-    } catch (e) {
-      // 4902 = chaine inconnue du wallet : on propose de l'ajouter.
-      if ((e as { code?: number })?.code === 4902) {
-        try {
-          await window.ethereum.request({ method: "wallet_addEthereumChain", params: [chainParams()] });
-        } catch (e2) {
-          setMsg({ kind: "err", text: humanError(e2) });
-        }
-      } else {
-        setMsg({ kind: "err", text: humanError(e) });
-      }
-    }
-    await readAccounts();
-  };
-
-  /* ── Etat de la collection ───────────────────────────────────────── */
-  const refreshSupply = useCallback(async () => {
-    if (!deployed) return;
-    try {
-      const provider = KIDS_CHAIN.rpcUrl
-        ? new JsonRpcProvider(KIDS_CHAIN.rpcUrl)
-        : window.ethereum
-          ? new BrowserProvider(window.ethereum)
-          : null;
-      if (!provider) return;
-      const c = new Contract(KIDS_ADDRESS, KIDS_ABI, provider);
-      const total = Number(await c.totalMinted());
-      const mine = account ? Number(await c.minted(account)) : 0;
-      setSupply({ total, mine });
-    } catch {
-      // Un RPC injoignable ne doit pas casser la page : on garde
-      // l'affichage precedent et on reessaiera au prochain tick.
-    }
-  }, [deployed, account]);
-
-  useEffect(() => {
-    refreshSupply();
-    const id = setInterval(refreshSupply, 15000);
-    return () => clearInterval(id);
-  }, [refreshSupply]);
-
-  /* ── Mint ────────────────────────────────────────────────────────── */
-  const mint = async () => {
-    if (!window.ethereum || !deployed) return;
-    setBusy(true);
-    setMsg({ kind: "info", text: "Confirme la transaction dans ton wallet…" });
-    try {
-      const signer = await new BrowserProvider(window.ethereum).getSigner();
-      const c = new Contract(KIDS_ADDRESS, KIDS_ABI, signer);
-      const tx =
-        phase === "allowlist"
-          ? await c.mintAllowlist(qty, proof ?? [])
-          : await c.mintPublic(qty);
-      setMsg({ kind: "info", text: "Transaction envoyée, en attente de confirmation…" });
-      await tx.wait();
-      setMsg({ kind: "ok", text: `${qty} Hoodlrz Kid${qty > 1 ? "s" : ""} minté${qty > 1 ? "s" : ""}.` });
-      refreshSupply();
-    } catch (e) {
-      setMsg({ kind: "err", text: humanError(e) });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /* ── Rendu ───────────────────────────────────────────────────────── */
-  const wrongChain = chainId !== null && chainId !== KIDS_CHAIN.id;
-  const remaining = supply ? KIDS.maxSupply - supply.total : null;
-  const myRemaining = supply ? Math.max(0, KIDS.maxPerWallet - supply.mine) : KIDS.maxPerWallet;
-
-  const canMint =
-    mounted &&
-    deployed &&
-    !!account &&
-    !wrongChain &&
-    !busy &&
-    myRemaining > 0 &&
-    (phase === "public" || (phase === "allowlist" && inAllowlist));
+  const [target, label] =
+    now < PHASES.snapshot
+      ? [PHASE_ISO.snapshot, "Holder Snapshot"]
+      : phase === "avant"
+        ? [PHASE_ISO.allowlistStart, "Allowlist Opens"]
+        : phase === "allowlist"
+          ? [PHASE_ISO.publicStart, "Public Mint"]
+          : [null, null];
 
   return (
-    <main className="mx-auto max-w-5xl px-5 pb-24 pt-12 md:pt-20">
-      <header>
-        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-[var(--muted)]">
-          Collection générative · intégralement on-chain
+    <div className="mt-12 flex flex-col items-center gap-6">
+      {target && label ? (
+        <Countdown targetDate={target} label={label} />
+      ) : (
+        <p className="font-hoodlrz text-3xl font-bold tracking-wider text-accent-red">
+          {phase === "public" ? "MINT IS LIVE" : "MINT CLOSED"}
         </p>
-        <h1 className="font-hoodlrz mt-3 text-5xl leading-none tracking-tight md:text-7xl">
-          Hoodlrz Kids
-        </h1>
-        <p className="mt-5 max-w-[62ch] leading-relaxed text-[var(--muted)]">
-          {KIDS.maxSupply.toLocaleString("fr")} pièces. Le moteur de rendu est
-          stocké dans la blockchain, pas sur un serveur : chaque pièce se
-          regénère depuis sa graine, indéfiniment. Free mint — tu ne paies que
-          le gas.
-        </p>
-      </header>
+      )}
 
-      <div className="mt-12 grid gap-10 md:grid-cols-2 md:gap-14">
-        {/* ── Aperçu ─────────────────────────────────────────────── */}
-        <section>
-          <EnginePreview />
-        </section>
-
-        {/* ── Mint ───────────────────────────────────────────────── */}
-        <section className="flex flex-col gap-6">
-          {mounted ? (
-            <PhaseBanner phase={phase} now={now!} inAllowlist={inAllowlist} hasAccount={!!account} />
-          ) : (
-            <div className="h-[52px] border border-[var(--border)]" aria-hidden />
-          )}
-
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 border-y border-[var(--border)] py-5 text-sm">
-            <Row label="Supply">
-              {remaining !== null
-                ? `${(KIDS.maxSupply - remaining).toLocaleString("fr")} / ${KIDS.maxSupply.toLocaleString("fr")}`
-                : `${KIDS.maxSupply.toLocaleString("fr")}`}
-            </Row>
-            <Row label="Prix">Gratuit · gas seul</Row>
-            <Row label="Par wallet">{KIDS.maxPerWallet}</Row>
-            <Row label="Réserve créateur">{KIDS.reserve}</Row>
-            <Row label="Royalties">{KIDS.royaltyBps / 100} %</Row>
-            <Row label="Chaîne">{KIDS_CHAIN.name}</Row>
-          </dl>
-
-          {!deployed && (
-            <Notice kind="info">
-              Les contrats ne sont pas encore déployés. L&apos;aperçu ci-contre
-              tourne avec le moteur définitif — c&apos;est bien ce que tu
-              recevras.
-            </Notice>
-          )}
-
-          {deployed && !account && (
-            <button onClick={connect} className="cta-gradient px-8 py-4 text-sm font-bold uppercase tracking-widest text-white">
-              Connecter un wallet
-            </button>
-          )}
-
-          {deployed && account && wrongChain && (
-            <div className="flex flex-col gap-3">
-              <Notice kind="err">
-                Ton wallet est sur une autre chaîne. Bascule sur {KIDS_CHAIN.name} pour minter.
-              </Notice>
-              <button onClick={switchChain} className="border border-[var(--border)] px-6 py-3 text-sm font-semibold uppercase tracking-widest transition-colors hover:border-accent-red hover:text-accent-red">
-                Changer de chaîne
-              </button>
-            </div>
-          )}
-
-          {deployed && account && !wrongChain && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center gap-3">
-                <label htmlFor="qty" className="font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">
-                  Quantité
-                </label>
-                <input
-                  id="qty"
-                  type="number"
-                  min={1}
-                  max={Math.max(1, myRemaining)}
-                  value={qty}
-                  onChange={(e) => setQty(Math.max(1, Math.min(myRemaining, Number(e.target.value) || 1)))}
-                  className="w-20 border border-[var(--border)] bg-transparent px-3 py-2 text-center font-mono tabular-nums
-                             focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-red"
-                />
-                <span className="text-xs text-[var(--muted)]">
-                  {myRemaining} restante{myRemaining > 1 ? "s" : ""} pour ce wallet
-                </span>
-              </div>
-
-              <button
-                onClick={mint}
-                disabled={!canMint}
-                className="cta-gradient px-8 py-4 text-sm font-bold uppercase tracking-widest text-white
-                           disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {busy ? "En cours…" : phase === "allowlist" ? "Minter · allowlist" : "Minter"}
-              </button>
-
-              {mounted && phase === "allowlist" && !inAllowlist && (
-                <Notice kind="info">
-                  Ce wallet n&apos;est pas dans l&apos;allowlist des holders
-                  Hoodlrz. Le mint public ouvre dans{" "}
-                  <Countdown to={PHASES.publicStart} />.
-                </Notice>
-              )}
-            </div>
-          )}
-
-          {msg && <Notice kind={msg.kind}>{msg.text}</Notice>}
-
-          <p className="text-[11px] leading-relaxed text-[var(--muted)]">
-            Collection intégralement on-chain sur {KIDS_CHAIN.name}. Cette
-            chaîne est jeune : son séquenceur est centralisé et ses contrats
-            système restent modifiables par son opérateur. Le moteur et son
-            empreinte SHA-256 sont archivés hors chaîne, ce qui permet de
-            redéployer l&apos;œuvre à l&apos;identique ailleurs si nécessaire.
-          </p>
-        </section>
+      <div className="flex flex-wrap justify-center gap-3">
+        <Button variant="secondary" size="lg" href="/">
+          Hoodlrz Collection
+        </Button>
+        <Button variant="secondary" size="lg" href="/city">
+          Enter the City
+        </Button>
       </div>
-    </main>
+    </div>
   );
 }
 
 /* ------------------------------------------------------------------ *
- *  Petits composants locaux
+ *  Apercu
  * ------------------------------------------------------------------ */
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Preview() {
   return (
-    <div>
-      <dt className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--muted)]">{label}</dt>
-      <dd className="mt-0.5 font-semibold tabular-nums">{children}</dd>
-    </div>
-  );
-}
-
-function Notice({ kind, children }: { kind: "ok" | "err" | "info"; children: React.ReactNode }) {
-  const border =
-    kind === "err" ? "border-l-accent-red" : kind === "ok" ? "border-l-green-500" : "border-l-[var(--muted)]";
-  return (
-    <p className={`border border-[var(--border)] border-l-2 ${border} bg-[var(--surface)] px-4 py-3 text-sm leading-relaxed`}>
-      {children}
-    </p>
-  );
-}
-
-function PhaseBanner({
-  phase, now, inAllowlist, hasAccount,
-}: { phase: Phase; now: number; inAllowlist: boolean; hasAccount: boolean }) {
-  const base =
-    "flex items-baseline justify-between gap-4 border border-[var(--border)] px-4 py-3";
-
-  if (phase === "avant") {
-    const target = now < PHASES.snapshot ? PHASES.snapshot : PHASES.allowlistStart;
-    const label = now < PHASES.snapshot ? "Snapshot des holders dans" : "Allowlist dans";
-    return (
-      <div className={base}>
-        <span className="font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">{label}</span>
-        <strong className="text-lg"><Countdown to={target} /></strong>
-      </div>
-    );
-  }
-  if (phase === "allowlist") {
-    return (
-      <div className={base}>
-        <span className="font-mono text-[11px] uppercase tracking-widest text-accent-red">
-          Allowlist ouverte{hasAccount && (inAllowlist ? " · tu en es" : " · wallet non listé")}
+    <section className="mt-16">
+      <div className="flex items-baseline justify-between">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-muted">
+          Live Preview
+        </h2>
+        <span className="text-[10px] uppercase tracking-widest text-muted">
+          Running the final engine
         </span>
-        <strong className="text-lg">
-          Public dans <Countdown to={PHASES.publicStart} />
-        </strong>
       </div>
-    );
-  }
-  if (phase === "public") {
-    return (
-      <div className={base}>
-        <span className="font-mono text-[11px] uppercase tracking-widest text-accent-red">Mint public ouvert</span>
-        <strong className="text-lg">
-          Clôture dans <Countdown to={PHASES.mintEnd} />
-        </strong>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <EnginePreview />
+
+        <div className="flex flex-col gap-4">
+          <p className="text-sm leading-relaxed text-muted">
+            Everything below the frame is drawn by code — the hood, the face,
+            the hat, the backdrop, the equaliser, the punchline. Nothing is
+            assembled from pre-made layers, and no image file exists anywhere.
+            Roll the preview and you are running the exact program that will
+            live in the contract.
+          </p>
+          <p className="text-sm leading-relaxed text-muted">
+            Nine traits come out of each seed: hat, hat colour, hood colour,
+            face, hair, backdrop, palette, equaliser colour and expression.
+            They are derived on-chain too — the contract computes them from
+            the token hash rather than reading them from a list.
+          </p>
+
+          {/* Deux tirages de plus, figes. Les faire tourner en boucle
+              reconstruirait l'iframe toutes les dix secondes : trois
+              moteurs vivants sur une meme page suffisent deja largement
+              a la batterie d'un telephone. */}
+          <div className="grid grid-cols-2 gap-3">
+            <EnginePreview bare />
+            <EnginePreview bare />
+          </div>
+        </div>
       </div>
-    );
-  }
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Mint
+ * ------------------------------------------------------------------ */
+
+function Mint() {
   return (
-    <div className={base}>
-      <span className="font-mono text-[11px] uppercase tracking-widest text-[var(--muted)]">Mint terminé</span>
-      <strong className="text-lg">Marché secondaire</strong>
+    <section className="mt-16">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        Mint
+      </h2>
+      <div className="grid gap-6 md:grid-cols-2">
+        <MintPanel />
+
+        <div className="flex flex-col gap-4 text-sm leading-relaxed text-muted">
+          <p>
+            <strong className="text-foreground">Free mint.</strong> You pay
+            network gas and nothing else. There is no presale, no tier, no
+            paid whitelist.
+          </p>
+          <p>
+            <strong className="text-foreground">
+              {KIDS.maxPerWallet} per wallet.
+            </strong>{" "}
+            Deliberately low. With {KIDS.publicSupply.toLocaleString("en-GB")}{" "}
+            pieces open to the public, that floor guarantees at least{" "}
+            {Math.ceil(KIDS.publicSupply / KIDS.maxPerWallet).toLocaleString("en-GB")}{" "}
+            distinct wallets rather than a handful of bots taking the lot.
+          </p>
+          <p>
+            <strong className="text-foreground">Hoodlrz holders first.</strong>{" "}
+            A snapshot is taken on {fmtDateTime(PHASE_ISO.snapshot)}. Every
+            wallet holding a Hoodlrz at that block gets an hour of exclusive
+            access, proven by a Merkle proof — the list is published as a file
+            you can recompute yourself.
+          </p>
+          <p>
+            <strong className="text-foreground">
+              {KIDS.reserve} reserved for the creator.
+            </strong>{" "}
+            Minted before the public window opens, so the count you see is
+            always the real one.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Calendrier
+ * ------------------------------------------------------------------ */
+
+function Schedule() {
+  const rows: [string, string, string][] = [
+    [
+      "Holder snapshot",
+      fmtDateTime(PHASE_ISO.snapshot),
+      "Every wallet holding a Hoodlrz at this block enters the allowlist.",
+    ],
+    [
+      "Allowlist mint",
+      fmtDateTime(PHASE_ISO.allowlistStart),
+      "One hour, reserved for the snapshot. Free, capped at " + KIDS.maxPerWallet + ".",
+    ],
+    [
+      "Public mint",
+      fmtDateTime(PHASE_ISO.publicStart),
+      "Open to anyone. Same price, same cap.",
+    ],
+    [
+      "Mint window closes",
+      fmtDateTime(PHASE_ISO.mintEnd),
+      "A long window on purpose. The reveal does not wait for it — see below.",
+    ],
+  ];
+
+  return (
+    <section className="mt-16">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        Schedule
+      </h2>
+      <div className="border border-[var(--border)]">
+        {rows.map(([name, when, note], i) => (
+          <div
+            key={name}
+            className={`flex flex-col gap-1 p-5 sm:flex-row sm:items-baseline sm:gap-6 ${
+              i > 0 ? "border-t border-[var(--border)]" : ""
+            }`}
+          >
+            <span className="w-44 shrink-0 text-[10px] font-bold uppercase tracking-widest text-accent-red">
+              {name}
+            </span>
+            <span className="w-52 shrink-0 font-mono text-sm tabular-nums text-foreground">
+              {when}
+            </span>
+            <span className="text-sm leading-relaxed text-muted">{note}</span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[11px] leading-relaxed text-muted">
+        All times are Paris time. The contract compares against block
+        timestamps in UTC; these are the same instants, written for humans.
+      </p>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Comment ca marche
+ * ------------------------------------------------------------------ */
+
+function HowItWorks() {
+  return (
+    <section className="mt-16">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        How It Works
+      </h2>
+
+      <div className="flex flex-col gap-4">
+        <Explain title="The engine lives in the contract">
+          The rendering program — the whole thing, roughly 116 KB of it — is
+          split into chunks and written into the chain with SSTORE2. When a
+          marketplace asks for your token, the contract reassembles the
+          program, injects your token&apos;s hash into it, and hands back a
+          complete page. No IPFS, no server of mine, nothing to keep paying
+          for. If this site disappears, your Kid still renders.
+        </Explain>
+
+        <Explain title="Your traits are computed, not stored">
+          Nothing about your piece is written down anywhere. The contract
+          derives all nine traits from your token hash using the same
+          arithmetic the JavaScript engine uses — the same pseudo-random
+          generator, reproduced in Solidity down to its 32-bit overflow
+          behaviour. Both sides were run over all{" "}
+          {KIDS.maxSupply.toLocaleString("en-GB")} pieces and compared
+          one by one before anything was deployed.
+        </Explain>
+
+        <Explain title="Nobody knows what they are minting">
+          Token hashes come from a single seed that does not exist while
+          minting is open. It is fixed once — irreversibly — after the pieces
+          have already found their owners. Until then every token shows a
+          placeholder. Nobody, including me, can look at the art and decide
+          which token to buy.
+        </Explain>
+
+        <Explain title="The reveal does not wait ten years">
+          The mint window runs until {fmtDate(PHASE_ISO.mintEnd)}. The reveal
+          triggers at whichever comes first: the last of the{" "}
+          {KIDS.maxSupply.toLocaleString("en-GB")} pieces being minted, or that
+          date. In practice, when the collection sells out, the seed is set and
+          every piece resolves at once.
+        </Explain>
+
+        <Explain title="Where it lives">
+          {KIDS_CHAIN.name}. That chain is young: its sequencer is centralised
+          and its system contracts remain upgradable by its operator. So the
+          honest claim is this — the work is <em>entirely on-chain</em>, which
+          anyone can verify, rather than <em>immutable forever</em>, which
+          nobody could promise here. The engine and its SHA-256 fingerprint
+          are archived off-chain as well, which means the piece can be
+          redeployed identically elsewhere if it ever needs to be.
+        </Explain>
+      </div>
+    </section>
+  );
+}
+
+function Explain({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-2 border border-[var(--border)] border-l-2 border-l-[#627eea] bg-[var(--surface)] p-5">
+      <p className="text-sm font-bold text-foreground">{title}</p>
+      <p className="text-sm leading-relaxed text-muted">{children}</p>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Details
+ * ------------------------------------------------------------------ */
+
+function Details() {
+  const rows: [string, string][] = [
+    ["Price", "Free"],
+    ["Gas fees", `Network gas (${KIDS_CHAIN.name})`],
+    ["Wallet", "MetaMask / any EIP-1193 wallet"],
+    ["Standard", "ERC-721"],
+    ["Storage", "Fully on-chain (SSTORE2)"],
+    ["Metadata", "Built on-chain, base64 data URI"],
+    ["Artwork", "HTML canvas engine, animated"],
+    ["Supply", `${KIDS.maxSupply.toLocaleString("en-GB")} (${KIDS.reserve} creator reserve)`],
+    ["Per wallet", String(KIDS.maxPerWallet)],
+    ["Allowlist", "Hoodlrz holders, Merkle proof"],
+    ["Royalties", `${KIDS.royaltyBps / 100}% (EIP-2981)`],
+    ["Typeface", "Custom, owned outright"],
+  ];
+
+  return (
+    <section className="mt-16">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        Details
+      </h2>
+      <div className="flex flex-col gap-3 border border-[var(--border)] p-6">
+        {rows.map(([label, value]) => (
+          <div
+            key={label}
+            className="flex items-center justify-between gap-6 border-b border-[var(--border)] pb-2 last:border-0 last:pb-0"
+          >
+            <span className="text-xs font-bold uppercase tracking-widest text-muted">
+              {label}
+            </span>
+            <span className="text-right text-sm font-bold text-foreground">{value}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Questions
+ * ------------------------------------------------------------------ */
+
+function Faq() {
+  const items: [string, React.ReactNode][] = [
+    [
+      "What exactly do I own?",
+      <>
+        A token whose artwork is a program stored in the contract. Ask the
+        contract for your <code className="font-mono text-xs">tokenURI</code>{" "}
+        and you get back the metadata and a full HTML page, encoded inline. No
+        link points anywhere else.
+      </>,
+    ],
+    [
+      "Is it really free?",
+      <>
+        Yes. The mint function takes no payment. You pay the network fee for
+        your own transaction, as with any on-chain action.
+      </>,
+    ],
+    [
+      "How do I get on the allowlist?",
+      <>
+        Hold a Hoodlrz at the snapshot on {fmtDateTime(PHASE_ISO.snapshot)}.
+        Nothing to sign up for, nothing to claim in advance. The list is built
+        from the chain and published as a file — you can rebuild the Merkle
+        root yourself and check that your wallet is in it.
+      </>,
+    ],
+    [
+      "Why is the mint window ten years long?",
+      <>
+        Because closing it early would burn pieces that nobody had claimed
+        yet. The window is a backstop, not a schedule — the reveal is tied to
+        the collection selling out, not to that date.
+      </>,
+    ],
+    [
+      "Can the art change later?",
+      <>
+        The engine bytes are frozen and their SHA-256 is recorded. The renderer
+        address can be locked irreversibly once the output has been verified
+        from the chain, and that is the plan. Until it is locked, treat the
+        collection as still being set up.
+      </>,
+    ],
+    [
+      "Will it show on OpenSea?",
+      <>
+        Metadata follows the standard: name, description, attributes,{" "}
+        <code className="font-mono text-xs">image</code> as an SVG poster and{" "}
+        <code className="font-mono text-xs">animation_url</code> as the live
+        page. Whether a given marketplace indexes {KIDS_CHAIN.name} is up to
+        that marketplace.
+      </>,
+    ],
+  ];
+
+  return (
+    <section className="mt-16">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        Questions
+      </h2>
+      <div className="flex flex-col gap-5">
+        {items.map(([q, a]) => (
+          <div key={q} className="border-b border-[var(--border)] pb-5 last:border-0">
+            <p className="text-sm font-bold text-foreground">{q}</p>
+            <p className="mt-2 text-sm leading-relaxed text-muted">{a}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -195,7 +195,7 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
      * ------------------------------------------------------------------ */
 
     /**
-     * @notice Fige la base de graine apres la fin du mint.
+     * @notice Fige la base de graine une fois la distribution terminee.
      * @dev    Melange le blockhash du bloc precedent, le timestamp et le
      *         nombre de tokens mintes. Le blockhash n'est PAS une source
      *         d'alea sure sur une chaine a sequenceur centralise - mais ici
@@ -208,7 +208,16 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
      */
     function revealSeed() external onlyOwner {
         if (seedBase != bytes32(0)) revert SeedAlreadySet();
-        require(mintEnd != 0 && block.timestamp >= mintEnd, "Mint en cours");
+        // La seule condition qui compte est que la distribution soit finie.
+        // On y arrive de deux facons : la fenetre se ferme, ou il ne reste
+        // plus rien a minter. La seconde n'est pas un confort - la fenetre
+        // de mint court jusqu'en 2036, et sans elle la collection resterait
+        // en placeholder dix ans apres que la derniere piece a trouve
+        // preneur.
+        require(
+            mintEnd != 0 && (block.timestamp >= mintEnd || totalMinted == MAX_SUPPLY),
+            "Mint en cours"
+        );
         seedBase = keccak256(
             abi.encodePacked(blockhash(block.number - 1), block.timestamp, totalMinted, address(this))
         );

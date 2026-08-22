@@ -16,9 +16,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export default function EnginePreview({
   className = "",
   autoCycleMs = 0,
+  bare = false,
 }: {
   className?: string;
   autoCycleMs?: number;
+  /** Sans le hash ni le bouton : pour les grilles, ou le cadre suffit. */
+  bare?: boolean;
 }) {
   const [hash, setHash] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -47,7 +50,7 @@ export default function EnginePreview({
             ref={frameRef}
             key={hash}
             src={`/kids/engine.html?hash=${hash}`}
-            title="Aperçu Hoodlrz Kids"
+            title="Hoodlrz Kids preview"
             className="h-full w-full border-0"
             sandbox="allow-scripts"
             loading="lazy"
@@ -55,24 +58,28 @@ export default function EnginePreview({
         )}
       </div>
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <code className="truncate font-mono text-[11px] text-[var(--muted)]">
-          {hash ? `${hash.slice(0, 10)}…${hash.slice(-6)}` : "…"}
-        </code>
-        <button
-          type="button"
-          onClick={roll}
-          className="shrink-0 border border-[var(--border)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest
-                     transition-colors hover:border-accent-red hover:text-accent-red
-                     focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-red"
-        >
-          Autre tirage
-        </button>
-      </div>
-      <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
-        Tirage aléatoire, joué par le moteur qui sera stocké on-chain.
-        Touche l&apos;image pour changer la punchline.
-      </p>
+      {!bare && (
+        <>
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <code className="truncate font-mono text-[11px] text-[var(--muted)]">
+              {hash ? `${hash.slice(0, 10)}…${hash.slice(-6)}` : "…"}
+            </code>
+            <button
+              type="button"
+              onClick={roll}
+              className="shrink-0 border border-[var(--border)] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest
+                         transition-colors hover:border-accent-red hover:text-accent-red
+                         focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-red"
+            >
+              Roll another
+            </button>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-[var(--muted)]">
+            A random draw, played by the very engine that will be stored
+            on-chain. Tap the artwork to change the punchline.
+          </p>
+        </>
+      )}
     </div>
   );
 }

@@ -22,19 +22,25 @@
     "snapshotParis": "2026-09-11T16:00:00+02:00",
     "allowlistStartParis": "2026-09-11T17:00:00+02:00",
     "publicStartParis": "2026-09-11T18:00:00+02:00",
-    "mintEndParis": "2026-09-18T18:00:00+02:00",
+    "mintEndParis": "2036-09-11T18:00:00+02:00",
     "_attention": [
-      "mintEnd a ete recu comme '11 septembre 2036' - lu comme une faute de",
-      "frappe pour 2026 et fixe ici a J+7. Dix ans de mint ouvert auraient",
-      "empeche revealSeed() jusqu'en 2036, laissant la collection en",
-      "placeholder tout ce temps. A confirmer avant setPhases()."
+      "mintEnd au 11 septembre 2036 : CONFIRME par le createur le 22/08/2026.",
+      "Ce n'est pas une faute de frappe, c'est une fenetre de mint de dix ans.",
+      "",
+      "Consequence traitee dans le contrat : revealSeed() n'attend plus la",
+      "fin de la fenetre, il accepte aussi le cas 'plus rien a minter'. Sans",
+      "cela la collection serait restee en placeholder jusqu'en 2036, meme",
+      "une fois les 8888 pieces distribuees.",
+      "",
+      "Reste vrai : si la collection ne part pas entierement, la revelation",
+      "n'a lieu qu'en 2036. C'est le prix d'une fenetre longue, assume."
     ]
   },
   "addresses": {
     "_note": "A remplir avant tout deploiement. Adresses PUBLIQUES uniquement.",
-    "deployer": "",
-    "reserveReceiver": "",
-    "royaltyReceiver": ""
+    "deployer": "0x520008eA14F6d9FC8606383d6196e013256dd91d",
+    "reserveReceiver": "0x520008eA14F6d9FC8606383d6196e013256dd91d",
+    "royaltyReceiver": "0x520008eA14F6d9FC8606383d6196e013256dd91d"
   },
   "snapshot": {
     "_note": "Renseigne automatiquement par scripts/kids/snapshot.mjs.",

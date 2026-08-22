@@ -42,6 +42,38 @@ export function phaseAt(nowSeconds: number): Phase {
   return "termine";
 }
 
+/**
+ * Dates telles qu'annoncees au public, en heure de Paris.
+ *
+ * Le fuseau est force plutot que laisse au navigateur : la page est
+ * prerendue, et un formatage dependant du fuseau donnerait un HTML
+ * serveur different du premier rendu client - donc une erreur
+ * d'hydratation. Toutes les heures affichees sont donc celles de Paris,
+ * et le libelle le dit.
+ */
+export const PARIS = "Europe/Paris";
+
+export function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    timeZone: PARIS, day: "numeric", month: "long", year: "numeric",
+  });
+}
+
+export function fmtDateTime(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", {
+    timeZone: PARIS, day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  }) + " CET";
+}
+
+/** Chaines ISO d'origine, pour l'affichage. */
+export const PHASE_ISO = {
+  snapshot: raw.phases.snapshotParis,
+  allowlistStart: raw.phases.allowlistStartParis,
+  publicStart: raw.phases.publicStartParis,
+  mintEnd: raw.phases.mintEndParis,
+} as const;
+
 /* ------------------------------------------------------------------ *
  *  Chaine
  * ------------------------------------------------------------------ */
