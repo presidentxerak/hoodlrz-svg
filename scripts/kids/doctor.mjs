@@ -103,12 +103,45 @@ let addressesOk = false;
       addressesOk ? null : 'npm run kids:addresses -- 0xTonAdresse');
 }
 
-/* 7 ── Cle privee -------------------------------------------------- */
+/* 7 ── Destinataires coherents entre config et env ------------------ */
+{
+  // deploy.ts lit RESERVE_RECEIVER et ROYALTY_RECEIVER dans .env.local,
+  // pas dans kids/config.json. Une divergence entre les deux ne se voit
+  // nulle part et ne se rattrape pas : la reserve et les royalties
+  // partent sur le mauvais wallet, definitivement.
+  const cfg = JSON.parse(readFileSync('kids/config.json', 'utf8'));
+  const env = existsSync('.env.local') ? readFileSync('.env.local', 'utf8') : '';
+  const envOf = (k) => (env.match(new RegExp(`^${k}\\s*=\\s*(\\S*)$`, 'm'))?.[1] ?? '').trim();
+
+  const pairs = [
+    ['reserveReceiver', 'RESERVE_RECEIVER'],
+    ['royaltyReceiver', 'ROYALTY_RECEIVER'],
+  ];
+  const set = pairs.filter(([, e]) => /^0x[0-9a-fA-F]{40}$/.test(envOf(e)));
+  const clash = set.filter(([c, e]) => envOf(e).toLowerCase() !== (cfg.addresses?.[c] ?? '').toLowerCase());
+
+  if (!env) {
+    add(7, 'Destinataires reserve et royalties', 'warn', '.env.local absent',
+        'rien a comparer pour l instant');
+  } else if (!set.length) {
+    add(7, 'Destinataires reserve et royalties', 'bad',
+        'RESERVE_RECEIVER et ROYALTY_RECEIVER encore a l exemple',
+        'y recopier les adresses de kids/config.json');
+  } else if (clash.length) {
+    add(7, 'Destinataires reserve et royalties', 'bad',
+        clash.map(([c, e]) => `${e} = ${envOf(e)}  mais config.${c} = ${cfg.addresses?.[c] || '(vide)'}`).join('\n           '),
+        'trancher, puis aligner les deux : c est .env.local que lit deploy.ts');
+  } else {
+    add(7, 'Destinataires reserve et royalties', 'ok', 'identiques a kids/config.json');
+  }
+}
+
+/* 8 ── Cle privee --------------------------------------------------- */
 {
   // On ne lit QUE la presence de la ligne. La valeur n'est jamais
   // affichee, jamais journalisee.
   if (!existsSync('.env.local')) {
-    add(7, 'Cle du deployeur', 'bad', '.env.local absent',
+    add(8, 'Cle du deployeur', 'bad', '.env.local absent',
         'cp .env.local.example .env.local  puis renseigner DEPLOYER_PRIVATE_KEY');
   } else {
     const env = readFileSync('.env.local', 'utf8');
@@ -116,29 +149,36 @@ let addressesOk = false;
     const v = (m?.[1] ?? '').trim();
     const isPlaceholder = !v || v.includes('...') || /^0x0+$/.test(v);
     const looksValid = /^0x[0-9a-fA-F]{64}$/.test(v);
-    add(7, 'Cle du deployeur', looksValid ? 'ok' : 'bad',
+    // MetaMask exporte les cles SANS le prefixe 0x. C'est le premier
+    // echec que rencontre quiconque suit la procedure, et un simple
+    // "format inattendu : 64 caracteres" n'aide personne a le voir.
+    const missingPrefix = /^[0-9a-fA-F]{64}$/.test(v);
+    add(8, 'Cle du deployeur', looksValid ? 'ok' : 'bad',
         looksValid ? 'presente et bien formee (valeur non affichee)'
+          : missingPrefix ? 'il manque le 0x devant (MetaMask exporte sans)'
           : isPlaceholder ? 'ligne encore a l exemple'
           : `format inattendu : ${v.length} caracteres au lieu de 66`,
-        looksValid ? null : 'renseigner DEPLOYER_PRIVATE_KEY dans .env.local');
+        looksValid ? null
+          : missingPrefix ? 'ajouter 0x juste apres le = dans .env.local'
+          : 'renseigner DEPLOYER_PRIVATE_KEY dans .env.local');
   }
 }
 
-/* 8 ── .env.local bien ignore par git ------------------------------ */
+/* 9 ── .env.local bien ignore par git ------------------------------ */
 {
   const tracked = sh('git ls-files .env.local');
   const safe = !tracked;
-  add(8, 'Cle protegee de git', safe ? 'ok' : 'bad',
+  add(9, 'Cle protegee de git', safe ? 'ok' : 'bad',
       safe ? '.env.local non suivi par git'
            : 'ATTENTION : .env.local est suivi par git',
       safe ? null : 'git rm --cached .env.local  puis changer la cle : elle est compromise');
 }
 
-/* 9 ── Chaine ------------------------------------------------------ */
+/* 10 ── Chaine ----------------------------------------------------- */
 {
   const env = existsSync('.env.local') ? readFileSync('.env.local', 'utf8') : '';
   const rpc = env.match(/^RH_TESTNET_RPC\s*=\s*(\S+)$/m)?.[1] ?? '';
-  add(9, 'RPC Robinhood Chain', rpc ? 'warn' : 'warn',
+  add(10, 'RPC Robinhood Chain', rpc ? 'warn' : 'warn',
       rpc ? `${rpc} — a confirmer sur docs.robinhood.com/chain` : 'non renseigne',
       'confirmer chain ID, RPC et limite de bytecode avant tout deploiement');
 }
