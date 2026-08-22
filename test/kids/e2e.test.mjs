@@ -13,13 +13,12 @@
  * Usage : node test/kids/e2e.test.mjs
  */
 
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { launchChromium } from '../../scripts/kids/browser.mjs';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createChain, ACCOUNTS } from '../../scripts/kids/chain.mjs';
 import { buildTree, proofFor, leafOf } from '../../scripts/kids/merkle.mjs';
 
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const DAY = 86400;
 
 let pass = 0, fail = 0;
@@ -174,7 +173,7 @@ console.log('\n        attributs lus depuis la chaine :');
 for (const a of meta.attributes) console.log(`          ${a.trait_type.padEnd(12)} ${a.value}`);
 
 section('8. Le HTML issu de la chaine dessine-t-il ?');
-const browser = await chromium.launch({ executablePath: CHROME });
+const browser = await launchChromium();
 {
   const page = await browser.newPage({ viewport: { width: 500, height: 500 } });
   const errors = [];

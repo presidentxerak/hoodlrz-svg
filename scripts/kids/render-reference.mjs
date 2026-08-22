@@ -29,7 +29,7 @@
  *   node scripts/kids/render-reference.mjs --all          (8888 PNG, long)
  */
 
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { launchChromium } from './browser.mjs';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { solidityPackedKeccak256 } from 'ethers';
@@ -41,7 +41,6 @@ const val = (f, d) => {
   return i >= 0 && args[i + 1] ? args[i + 1] : d;
 };
 
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const OUT = 'kids/build/reference';
 const SUPPLY = Number(val('--supply', '8888'));
 
@@ -60,7 +59,7 @@ console.log('\nRendus de reference Hoodlrz Kids');
 console.log(`  graine   ${seedBase.slice(0, 18)}…  ${isReal ? '(reelle)' : '(de travail - PAS la collection finale)'}`);
 console.log(`  supply   ${SUPPLY.toLocaleString('fr')}\n`);
 
-const browser = await chromium.launch({ executablePath: CHROME });
+const browser = await launchChromium();
 const page = await browser.newPage({ viewport: { width: 1200, height: 1200 } });
 const frozen = readFileSync(resolve('kids/engine/frozen.html'), 'utf8');
 await page.setContent(frozen.replace('__HASH__', '0x0'), { waitUntil: 'load' });

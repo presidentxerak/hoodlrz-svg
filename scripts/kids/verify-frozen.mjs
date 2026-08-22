@@ -11,14 +11,13 @@
  * Usage : node scripts/kids/verify-frozen.mjs
  */
 
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { launchChromium } from './browser.mjs';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { resolve } from 'node:path';
 
 const FROZEN = resolve('kids/engine/frozen.html');
 const SOURCE = resolve('kids/engine/source.html');
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const OUTDIR = resolve('kids/build/reference');
 
 const HASHES = [
@@ -36,7 +35,7 @@ const ok = (label, cond, detail = '') => {
   cond ? pass++ : fail++;
 };
 
-const browser = await chromium.launch({ executablePath: CHROME });
+const browser = await launchChromium();
 
 /** Charge le moteur gele avec un hash injecte comme le fera le contrat :
  *  substitution du marqueur, exactement ce que fait la concatenation

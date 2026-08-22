@@ -27,6 +27,7 @@
 import { JsonRpcProvider, Contract } from 'ethers';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { launchChromium } from './browser.mjs';
 
 const args = process.argv.slice(2);
 const val = (f, d = null) => {
@@ -38,7 +39,6 @@ const RPC = val('--rpc');
 const ENGINE = val('--engine');
 const NFT = val('--nft');
 const TOKEN = Number(val('--token', '0'));
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
 if (!RPC || !ENGINE) {
   console.error('Usage : --rpc <url> --engine <adresse> [--nft <adresse>] [--token <id>]');
@@ -224,10 +224,7 @@ if (NFT) {
        html === local.toString('utf8').replace('__HASH__', th));
 
     // Le controle decisif : rendre le HTML et comparer les traits.
-    const { chromium } = await import(CHROME
-      ? '/opt/node22/lib/node_modules/playwright/index.mjs'
-      : 'playwright');
-    const browser = await chromium.launch({ executablePath: CHROME });
+    const browser = await launchChromium();
     const page = await browser.newPage({ viewport: { width: 500, height: 500 } });
     const errs = [];
     page.on('pageerror', (e) => errs.push(e.message));

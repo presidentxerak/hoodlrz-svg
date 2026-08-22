@@ -15,7 +15,7 @@
  * Usage : node test/kids/parity.test.mjs [nombre_de_tokens]
  */
 
-import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+import { launchChromium } from '../../scripts/kids/browser.mjs';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { solidityPackedKeccak256, AbiCoder } from 'ethers';
@@ -24,7 +24,6 @@ import { compile, deploy } from '../../scripts/kids/evm.mjs';
 const N = parseInt(process.argv[2] || '8888', 10);
 const SEED_BASE = '0x' + 'a7'.repeat(32);   // graine arbitraire mais fixe
 const BATCH = 400;                           // tokens par appel EVM
-const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
 const K = JSON.parse(readFileSync('kids/build/constants.json', 'utf8')).arrays;
 const abi = AbiCoder.defaultAbiCoder();
@@ -119,7 +118,7 @@ console.log(`  ${solTraits.length.toLocaleString('fr')} tokens en ${((Date.now()
  * Cote JavaScript : le moteur gele lui-meme.
  * ------------------------------------------------------------------ */
 console.log('Derivation cote moteur JS...');
-const browser = await chromium.launch({ executablePath: CHROME });
+const browser = await launchChromium();
 const page = await browser.newPage();
 const frozen = readFileSync(resolve('kids/engine/frozen.html'), 'utf8');
 await page.setContent(frozen.replace('__HASH__', '0x0'), { waitUntil: 'load' });
