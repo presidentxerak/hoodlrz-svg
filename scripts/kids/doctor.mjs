@@ -127,11 +127,11 @@ let addressesOk = false;
   } else if (!set.length) {
     add(7, 'Destinataires reserve et royalties', 'bad',
         'RESERVE_RECEIVER et ROYALTY_RECEIVER encore a l exemple',
-        'y recopier les adresses de kids/config.json');
+        'npm run kids:sync-env');
   } else if (clash.length) {
     add(7, 'Destinataires reserve et royalties', 'bad',
         clash.map(([c, e]) => `${e} = ${envOf(e)}  mais config.${c} = ${cfg.addresses?.[c] || '(vide)'}`).join('\n           '),
-        'trancher, puis aligner les deux : c est .env.local que lit deploy.ts');
+        'npm run kids:sync-env   (kids/config.json fait foi)');
   } else {
     add(7, 'Destinataires reserve et royalties', 'ok', 'identiques a kids/config.json');
   }

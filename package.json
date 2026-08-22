@@ -28,7 +28,8 @@
     "kids:rarity": "node scripts/kids/render-reference.mjs --rarity",
     "kids:sheets": "node scripts/kids/render-reference.mjs --sheets 4 --grid 16 --tile 130",
     "kids:render": "node scripts/kids/render-reference.mjs",
-    "kids:soldout": "node test/kids/soldout.test.mjs"
+    "kids:soldout": "node test/kids/soldout.test.mjs",
+    "kids:sync-env": "node scripts/kids/sync-env.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",
