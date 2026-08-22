@@ -209,12 +209,52 @@ let addressesOk = false;
 }
 
 /* 10 ── Chaine ----------------------------------------------------- */
+// Valeurs confirmees le 22/08/2026 sur docs.robinhood.com/chain.
+// Plutot que de les redire, on interroge le RPC : un endpoint qui repond
+// le bon chain ID est la seule preuve qui vaille, et elle attrape aussi
+// bien une URL perimee qu'un service en panne le jour du deploiement.
+const RH = {
+  testnet: { id: 46630, rpc: 'https://rpc.testnet.chain.robinhood.com' },
+  mainnet: { id: 4663, rpc: 'https://rpc.mainnet.chain.robinhood.com' },
+};
+
 {
   const env = existsSync('.env.local') ? readFileSync('.env.local', 'utf8') : '';
-  const rpc = env.match(/^RH_TESTNET_RPC\s*=\s*(\S+)$/m)?.[1] ?? '';
-  add(10, 'RPC Robinhood Chain', rpc ? 'warn' : 'warn',
-      rpc ? `${rpc} — a confirmer sur docs.robinhood.com/chain` : 'non renseigne',
-      'confirmer chain ID, RPC et limite de bytecode avant tout deploiement');
+  const custom = env.match(/^RH_TESTNET_RPC\s*=\s*(\S+)$/m)?.[1] ?? '';
+  const url = custom || RH.testnet.rpc;
+
+  let detail, state, fix = null;
+  try {
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_chainId', params: [] }),
+      signal: AbortSignal.timeout(8000),
+    });
+    // Un proxy ou un portail captif repond en texte, pas en JSON.
+    // Tenter de le deserialiser donnerait un message sur une accolade
+    // manquante, qui n'a rien a voir avec la cause.
+    const body = await r.text();
+    let seen = NaN;
+    try { seen = parseInt(JSON.parse(body).result, 16); }
+    catch { throw new Error(`reponse non JSON : ${body.slice(0, 40).replace(/\s+/g, ' ')}`); }
+
+    if (seen === RH.testnet.id) {
+      state = 'ok';
+      detail = `testnet joignable, chain ID ${seen} confirme\n           ${url}`;
+    } else {
+      state = 'bad';
+      detail = `ce RPC repond chain ID ${seen}, or le testnet Robinhood est ${RH.testnet.id}`;
+      fix = 'corriger RH_TESTNET_RPC dans .env.local';
+    }
+  } catch (e) {
+    // Injoignable n'est pas fatal tant qu'on ne deploie pas : le reseau
+    // du poste peut filtrer, l'endpoint public peut limiter le debit.
+    state = 'warn';
+    detail = `${url}\n           injoignable pour l instant (${String(e.message).slice(0, 60)})`;
+    fix = 'sans consequence tant qu on ne deploie pas ; a revoir avant le testnet';
+  }
+  add(10, 'Robinhood Chain testnet', state, detail, fix);
 }
 
 render();

@@ -79,19 +79,39 @@ export const PHASE_ISO = {
  * ------------------------------------------------------------------ */
 
 /**
- * Robinhood Chain. Ces valeurs viennent de resumes de recherche et non
- * de la documentation lue directement : elles doivent etre confirmees
- * sur docs.robinhood.com/chain avant toute mise en production. Elles
- * sont surchargeables par variable d'environnement pour qu'une
- * correction ne demande pas un redeploiement du code.
+ * Robinhood Chain. Valeurs confirmees le 22/08/2026 sur
+ * docs.robinhood.com/chain, page « Connecting to Robinhood Chain ».
+ *
+ * Le RPC public sert de defaut parce qu'il ne demande aucune cle et que
+ * cette page est servie a tout le monde. La doc le dit rate-limited et
+ * deconseille en production : NEXT_PUBLIC_KIDS_RPC_URL permet de lui
+ * substituer un endpoint Alchemy le jour du mint, sans toucher au code.
  */
+export const RH_CHAINS = {
+  mainnet: {
+    id: 4663,
+    name: "Robinhood Chain",
+    rpc: "https://rpc.mainnet.chain.robinhood.com",
+    explorer: "https://robinhoodchain.blockscout.com",
+  },
+  testnet: {
+    id: 46630,
+    name: "Robinhood Chain Testnet",
+    rpc: "https://rpc.testnet.chain.robinhood.com",
+    explorer: "https://explorer.testnet.chain.robinhood.com",
+  },
+} as const;
+
+const DEFAULT_CHAIN =
+  process.env.NEXT_PUBLIC_KIDS_NETWORK === "testnet"
+    ? RH_CHAINS.testnet
+    : RH_CHAINS.mainnet;
+
 export const KIDS_CHAIN = {
-  id: Number(process.env.NEXT_PUBLIC_KIDS_CHAIN_ID ?? "4663"),
-  name: process.env.NEXT_PUBLIC_KIDS_CHAIN_NAME ?? "Robinhood Chain",
-  rpcUrl: process.env.NEXT_PUBLIC_KIDS_RPC_URL ?? "",
-  explorerUrl:
-    process.env.NEXT_PUBLIC_KIDS_EXPLORER_URL ??
-    "https://robinhoodchain.blockscout.com",
+  id: Number(process.env.NEXT_PUBLIC_KIDS_CHAIN_ID ?? DEFAULT_CHAIN.id),
+  name: process.env.NEXT_PUBLIC_KIDS_CHAIN_NAME ?? DEFAULT_CHAIN.name,
+  rpcUrl: process.env.NEXT_PUBLIC_KIDS_RPC_URL ?? DEFAULT_CHAIN.rpc,
+  explorerUrl: process.env.NEXT_PUBLIC_KIDS_EXPLORER_URL ?? DEFAULT_CHAIN.explorer,
   currency: { name: "Ether", symbol: "ETH", decimals: 18 },
 } as const;
 

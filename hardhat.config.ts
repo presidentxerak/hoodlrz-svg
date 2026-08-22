@@ -30,19 +30,29 @@ const config: HardhatUserConfig = {
       accounts: hasKey ? [DEPLOYER_PRIVATE_KEY] : [],
     },
     // ── Robinhood Chain (Hoodlrz Kids) ────────────────────────────────
-    // Chain IDs et RPC issus de résumés de recherche, PAS de la doc lue
-    // directement : à confirmer sur docs.robinhood.com/chain avant tout
-    // déploiement. C'est le premier point de la checklist testnet.
+    // Valeurs confirmées le 22/08/2026 sur docs.robinhood.com/chain,
+    // page « Connecting to Robinhood Chain ».
+    //
+    // Les endpoints publics existent mais la doc les dit rate-limited et
+    // déconseillés en production. Un déploiement, c'est une trentaine de
+    // transactions dont six qui poussent 24 Ko de moteur : exactement le
+    // profil qui se fait limiter au pire moment. On passe donc par
+    // Alchemy quand la clé est là — c'est le fournisseur recommandé par
+    // Robinhood — et on garde le public en secours.
     rhTestnet: {
       type: "http",
       chainId: 46630,
-      url: process.env.RH_TESTNET_RPC || "https://rpc.testnet.chain.robinhood.com",
+      url: process.env.RH_TESTNET_RPC || (ALCHEMY_API_KEY
+        ? `https://robinhood-testnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
+        : "https://rpc.testnet.chain.robinhood.com"),
       accounts: hasKey ? [DEPLOYER_PRIVATE_KEY] : [],
     },
     rhMainnet: {
       type: "http",
       chainId: 4663,
-      url: process.env.RH_MAINNET_RPC || "",
+      url: process.env.RH_MAINNET_RPC || (ALCHEMY_API_KEY
+        ? `https://robinhood-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
+        : "https://rpc.mainnet.chain.robinhood.com"),
       accounts: hasKey ? [DEPLOYER_PRIVATE_KEY] : [],
     },
   },
