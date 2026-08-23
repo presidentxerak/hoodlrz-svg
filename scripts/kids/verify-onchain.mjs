@@ -24,24 +24,67 @@
  *     --rpc <url> --engine 0x... [--nft 0x...] [--token 0]
  */
 
+import './env.mjs';   // pour ALCHEMY_API_KEY, quand --testnet resout le RPC
 import { JsonRpcProvider, Contract } from 'ethers';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { launchChromium } from './browser.mjs';
 
 const args = process.argv.slice(2);
+const has = (f) => args.includes(f);
 const val = (f, d = null) => {
   const i = args.indexOf(f);
   return i >= 0 && args[i + 1] ? args[i + 1] : d;
 };
 
-const RPC = val('--rpc');
-const ENGINE = val('--engine');
-const NFT = val('--nft');
+/**
+ * Les adresses et le RPC peuvent venir de kids/config.json plutot que de
+ * la ligne de commande. Recopier trois adresses a la main, c'est trois
+ * occasions de verifier le mauvais contrat - et un rapport tout vert sur
+ * un contrat qui n'est pas le sien serait pire que pas de rapport.
+ *
+ * Les drapeaux explicites restent prioritaires : ils servent aux tests,
+ * qui pointent vers une EVM en memoire.
+ */
+const CHAINS = {
+  testnet: { id: 46630, alchemy: 'robinhood-testnet', rpc: 'https://rpc.testnet.chain.robinhood.com', envRpc: 'RH_TESTNET_RPC' },
+  mainnet: { id: 4663, alchemy: 'robinhood-mainnet', rpc: 'https://rpc.mainnet.chain.robinhood.com', envRpc: 'RH_MAINNET_RPC' },
+};
+
+let resolved = {};
+const which = has('--mainnet') ? 'mainnet' : has('--testnet') ? 'testnet' : null;
+if (which) {
+  const CH = CHAINS[which];
+  const cfg = JSON.parse(readFileSync('kids/config.json', 'utf8'));
+  const dep = cfg.deployments?.[CH.id];
+  if (!dep?.engine) {
+    console.error(`\n  Aucun deploiement enregistre pour le chain ID ${CH.id} dans kids/config.json.` +
+                  `\n  Lancer d'abord : npm run kids:deploy -- --${which}\n`);
+    process.exit(2);
+  }
+  const key = process.env.ALCHEMY_API_KEY;
+  resolved = {
+    rpc: process.env[CH.envRpc] || (key ? `https://${CH.alchemy}.g.alchemy.com/v2/${key}` : CH.rpc),
+    engine: dep.engine,
+    nft: dep.nft,
+  };
+  console.log(`\nDeploiement lu dans kids/config.json  (chain ID ${CH.id})`);
+}
+
+const RPC = val('--rpc') ?? resolved.rpc;
+const ENGINE = val('--engine') ?? resolved.engine;
+const NFT = val('--nft') ?? resolved.nft;
 const TOKEN = Number(val('--token', '0'));
 
 if (!RPC || !ENGINE) {
-  console.error('Usage : --rpc <url> --engine <adresse> [--nft <adresse>] [--token <id>]');
+  console.error(`
+Usage :
+  npm run kids:verify-chain -- --testnet          adresses lues dans kids/config.json
+  npm run kids:verify-chain -- --mainnet
+
+  ou explicitement :
+  node scripts/kids/verify-onchain.mjs --rpc <url> --engine <adresse> [--nft <adresse>] [--token <id>]
+`);
   process.exit(2);
 }
 
