@@ -68,15 +68,22 @@ console.log(`  moteur  ${dep.engine}`);
 console.log(`  hashs   arbitraires, sans rapport avec la collection\n`);
 
 const browser = await launchChromium();
-const page = await browser.newPage({ viewport: { width: SIZE, height: SIZE } });
 const errs = [];
-page.on('pageerror', (e) => errs.push(e.message));
+const seen = [];
 
 for (const [i, h] of hashes.entries()) {
-  // Un aller-retour par piece : le document fait 118 Ko, on ne le
-  // telecharge qu'une fois par hash plutot que de le mettre en cache -
-  // le but est justement d'eprouver la lecture depuis la chaine.
+  // Un aller-retour par piece : le document fait 118 Ko, on ne le met pas
+  // en cache - le but est justement d'eprouver la lecture depuis la chaine.
   const html = await engine.documentFor(h);
+
+  // UNE PAGE NEUVE PAR PIECE. Reutiliser la meme et enchainer les
+  // setContent renvoyait les traits du PREMIER hash pour tous les
+  // suivants : le moteur ne se reinitialise pas comme on l'espere. Le
+  // symptome etait quatre pieces identiques a partir de quatre hashs
+  // differents - un bug d'outillage qui ressemblait a s'y meprendre a un
+  // moteur casse.
+  const page = await browser.newPage({ viewport: { width: SIZE, height: SIZE } });
+  page.on('pageerror', (e) => errs.push(e.message));
 
   await page.setContent(html, { waitUntil: 'load' });
   await page.waitForFunction(() => window.__hoodlrzFontReady === true, { timeout: 20000 })
@@ -86,21 +93,32 @@ for (const [i, h] of hashes.entries()) {
   const traits = await page.evaluate(() => window.HOODLRZ_FEATURES ?? null);
   const file = `${OUT}/onchain-${String(i).padStart(2, '0')}.png`;
   await page.screenshot({ path: file });
+  await page.close();
 
   console.log(`  ${h.slice(0, 14)}…  ->  ${file}`);
   if (traits) {
-    const line = Object.entries(traits).map(([k, v]) => `${k}=${v}`).join('  ');
-    console.log(`    ${line}`);
+    console.log(`    ${Object.entries(traits).map(([k, v]) => `${k}=${v}`).join('  ')}`);
+    seen.push(JSON.stringify(traits));
   } else {
     console.log('    ATTENTION : HOODLRZ_FEATURES absent, les traits ne sont pas exposes');
   }
-  const htmlFile = `${OUT}/onchain-${String(i).padStart(2, '0')}.html`;
-  writeFileSync(htmlFile, html);
+  writeFileSync(`${OUT}/onchain-${String(i).padStart(2, '0')}.html`, html);
 }
 
 await browser.close();
 
+// Filet contre la panne qu'on vient de corriger. Des hashs distincts
+// doivent donner des pieces distinctes ; si ce n'est pas le cas, le
+// probleme est soit ici, soit - bien plus grave - dans le moteur.
+if (seen.length > 1 && new Set(seen).size === 1) {
+  console.error(`\n  ANOMALIE : ${seen.length} hashs distincts ont donne des traits IDENTIQUES.`);
+  console.error(`  Soit l outil de rendu ne reinitialise pas le moteur entre deux pieces,`);
+  console.error(`  soit la derivation des traits est cassee. Ne pas ignorer.\n`);
+  process.exit(1);
+}
+
 console.log(`\n  ${errs.length ? 'Erreurs de page : ' + errs.slice(0, 3).join(' | ') : 'Aucune erreur de rendu.'}`);
+if (seen.length > 1) console.log(`  ${new Set(seen).size} jeux de traits distincts sur ${seen.length} pieces.`);
 console.log(`  HTML et PNG dans ${OUT}/`);
 console.log(`  Ouvrir un .html dans un navigateur donne la piece animee,`);
 console.log(`  servie par les octets de la chaine.\n`);

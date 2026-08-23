@@ -222,13 +222,30 @@ if (NFT) {
   }
   console.log(`  --    total minte   ${totalMinted.toLocaleString('fr')} / ${config.collection.maxSupply.toLocaleString('fr')}`);
 
+  // Sur testnet, kids:rehearse pose volontairement des fenetres de
+  // quelques minutes : elles NE PEUVENT PAS coincider avec les dates de
+  // septembre. Les compter comme des echecs noierait un vrai probleme
+  // sous du bruit attendu. Sur mainnet, en revanche, un ecart avec la
+  // config est exactement ce qu'on veut voir hurler.
+  const conform = (label, actual, expected) => {
+    const same = actual === expected;
+    const seen = new Date(actual * 1000).toISOString();
+    if (same) return ok(label, true, seen);
+    if (which === 'testnet') {
+      return note(label.replace(' conforme a la config', '').replace(' conforme', '') +
+                  ' different de la config',
+                  `chaine ${seen} — attendu ${new Date(expected * 1000).toISOString()}` +
+                  ' (normal apres une repetition)');
+    }
+    return ok(label, false, `chaine ${seen} — attendu ${new Date(expected * 1000).toISOString()}`);
+  };
+
   if (alStart === 0) {
     note('phases non programmees', 'setPhases() reste a passer');
   } else {
-    ok('allowlistStart conforme a la config', alStart === ts(config.phases.allowlistStartParis),
-       new Date(alStart * 1000).toISOString());
-    ok('publicStart conforme', pubStart === ts(config.phases.publicStartParis));
-    ok('mintEnd conforme', mintEnd === ts(config.phases.mintEndParis));
+    conform('allowlistStart conforme a la config', alStart, ts(config.phases.allowlistStartParis));
+    conform('publicStart conforme', pubStart, ts(config.phases.publicStartParis));
+    conform('mintEnd conforme', mintEnd, ts(config.phases.mintEndParis));
   }
 
   const root = await nft.allowlistRoot();
@@ -247,11 +264,21 @@ if (NFT) {
   // pourrait encore etre remplace sous les pieds des collectionneurs.
   const rendererLocked = await nft.rendererLocked();
   const seedBase = await nft.seedBase();
+  const nowSec = Math.floor(Date.now() / 1000);
+  const mintOuvert = alStart !== 0 && nowSec < mintEnd;
   if (alStart === 0) {
     note('renderer pas encore verrouille', 'lockRenderer() apres validation du rendu');
+  } else if (rendererLocked) {
+    ok('renderer verrouille', true);
+  } else if (which === 'testnet') {
+    note('renderer non verrouille', 'attendu sur testnet : la repetition ne le pose pas');
   } else {
-    ok('renderer verrouille', rendererLocked,
-       rendererLocked ? '' : 'le mint est ouvert : lockRenderer() est urgent');
+    // Le message doit dire l'etat reel : « urgent » sur un mint ferme
+    // depuis une semaine ferait douter du reste du rapport.
+    ok('renderer verrouille', false,
+       mintOuvert
+         ? 'le mint est OUVERT : le renderer pourrait etre remplace sous les pieds des collectionneurs'
+         : 'a poser avant l ouverture du mint');
   }
 
   /* ---------------------------------------------------------------- *
