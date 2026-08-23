@@ -130,7 +130,17 @@ const provider = new JsonRpcProvider(RPC, undefined, { staticNetwork: true });
 const engine = new Contract(ENGINE, ENGINE_ABI, provider);
 
 console.log(`\nVerification Hoodlrz Kids`);
-console.log(`  rpc     ${RPC}`);
+// Une cle d'API dans une URL reste une cle. Ce script sert justement a
+// produire un rapport qu'on montre - capture d'ecran, canal d'equipe -
+// donc elle ne doit jamais y figurer.
+const maskUrl = (u) => {
+  const k = process.env.ALCHEMY_API_KEY;
+  if (k && u.includes(k)) return u.split(k).join('***');
+  // Masque aussi une cle passee a la main par --rpc, qu'on ne connait pas :
+  // sur ces fournisseurs, le dernier segment du chemin EST le secret.
+  return u.replace(/(\/v2\/|\/rpc\/|\?apikey=|&apikey=)[^/?&]{12,}/gi, '$1***');
+};
+console.log(`  rpc     ${maskUrl(RPC)}`);
 console.log(`  moteur  ${ENGINE}`);
 if (NFT) console.log(`  nft     ${NFT}`);
 
