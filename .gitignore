@@ -34,3 +34,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Entrees standard JSON pour la verification des contrats Kids.
+# 420 Ko regeneres a l'identique par `npm run kids:deploy -- --testnet --dry`
+# depuis des sources et un compilateur tous deux epingles : derivable, donc
+# hors du depot. Les morceaux du moteur, eux, restent versionnes - ce sont
+# les octets exacts qui partent sur la chaine.
+kids/build/verify/
+kids/build/deployment-*.json

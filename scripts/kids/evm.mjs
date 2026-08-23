@@ -83,6 +83,13 @@ export function compile(entryFile, contractName) {
         bytecode: '0x' + c.evm.bytecode.object,
         deployedSize: c.evm.deployedBytecode.object.length / 2,
         warnings: warnings.map((w) => w.formattedMessage),
+        // Entree standard JSON et version exacte du compilateur : ce sont
+        // les deux choses que reclame un explorateur pour verifier un
+        // contrat. Les conserver au moment du deploiement evite d'avoir a
+        // reconstituer plus tard des reglages qu'on croira se rappeler.
+        input,
+        solcVersion: solc.version(),
+        sourceName: file,
       };
     }
   }

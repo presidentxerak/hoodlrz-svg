@@ -31,7 +31,8 @@
     "kids:soldout": "node test/kids/soldout.test.mjs",
     "kids:sync-env": "node scripts/kids/sync-env.mjs",
     "kids:update": "git checkout -- package-lock.json && git pull && npm install",
-    "kids:resume": "node test/kids/resume.test.mjs"
+    "kids:resume": "node test/kids/resume.test.mjs",
+    "kids:deploy": "node scripts/kids/deploy.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",
