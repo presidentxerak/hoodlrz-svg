@@ -1,0 +1,206 @@
+/**
+ * Repetition generale sur testnet : le cycle de mint en entier.
+ *
+ * Le deploiement prouve que les contrats existent. Il ne prouve pas que
+ * la sequence du jour J fonctionne - poser une racine d'allowlist, ouvrir
+ * les phases, minter par les deux portes, reveler la graine, et obtenir
+ * enfin des metadonnees qui correspondent a l'image.
+ *
+ * Ce script joue cette sequence avec des fenetres de quelques minutes au
+ * lieu de plusieurs jours. Tout ce qui casserait le 11 septembre casse
+ * ici, ou ca ne coute rien.
+ *
+ * IRREVERSIBLE sur le deploiement vise : revealSeed() ne se joue qu'une
+ * fois. Le script refuse donc le mainnet, categoriquement. La repetition
+ * consomme le deploiement testnet ; en refaire un autre coute six
+ * transactions de moteur, ce qui est precisement le prix a payer pour ne
+ * pas repeter sur la vraie collection.
+ *
+ * Usage :
+ *   npm run kids:rehearse
+ *   npm run kids:rehearse -- --minutes 2     (fenetres plus courtes)
+ */
+
+import './env.mjs';
+import { JsonRpcProvider, Wallet, Contract, keccak256, toUtf8Bytes } from 'ethers';
+import { readFileSync } from 'node:fs';
+import { buildTree, proofFor, leafOf } from './merkle.mjs';
+
+const CH = { id: 46630, alchemy: 'robinhood-testnet', rpc: 'https://rpc.testnet.chain.robinhood.com', envRpc: 'RH_TESTNET_RPC' };
+
+const args = process.argv.slice(2);
+const val = (f, d) => { const i = args.indexOf(f); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
+const STEP = Math.max(1, Number(val('--minutes', '2'))) * 60;   // duree d'une phase
+
+if (args.includes('--mainnet')) {
+  console.error(`
+  Refuse. Cette repetition appelle revealSeed(), qui est irreversible :
+  la graine se pose une seule fois, et toute la collection en decoule.
+  Sur mainnet, cela figerait 8888 pieces avant meme le mint.
+`);
+  process.exit(2);
+}
+
+let pass = 0, fail = 0;
+const ok = (label, cond, detail = '') => {
+  console.log(`  ${cond ? 'OK  ' : 'FAIL'}  ${label}${detail ? '   ' + detail : ''}`);
+  cond ? pass++ : fail++;
+  return cond;
+};
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* ---- Connexion ---------------------------------------------------- */
+const cfg = JSON.parse(readFileSync('kids/config.json', 'utf8'));
+const dep = cfg.deployments?.[CH.id];
+if (!dep?.nft) {
+  console.error(`\n  Aucun deploiement testnet enregistre.\n  Lancer : npm run kids:deploy -- --testnet\n`);
+  process.exit(2);
+}
+
+const key = process.env.ALCHEMY_API_KEY;
+const rpc = process.env[CH.envRpc] || (key ? `https://${CH.alchemy}.g.alchemy.com/v2/${key}` : CH.rpc);
+const provider = new JsonRpcProvider(rpc, undefined, { staticNetwork: true });
+const wallet = new Wallet(process.env.DEPLOYER_PRIVATE_KEY, provider);
+
+const ABI = [
+  'function setPhases(uint64,uint64,uint64)',
+  'function setAllowlistRoot(bytes32)',
+  'function allowlistRoot() view returns (bytes32)',
+  'function mintAllowlist(uint256,bytes32[])',
+  'function mintPublic(uint256)',
+  'function revealSeed()',
+  'function lockRenderer()',
+  'function seedBase() view returns (bytes32)',
+  'function tokenHash(uint256) view returns (bytes32)',
+  'function tokenURI(uint256) view returns (string)',
+  'function totalMinted() view returns (uint256)',
+  'function minted(address) view returns (uint256)',
+  'function allowlistStart() view returns (uint64)',
+  'function publicStart() view returns (uint64)',
+  'function mintEnd() view returns (uint64)',
+  'function rendererLocked() view returns (bool)',
+];
+const nft = new Contract(dep.nft, ABI, wallet);
+
+console.log(`\nRepetition generale — Robinhood Chain Testnet`);
+console.log(`  NFT        ${dep.nft}`);
+console.log(`  operateur  ${wallet.address}`);
+console.log(`  fenetres   ${STEP / 60} min par phase\n`);
+
+if ((await nft.seedBase()) !== '0x' + '0'.repeat(64)) {
+  console.error(`  La graine est deja revelee sur ce deploiement : la repetition
+  a deja eu lieu. Pour recommencer, redeployer un testnet neuf :
+
+    rm kids/build/deployment-46630.json
+    npm run kids:deploy -- --testnet
+`);
+  process.exit(2);
+}
+
+/* ---- 1. Allowlist -------------------------------------------------- */
+// Le wallet operateur est mis dans l'arbre pour pouvoir emprunter la
+// porte allowlist. Les autres adresses ne servent qu'a donner a l'arbre
+// une profondeur realiste : une preuve dans un arbre de deux feuilles ne
+// prouverait pas grand-chose.
+console.log('1. Racine d allowlist');
+const others = Array.from({ length: 116 }, (_, i) =>
+  '0x' + keccak256(toUtf8Bytes(`holder-de-test-${i}`)).slice(26));
+const tree = buildTree([wallet.address, ...others]);
+await (await nft.setAllowlistRoot(tree.root)).wait();
+ok('racine posee', (await nft.allowlistRoot()) === tree.root, `${tree.addresses.length} adresses`);
+
+const proof = proofFor(tree, leafOf(wallet.address));
+ok('preuve calculee', proof.length > 0, `profondeur ${proof.length}`);
+
+/* ---- 2. Phases ----------------------------------------------------- */
+console.log('\n2. Phases de mint');
+const now = Math.floor(Date.now() / 1000);
+const AL = now + 45, PUB = AL + STEP, END = PUB + STEP;
+await (await nft.setPhases(AL, PUB, END)).wait();
+ok('phases posees',
+   Number(await nft.allowlistStart()) === AL && Number(await nft.mintEnd()) === END,
+   `allowlist +45 s, public +${(PUB - now) / 60} min, fin +${(END - now) / 60} min`);
+
+const until = async (ts, label) => {
+  // On se cale sur l'horloge de la CHAINE, pas celle du poste : c'est
+  // block.timestamp qui arbitre, et les deux peuvent deriver.
+  for (;;) {
+    const b = await provider.getBlock('latest');
+    const left = ts - b.timestamp;
+    if (left <= 0) return;
+    process.stdout.write(`\r  ${label} dans ${left} s…   `);
+    await wait(Math.min(10, left) * 1000);
+  }
+};
+
+/* ---- 3. Mint allowlist --------------------------------------------- */
+console.log('\n3. Mint allowlist');
+ok('mint refuse avant l ouverture',
+   await refuses(() => nft.mintAllowlist(2, proof)));
+await until(AL + 5, 'ouverture allowlist');
+process.stdout.write('\r');
+
+const before = Number(await nft.totalMinted());
+await (await nft.mintAllowlist(2, proof)).wait();
+ok('2 pieces mintees en allowlist', Number(await nft.totalMinted()) === before + 2);
+ok('une preuve invalide est refusee',
+   await refuses(() => nft.mintAllowlist(1, proof.slice(1))));
+
+/* ---- 4. Mint public ------------------------------------------------ */
+console.log('\n4. Mint public');
+await until(PUB + 5, 'ouverture publique');
+process.stdout.write('\r');
+await (await nft.mintPublic(3)).wait();
+ok('3 pieces mintees en public', Number(await nft.totalMinted()) === before + 5);
+ok('plafond de 10 par wallet respecte',
+   Number(await nft.minted(wallet.address)) === 5, `${await nft.minted(wallet.address)} / 10`);
+ok('un 6e lot depassant le plafond est refuse',
+   await refuses(() => nft.mintPublic(6)));
+
+/* ---- 5. Revelation ------------------------------------------------- */
+console.log('\n5. Revelation de la graine');
+ok('revelation refusee pendant le mint', await refuses(() => nft.revealSeed()));
+await until(END + 5, 'fin de fenetre');
+process.stdout.write('\r');
+
+await (await nft.revealSeed()).wait();
+const seed = await nft.seedBase();
+ok('graine posee', /^0x[0-9a-f]{64}$/.test(seed) && seed !== '0x' + '0'.repeat(64), seed.slice(0, 18) + '…');
+ok('seconde revelation refusee', await refuses(() => nft.revealSeed()));
+
+/* ---- 6. Metadonnees reelles ---------------------------------------- */
+console.log('\n6. Metadonnees apres revelation');
+const uri = await nft.tokenURI(0);
+const meta = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'));
+ok('nom du token', meta.name === 'Hoodlrz Kid #0', meta.name);
+ok('9 attributs', Array.isArray(meta.attributes) && meta.attributes.length === 9);
+ok('image SVG on-chain', String(meta.image).startsWith('data:image/svg+xml;base64,'));
+ok('animation HTML on-chain', String(meta.animation_url).startsWith('data:text/html;base64,'));
+
+const html = Buffer.from(meta.animation_url.split(',')[1], 'base64').toString('utf8');
+const th = await nft.tokenHash(0);
+ok('le HTML porte le hash du token', html.includes(th));
+
+console.log('\n  Traits du token 0, lus depuis la chaine :');
+for (const a of meta.attributes) console.log(`    ${String(a.trait_type).padEnd(12)} ${a.value}`);
+
+console.log(`\n==================================================`);
+console.log(`  ${pass} OK, ${fail} FAIL`);
+console.log(`==================================================`);
+console.log(`
+Le cycle complet a tourne. Reste, quand le rendu est valide :
+
+  npm run kids:verify-chain -- --testnet     doit passer tout au vert
+  npm run kids:preview-chain -- --testnet    voir une piece dessinee
+
+Puis lockRenderer(), qui est le dernier geste irreversible et n'est
+volontairement pas joue ici : il se pose apres avoir regarde les
+pieces, pas avant.
+`);
+process.exit(fail ? 1 : 0);
+
+/** Vrai si l'appel echoue, quelle qu'en soit la raison de revert. */
+async function refuses(fn) {
+  try { await (await fn()).wait(); return false; }
+  catch { return true; }
+}

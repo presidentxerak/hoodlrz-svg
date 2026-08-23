@@ -32,7 +32,9 @@
     "kids:sync-env": "node scripts/kids/sync-env.mjs",
     "kids:update": "git checkout -- package-lock.json && git pull && npm install",
     "kids:resume": "node test/kids/resume.test.mjs",
-    "kids:deploy": "node scripts/kids/deploy.mjs"
+    "kids:deploy": "node scripts/kids/deploy.mjs",
+    "kids:preview-chain": "node scripts/kids/preview-chain.mjs",
+    "kids:rehearse": "node scripts/kids/rehearse.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",
