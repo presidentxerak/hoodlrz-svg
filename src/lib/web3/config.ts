@@ -22,6 +22,18 @@ export const HOODLRZ_STREET_ADDRESS =
 
 export const HOODLRZ_STREET_CHAIN_ID = 1; // mainnet
 
+/**
+ * Collection OG Hoodlrz sur OpenSea.
+ *
+ * L'URL par contrat marche toujours et ne demande rien a configurer.
+ * Une URL de collection (opensea.io/collection/<slug>) est plus belle et
+ * montre la banniere et les statistiques : la renseigner via
+ * NEXT_PUBLIC_HOODLRZ_OPENSEA_URL des qu'on connait le slug.
+ */
+export const HOODLRZ_OPENSEA_URL =
+  process.env.NEXT_PUBLIC_HOODLRZ_OPENSEA_URL ??
+  `https://opensea.io/assets/ethereum/${HOODLRZ_STREET_ADDRESS}`;
+
 export const HOODLRZ_CHAIN_ID = Number(
   process.env.NEXT_PUBLIC_HOODLRZ_CHAIN_ID ?? "11155111" // default Sepolia
 );

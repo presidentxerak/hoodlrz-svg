@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState, useCallback } from "react";
 import Button from "@/components/ui/Button";
+import EnginePreview from "@/components/kids/EnginePreview";
+import { KIDS, KIDS_CHAIN } from "@/lib/kids/config";
+import { HOODLRZ_OPENSEA_URL } from "@/lib/web3/config";
 
 const STREET_SUPPLY = 333;
 const ITEMS_PER_PAGE = 24;
@@ -31,11 +34,122 @@ function openseaUrl(contract: string, tokenId: number) {
   return `https://opensea.io/assets/ethereum/${contract}/${tokenId}`;
 }
 
+/**
+ * La galerie des 333 pieces, avec ses filtres par trait, est mise en
+ * sommeil : OpenSea fait le meme travail, en mieux tenu a jour, et sans
+ * qu'on ait a maintenir l'indexation. Le composant reste en place, pret
+ * a revenir - c'est un interrupteur, pas une suppression.
+ */
+const SHOW_ONCHAIN_GALLERY = false;
+
 export default function HomePage() {
   return (
     <div className="flex flex-col items-center">
       <Hero />
-      <Collection />
+      <div className="mx-auto w-full max-w-6xl px-4">
+        <SecondaryMarket />
+        <GenKidsTeaser />
+      </div>
+      {SHOW_ONCHAIN_GALLERY && <Collection />}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Marche secondaire
+ * ------------------------------------------------------------------ */
+
+function SecondaryMarket() {
+  return (
+    <section className="mt-14 border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
+        Secondary market
+      </p>
+      <h2 className="font-hoodlrz mt-2 text-2xl font-bold tracking-wider text-foreground sm:text-3xl">
+        OG Hoodlrz on OpenSea
+      </h2>
+      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted">
+        The {STREET_SUPPLY} original pieces trade on OpenSea and every other
+        ERC-721 marketplace. Browse the full collection, filter by trait, and
+        collect there.
+      </p>
+      <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <Button variant="primary" size="lg" href={HOODLRZ_OPENSEA_URL}>
+          View on OpenSea
+        </Button>
+        <Button variant="secondary" size="lg" href="/gallery">
+          Gallery
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Gen Kids
+ * ------------------------------------------------------------------ */
+
+/**
+ * La seconde collection, annoncee des la page d'accueil.
+ *
+ * Deux choses doivent passer avant tout le reste : c'est du generatif
+ * anime - donc l'apercu tourne pour de vrai, une vignette mentirait - et
+ * le mint est sur Robinhood Chain, pas sur Ethereum. Un holder OG qui
+ * decouvre la chaine au moment de signer est un holder perdu.
+ */
+function GenKidsTeaser() {
+  return (
+    <section className="mt-14 mb-20 border border-[var(--border)] p-6 sm:p-8">
+      <div className="grid items-center gap-8 md:grid-cols-2">
+        <EnginePreview />
+
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
+            New collection
+          </p>
+          <h2 className="font-hoodlrz mt-2 text-3xl font-bold tracking-wider text-foreground sm:text-4xl">
+            Hoodlrz Gen Kids
+          </h2>
+
+          <div className="mt-3 inline-flex items-center gap-2 border border-[#c6f24e]/40 bg-[#c6f24e]/10 px-3 py-1.5">
+            <span className="text-[10px] uppercase tracking-widest text-[#c6f24e]">
+              Mint on {KIDS_CHAIN.name}
+            </span>
+          </div>
+
+          <p className="mt-4 text-sm leading-relaxed text-muted">
+            {KIDS.maxSupply.toLocaleString("en-GB")} generative pieces, free
+            mint. Not a picture stored somewhere — the rendering engine itself
+            is written into the blockchain, so every Kid redraws itself from
+            its own seed, live, forever.
+          </p>
+          <p className="mt-3 text-sm leading-relaxed text-muted">
+            <strong className="text-foreground">OG Hoodlrz holders mint first.</strong>{" "}
+            A snapshot decides the allowlist — nothing to sign up for.
+          </p>
+
+          <dl className="mt-5 grid grid-cols-3 gap-4 border-y border-[var(--border)] py-4">
+            <Stat label="Supply" value={KIDS.maxSupply.toLocaleString("en-GB")} />
+            <Stat label="Price" value="Free" />
+            <Stat label="Per wallet" value={String(KIDS.maxPerWallet)} />
+          </dl>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button variant="primary" size="lg" href="/kids">
+              Gen Kids drop
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-[10px] font-bold uppercase tracking-widest text-muted">{label}</dt>
+      <dd className="font-hoodlrz mt-1 text-xl font-bold leading-none text-foreground">{value}</dd>
     </div>
   );
 }

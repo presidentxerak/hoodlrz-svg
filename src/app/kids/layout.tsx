@@ -9,13 +9,13 @@ import type { Metadata } from "next";
  * generique du site.
  */
 export const metadata: Metadata = {
-  title: "Hoodlrz Kids — 8,888 fully on-chain generative pieces",
+  title: "Hoodlrz Gen Kids — 8,888 fully on-chain generative pieces",
   description:
-    "A free-mint generative collection whose rendering engine lives inside the blockchain. Every Kid redraws itself from its own seed. Hoodlrz holders mint first.",
+    "A free-mint generative collection on Robinhood Chain, whose rendering engine lives inside the blockchain. Every Kid redraws itself from its own seed. Hoodlrz holders mint first.",
   openGraph: {
-    title: "Hoodlrz Kids",
+    title: "Hoodlrz Gen Kids",
     description:
-      "8,888 generative pieces, fully on-chain. Free mint. Hoodlrz holders first.",
+      "8,888 generative pieces, fully on-chain on Robinhood Chain. Free mint. OG Hoodlrz holders first.",
   },
 };
 

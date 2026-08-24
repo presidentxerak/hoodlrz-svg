@@ -74,18 +74,28 @@ function Hero() {
       <div className="relative z-10 flex flex-col items-center gap-4 text-center">
         <div className="flex flex-wrap items-center justify-center gap-3">
           <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-white sm:text-[56px]">
-            Hoodlrz Kids
+            Hoodlrz Gen Kids
           </h1>
           <span className="border border-[#627eea]/30 bg-[#627eea]/10 px-2 py-0.5 text-[10px] uppercase tracking-widest text-[#627eea]">
             Fully On-Chain
           </span>
         </div>
 
+        {/* La chaine, en evidence des le hero. Un visiteur qui arrive de la
+            collection OG est sur Ethereum dans sa tete : ne l'apprendre
+            qu'au moment de signer serait le perdre au pire moment. */}
+        <div className="mt-1 flex items-center gap-2 border border-[#c6f24e]/40 bg-[#c6f24e]/10 px-3 py-1.5">
+          <span className="text-[10px] uppercase tracking-widest text-[#c6f24e]">
+            Mint on {KIDS_CHAIN.name}
+          </span>
+          <span className="text-[10px] text-white/40">chain ID {KIDS_CHAIN.id}</span>
+        </div>
+
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/70 sm:text-base">
           {KIDS.maxSupply.toLocaleString("en-GB")} generative pieces. Not a
           picture stored somewhere — a rendering engine written into the
           blockchain itself. Every Kid redraws itself from its own seed, live,
-          forever. Free mint.
+          forever. Free mint on {KIDS_CHAIN.name} — not on Ethereum.
         </p>
 
         <div className="mt-6 flex flex-col items-center gap-1">
@@ -113,6 +123,7 @@ function Stats() {
       <Stat label="Price" value="Free" />
       <Stat label="Per wallet" value={String(KIDS.maxPerWallet)} />
       <Stat label="Royalties" value={`${KIDS.royaltyBps / 100}%`} />
+      <Stat label="Chain" value={KIDS_CHAIN.name.replace(" Chain", "")} />
     </div>
   );
 }
@@ -175,7 +186,7 @@ function DropCountdown() {
 
       <div className="flex flex-wrap justify-center gap-3">
         <Button variant="secondary" size="lg" href="/">
-          Hoodlrz Collection
+          OG Hoodlrz
         </Button>
         <Button variant="secondary" size="lg" href="/city">
           Enter the City
@@ -247,6 +258,14 @@ function Mint() {
         <MintPanel />
 
         <div className="flex flex-col gap-4 text-sm leading-relaxed text-muted">
+          <p className="border border-[var(--border)] border-l-2 border-l-[#c6f24e] bg-[var(--surface)] px-4 py-3">
+            <strong className="text-foreground">
+              This mint happens on {KIDS_CHAIN.name}, not on Ethereum.
+            </strong>{" "}
+            Chain ID {KIDS_CHAIN.id}. Your wallet must be on that network — the
+            button below adds it for you if it is missing. Gas is paid in ETH
+            bridged to {KIDS_CHAIN.name}.
+          </p>
           <p>
             <strong className="text-foreground">Free mint.</strong> You pay
             network gas and nothing else. There is no presale, no tier, no
@@ -416,6 +435,7 @@ function Explain({ title, children }: { title: string; children: React.ReactNode
 
 function Details() {
   const rows: [string, string][] = [
+    ["Chain", `${KIDS_CHAIN.name} (ID ${KIDS_CHAIN.id})`],
     ["Price", "Free"],
     ["Gas fees", `Network gas (${KIDS_CHAIN.name})`],
     ["Wallet", "MetaMask / any EIP-1193 wallet"],
