@@ -5,6 +5,7 @@ import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Countdown from "@/components/ui/Countdown";
 import FaqAccordion from "@/components/ui/FaqAccordion";
+import EnginePreview from "@/components/kids/EnginePreview";
 import { HOODLRZ_FAQ } from "@/lib/faq";
 import { KIDS, KIDS_CHAIN, PHASES, PHASE_ISO, phaseAt, fmtDate } from "@/lib/kids/config";
 import { HOODLRZ_OPENSEA_URL } from "@/lib/web3/config";
@@ -280,16 +281,25 @@ function Stat({ label, value }: { label: string; value: string }) {
 function Hero() {
   return (
     <section className="relative flex w-full flex-col items-center justify-center gap-6 px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden min-h-[70vh]">
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-      >
-        <source src="/hoodlrz-banner-1.mp4" type="video/mp4" />
-      </video>
-      <div className="absolute inset-0 bg-black/70" />
+      {/* Meme traitement que le hero Gen Kids : le fond EST la collection,
+          jouee par le moteur qui partira on-chain, plutot qu'une video.
+          Sur mobile la troisieme piece sort du cadre - deux suffisent a
+          poser l'ambiance sans ecraser un petit ecran. */}
+      <div className="absolute inset-0 grid grid-cols-2 sm:grid-cols-3" aria-hidden>
+        <EnginePreview fill bare />
+        <EnginePreview fill bare />
+        <div className="hidden h-full sm:block">
+          <EnginePreview fill bare />
+        </div>
+      </div>
+      <div className="absolute inset-0 bg-black/40" />
+      {/* Ombre concentree derriere le contenu. A 40 % uniformes, une
+          punchline claire passant sous un mot le rend illisible. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "radial-gradient(ellipse 70% 70% at 50% 50%, rgba(0,0,0,.8), rgba(0,0,0,0) 78%)" }}
+        aria-hidden
+      />
 
       {/* La marque d'abord, en petit : elle est deja partout ailleurs.
           Ce que le visiteur doit emporter de cette page, c'est la date du

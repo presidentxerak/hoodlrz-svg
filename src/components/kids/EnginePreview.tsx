@@ -51,8 +51,8 @@ export default function EnginePreview({
       <div
         className={
           fill
-            ? "h-full w-full bg-black overflow-hidden"
-            : "aspect-square w-full border border-[var(--border)] bg-black overflow-hidden"
+            ? "relative h-full w-full overflow-hidden bg-black"
+            : "aspect-square w-full overflow-hidden border border-[var(--border)] bg-black"
         }
       >
         {hash && (
@@ -61,7 +61,16 @@ export default function EnginePreview({
             key={hash}
             src={`/kids/engine.html?hash=${hash}`}
             title="Hoodlrz Kids preview"
-            className="h-full w-full border-0"
+            // En mode fond, le cadre est rarement carre alors que la piece
+            // l'est : etirer la deformerait, la contenir laisserait des
+            // bandes noires. On la garde carree, au moins aussi grande que
+            // le cadre dans les deux sens, et centree - elle deborde donc
+            // et couvre, comme le ferait object-fit: cover sur une image.
+            className={
+              fill
+                ? "absolute left-1/2 top-1/2 aspect-square min-h-full min-w-full -translate-x-1/2 -translate-y-1/2 border-0"
+                : "h-full w-full border-0"
+            }
             sandbox="allow-scripts"
             loading="lazy"
           />
