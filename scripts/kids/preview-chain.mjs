@@ -117,8 +117,53 @@ if (seen.length > 1 && new Set(seen).size === 1) {
   process.exit(1);
 }
 
+/* ------------------------------------------------------------------ *
+ * Galerie vivante
+ * ------------------------------------------------------------------ */
+// Les planches-contact figent l'instant t = 3 s. Or ces pieces bougent :
+// une collection generative animee ne se juge pas sur des captures. La
+// galerie les fait tourner cote a cote, ce qui est la seule facon
+// honnete de decider si l'ensemble tient.
+const cards = hashes.map((h, i) => {
+  const n = String(i).padStart(2, '0');
+  const t = seen[i] ? JSON.parse(seen[i]) : null;
+  const traits = t
+    ? Object.entries(t).map(([k, v]) => `<span><b>${k}</b> ${v}</span>`).join('')
+    : '<span>traits non exposes</span>';
+  return `<figure>
+  <iframe src="onchain-${n}.html" loading="lazy" sandbox="allow-scripts"></iframe>
+  <figcaption><code>${h.slice(0, 18)}…</code><div class="t">${traits}</div></figcaption>
+</figure>`;
+}).join('\n');
+
+writeFileSync(`${OUT}/index.html`, `<!doctype html>
+<meta charset="utf-8">
+<title>Hoodlrz Kids — rendu on-chain</title>
+<style>
+  :root { color-scheme: dark }
+  body { margin:0; padding:28px; background:#0a0a0a; color:#eee;
+         font:14px/1.5 ui-sans-serif,system-ui,sans-serif }
+  h1 { font-size:18px; letter-spacing:.14em; text-transform:uppercase; margin:0 0 4px }
+  p.sub { color:#888; margin:0 0 24px; font-size:12px }
+  .grid { display:grid; gap:22px; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)) }
+  figure { margin:0 }
+  iframe { width:100%; aspect-ratio:1; border:1px solid #262626; background:#000; display:block }
+  figcaption { margin-top:8px }
+  code { color:#666; font-size:11px }
+  .t { display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:6px; font-size:11px; color:#999 }
+  .t b { color:#555; font-weight:500 }
+</style>
+<h1>Hoodlrz Kids</h1>
+<p class="sub">
+  Rendu par le moteur stocke sur la chaine ${CH.id} — contrat ${dep.engine}.<br>
+  Hashs arbitraires, sans rapport avec la collection : la graine n'existe pas encore.
+</p>
+<div class="grid">
+${cards}
+</div>
+`);
+
 console.log(`\n  ${errs.length ? 'Erreurs de page : ' + errs.slice(0, 3).join(' | ') : 'Aucune erreur de rendu.'}`);
 if (seen.length > 1) console.log(`  ${new Set(seen).size} jeux de traits distincts sur ${seen.length} pieces.`);
-console.log(`  HTML et PNG dans ${OUT}/`);
-console.log(`  Ouvrir un .html dans un navigateur donne la piece animee,`);
-console.log(`  servie par les octets de la chaine.\n`);
+console.log(`\n  Galerie animee :  open ${OUT}/index.html`);
+console.log(`  PNG et HTML individuels dans ${OUT}/\n`);
