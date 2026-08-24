@@ -17,11 +17,15 @@ export default function EnginePreview({
   className = "",
   autoCycleMs = 0,
   bare = false,
+  fill = false,
 }: {
   className?: string;
   autoCycleMs?: number;
   /** Sans le hash ni le bouton : pour les grilles, ou le cadre suffit. */
   bare?: boolean;
+  /** Occupe toute la hauteur disponible, sans cadre ni ratio impose :
+   *  pour servir de fond, ou l'image doit couvrir et non s'inscrire. */
+  fill?: boolean;
 }) {
   const [hash, setHash] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -43,8 +47,14 @@ export default function EnginePreview({
   }, [autoCycleMs, roll]);
 
   return (
-    <div className={`relative ${className}`}>
-      <div className="aspect-square w-full border border-[var(--border)] bg-black overflow-hidden">
+    <div className={`relative ${fill ? "h-full" : ""} ${className}`}>
+      <div
+        className={
+          fill
+            ? "h-full w-full bg-black overflow-hidden"
+            : "aspect-square w-full border border-[var(--border)] bg-black overflow-hidden"
+        }
+      >
         {hash && (
           <iframe
             ref={frameRef}

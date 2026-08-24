@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import Button from "@/components/ui/Button";
-import EnginePreview from "@/components/kids/EnginePreview";
-import { KIDS, KIDS_CHAIN } from "@/lib/kids/config";
+import Countdown from "@/components/ui/Countdown";
+import FaqAccordion from "@/components/ui/FaqAccordion";
+import { HOODLRZ_FAQ } from "@/lib/faq";
+import { KIDS, KIDS_CHAIN, PHASES, PHASE_ISO, phaseAt, fmtDate } from "@/lib/kids/config";
 import { HOODLRZ_OPENSEA_URL } from "@/lib/web3/config";
 
 const STREET_SUPPLY = 333;
@@ -46,9 +49,11 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center">
       <Hero />
-      <div className="mx-auto w-full max-w-6xl px-4">
-        <SecondaryMarket />
-        <GenKidsTeaser />
+      <div className="mx-auto w-full max-w-5xl px-4 pb-24">
+        <OgHoodlrz />
+        <Universe />
+        <SiteMap />
+        <Faq />
       </div>
       {SHOW_ONCHAIN_GALLERY && <Collection />}
     </div>
@@ -56,91 +61,209 @@ export default function HomePage() {
 }
 
 /* ------------------------------------------------------------------ *
- *  Marche secondaire
+ *  Compte a rebours du drop
  * ------------------------------------------------------------------ */
 
-function SecondaryMarket() {
+/**
+ * Vise la prochaine echeance reelle, pas une date fixe : afficher encore
+ * le snapshot une fois l'allowlist ouverte n'aurait plus de sens.
+ *
+ * `now` reste a null jusqu'au montage. La page est prerendue, et lire
+ * l'horloge au premier rendu produirait un HTML serveur different du
+ * client - donc une erreur d'hydratation.
+ */
+function DropCountdown() {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    setNow(Math.floor(Date.now() / 1000));
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  if (now === null) return <div className="h-[90px]" aria-hidden />;
+
+  const phase = phaseAt(now);
+  const [target, label] =
+    now < PHASES.snapshot ? [PHASE_ISO.snapshot, "Holder Snapshot"]
+    : phase === "avant" ? [PHASE_ISO.allowlistStart, "Allowlist Opens"]
+    : phase === "allowlist" ? [PHASE_ISO.publicStart, "Public Mint"]
+    : [null, null];
+
+  if (!target || !label) {
+    return (
+      <p className="font-hoodlrz text-3xl font-bold tracking-wider text-accent-red">
+        {phase === "public" ? "MINT IS LIVE" : "MINT CLOSED"}
+      </p>
+    );
+  }
+  return <Countdown targetDate={target} label={label} />;
+}
+
+/* ------------------------------------------------------------------ *
+ *  OG Hoodlrz
+ * ------------------------------------------------------------------ */
+
+/**
+ * La collection d'origine, presentee et non plus parcourue.
+ *
+ * La grille des 333 pieces avec ses filtres par trait est en sommeil :
+ * OpenSea fait le meme travail, mieux tenu a jour, sans qu'on ait a
+ * maintenir une indexation. On garde ici ce qu'OpenSea ne dira pas -
+ * d'ou vient la collection et ce qu'elle est.
+ */
+function OgHoodlrz() {
   return (
-    <section className="mt-14 border border-[var(--border)] bg-[var(--surface)] p-8 text-center">
+    <section className="mt-16">
       <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
-        Secondary market
+        The original collection
       </p>
-      <h2 className="font-hoodlrz mt-2 text-2xl font-bold tracking-wider text-foreground sm:text-3xl">
-        OG Hoodlrz on OpenSea
+      <h2 className="font-hoodlrz mt-2 text-3xl font-bold tracking-wider text-foreground sm:text-4xl">
+        OG Hoodlrz
       </h2>
-      <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted">
-        The {STREET_SUPPLY} original pieces trade on OpenSea and every other
-        ERC-721 marketplace. Browse the full collection, filter by trait, and
-        collect there.
-      </p>
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Button variant="primary" size="lg" href={HOODLRZ_OPENSEA_URL}>
-          View on OpenSea
-        </Button>
-        <Button variant="secondary" size="lg" href="/gallery">
-          Gallery
-        </Button>
+
+      <div className="mt-6 grid gap-8 md:grid-cols-[1.4fr_1fr]">
+        <div className="flex flex-col gap-4 text-sm leading-relaxed text-muted">
+          <p>
+            {STREET_SUPPLY} hand-drawn hooded identities, minted as a standard
+            ERC-721 on Ethereum. No two alike, no generator — every piece was
+            drawn by hand, one at a time.
+          </p>
+          <p>
+            They are the origin of everything else here. Holding one is what
+            puts you on the allowlist for Gen Kids, and what opens the doors
+            in the City.
+          </p>
+          <div className="flex flex-wrap gap-3 pt-2">
+            <Button variant="primary" size="lg" href={HOODLRZ_OPENSEA_URL}>
+              View on OpenSea
+            </Button>
+          </div>
+        </div>
+
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 self-start border border-[var(--border)] p-6">
+          <Stat label="Supply" value={String(STREET_SUPPLY)} />
+          <Stat label="Chain" value="Ethereum" />
+          <Stat label="Standard" value="ERC-721" />
+          <Stat label="Artwork" value="Hand-drawn" />
+        </dl>
       </div>
     </section>
   );
 }
 
 /* ------------------------------------------------------------------ *
- *  Gen Kids
+ *  L'univers
+ * ------------------------------------------------------------------ */
+
+function Universe() {
+  return (
+    <section className="mt-20">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        What Hoodlrz is
+      </h2>
+
+      <div className="flex flex-col gap-5 text-sm leading-relaxed text-muted">
+        <p className="text-base text-foreground">
+          Hoodlrz is not a PFP collection. It is a universe of hooded
+          alter-egos born from the streets and the walls — handmade art,
+          underground culture, animated storytelling and internet rebellion
+          fused into collectible identities.
+        </p>
+        <p>
+          The influences run deep. XCOPY, Rektguy and CryptoSkulls for the
+          hypnotic loops and emotional distortion. Basquiat for raw symbolic
+          expression and graffiti energy. KAWS for iconic collectible
+          character identity. Banksy for the anonymous, anti-establishment
+          spirit that runs through every piece.
+        </p>
+        <p>
+          Musically and culturally shaped by Aphex Twin, Travis Scott,
+          Wu-Tang Clan and MF DOOM. Every character is a world. Every holder
+          carries a piece of that world.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Ce que contient le site
  * ------------------------------------------------------------------ */
 
 /**
- * La seconde collection, annoncee des la page d'accueil.
- *
- * Deux choses doivent passer avant tout le reste : c'est du generatif
- * anime - donc l'apercu tourne pour de vrai, une vignette mentirait - et
- * le mint est sur Robinhood Chain, pas sur Ethereum. Un holder OG qui
- * decouvre la chaine au moment de signer est un holder perdu.
+ * Une carte du site plutot qu'un menu de plus. Quatre choses vivent ici
+ * et n'ont rien a voir entre elles : deux collections, des objets
+ * physiques et un jeu. Sans cette section, un visiteur qui arrive par la
+ * page d'accueil ne decouvre les trois autres que par hasard.
  */
-function GenKidsTeaser() {
+function SiteMap() {
+  const places: { href: string; title: string; desc: string; tag?: string }[] = [
+    {
+      href: "/kids",
+      title: "Gen Kids",
+      tag: KIDS_CHAIN.name,
+      desc: `${KIDS.maxSupply.toLocaleString("en-GB")} generative pieces, free mint. The rendering engine itself lives inside the blockchain.`,
+    },
+    {
+      href: "/genesis",
+      title: "Genesis Vinyl",
+      tag: "25 pieces",
+      desc: "Hand-crafted vinyl artworks across three editions. You choose the tracks and their order on each side.",
+    },
+    {
+      href: "/city",
+      title: "Hoodlrz City",
+      tag: "Beta",
+      desc: "A playable city. Explore it, earn Hoodz, and claim rewards from the treasury.",
+    },
+    {
+      href: "/my-collection",
+      title: "My Collection",
+      desc: "Connect a wallet to see the Hoodlrz you hold, across every collection.",
+    },
+  ];
+
   return (
-    <section className="mt-14 mb-20 border border-[var(--border)] p-6 sm:p-8">
-      <div className="grid items-center gap-8 md:grid-cols-2">
-        <EnginePreview />
-
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
-            New collection
-          </p>
-          <h2 className="font-hoodlrz mt-2 text-3xl font-bold tracking-wider text-foreground sm:text-4xl">
-            Hoodlrz Gen Kids
-          </h2>
-
-          <div className="mt-3 inline-flex items-center gap-2 border border-[#c6f24e]/40 bg-[#c6f24e]/10 px-3 py-1.5">
-            <span className="text-[10px] uppercase tracking-widest text-[#c6f24e]">
-              Mint on {KIDS_CHAIN.name}
-            </span>
-          </div>
-
-          <p className="mt-4 text-sm leading-relaxed text-muted">
-            {KIDS.maxSupply.toLocaleString("en-GB")} generative pieces, free
-            mint. Not a picture stored somewhere — the rendering engine itself
-            is written into the blockchain, so every Kid redraws itself from
-            its own seed, live, forever.
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-muted">
-            <strong className="text-foreground">OG Hoodlrz holders mint first.</strong>{" "}
-            A snapshot decides the allowlist — nothing to sign up for.
-          </p>
-
-          <dl className="mt-5 grid grid-cols-3 gap-4 border-y border-[var(--border)] py-4">
-            <Stat label="Supply" value={KIDS.maxSupply.toLocaleString("en-GB")} />
-            <Stat label="Price" value="Free" />
-            <Stat label="Per wallet" value={String(KIDS.maxPerWallet)} />
-          </dl>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button variant="primary" size="lg" href="/kids">
-              Gen Kids drop
-            </Button>
-          </div>
-        </div>
+    <section className="mt-20">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        What&apos;s here
+      </h2>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {places.map((p) => (
+          <Link
+            key={p.href}
+            href={p.href}
+            className="group flex flex-col gap-2 border border-[var(--border)] p-5 transition-colors hover:border-accent-red"
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="font-hoodlrz text-xl font-bold tracking-wider text-foreground">
+                {p.title}
+              </span>
+              {p.tag && (
+                <span className="shrink-0 text-[10px] uppercase tracking-widest text-muted">
+                  {p.tag}
+                </span>
+              )}
+            </div>
+            <p className="text-sm leading-relaxed text-muted">{p.desc}</p>
+          </Link>
+        ))}
       </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ *  Questions
+ * ------------------------------------------------------------------ */
+
+function Faq() {
+  return (
+    <section className="mt-20">
+      <h2 className="mb-6 text-xs font-bold uppercase tracking-widest text-muted">
+        Questions
+      </h2>
+      <FaqAccordion items={HOODLRZ_FAQ} defaultOpen={-1} />
     </section>
   );
 }
@@ -168,16 +291,52 @@ function Hero() {
       </video>
       <div className="absolute inset-0 bg-black/70" />
 
-      <div className="relative z-10 flex flex-col items-center gap-6 max-w-2xl text-center">
-        <h1 className="font-hoodlrz text-[40px] font-bold leading-none tracking-wider text-white sm:text-[72px]">
+      {/* La marque d'abord, en petit : elle est deja partout ailleurs.
+          Ce que le visiteur doit emporter de cette page, c'est la date du
+          drop - donc c'est elle qui prend la place. */}
+      <div className="relative z-10 flex max-w-3xl flex-col items-center gap-3 text-center">
+        <h1 className="font-hoodlrz text-2xl font-bold leading-none tracking-wider text-white sm:text-3xl">
           hOodlrz
         </h1>
-        <p className="font-hoodlrz max-w-3xl text-center text-2xl font-bold leading-tight tracking-wider text-white sm:text-4xl md:text-5xl">
+        <p className="text-xs uppercase tracking-[0.2em] text-white/50">
           Own the identity. Collect the culture.
         </p>
-        <p className="text-white/70 text-sm sm:text-base">
-          {STREET_SUPPLY} NFTs · ERC-721 on Ethereum
-        </p>
+
+        <div className="mt-6 w-full border border-white/15 bg-black/50 px-6 py-8 backdrop-blur-sm sm:px-10">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
+            New drop
+          </p>
+          <p className="font-hoodlrz mt-2 text-[34px] font-bold leading-none tracking-wider text-white sm:text-[52px]">
+            Hoodlrz Gen Kids
+          </p>
+
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <span className="border border-[#c6f24e]/40 bg-[#c6f24e]/10 px-3 py-1 text-[10px] uppercase tracking-widest text-[#c6f24e]">
+              Mint on {KIDS_CHAIN.name}
+            </span>
+            <span className="text-[11px] uppercase tracking-widest text-white/50">
+              {KIDS.maxSupply.toLocaleString("en-GB")} pieces · free · fully on-chain
+            </span>
+          </div>
+
+          <div className="mt-8">
+            <DropCountdown />
+          </div>
+
+          <p className="mt-6 text-sm leading-relaxed text-white/70">
+            {fmtDate(PHASE_ISO.publicStart)} — {STREET_SUPPLY} OG Hoodlrz
+            holders mint first.
+          </p>
+
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Button variant="primary" size="lg" href="/kids">
+              Gen Kids drop
+            </Button>
+            <Button variant="secondary" size="lg" href={HOODLRZ_OPENSEA_URL}>
+              OG Hoodlrz on OpenSea
+            </Button>
+          </div>
+        </div>
       </div>
     </section>
   );

@@ -59,17 +59,27 @@ export default function KidsPage() {
 function Hero() {
   return (
     <section className="relative flex min-h-[50vh] w-full flex-col items-center justify-center overflow-hidden px-4 pb-16 pt-20 sm:pb-20 sm:pt-28">
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover"
-      >
-        <source src="/hero-collection.mp4" type="video/mp4" />
-        <source src="/hero-collection.mov" type="video/quicktime" />
-      </video>
-      <div className="absolute inset-0 bg-black/75" />
+      {/* Trois pieces vivantes plutot qu'une video : le fond EST la
+          collection, joue par le moteur qui partira on-chain. Sur mobile
+          la troisieme sort du cadre - deux suffisent a poser l'ambiance
+          sans ecraser un petit ecran. */}
+      <div className="absolute inset-0 grid grid-cols-2 sm:grid-cols-3" aria-hidden>
+        <EnginePreview fill bare />
+        <EnginePreview fill bare />
+        <div className="hidden sm:block h-full">
+          <EnginePreview fill bare />
+        </div>
+      </div>
+      <div className="absolute inset-0 bg-black/40" />
+      {/* Un voile plus dense derriere le texte seul. A 40 % uniformes,
+          une punchline claire passant sous un mot le rend illisible ;
+          concentrer l'ombre au centre garde les pieces visibles sur les
+          bords tout en rendant le titre lisible partout. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "radial-gradient(ellipse 70% 65% at 50% 50%, rgba(0,0,0,.78), rgba(0,0,0,0) 75%)" }}
+        aria-hidden
+      />
 
       <div className="relative z-10 flex flex-col items-center gap-4 text-center">
         <div className="flex flex-wrap items-center justify-center gap-3">
@@ -230,14 +240,11 @@ function Preview() {
             the token hash rather than reading them from a list.
           </p>
 
-          {/* Deux tirages de plus, figes. Les faire tourner en boucle
-              reconstruirait l'iframe toutes les dix secondes : trois
-              moteurs vivants sur une meme page suffisent deja largement
-              a la batterie d'un telephone. */}
-          <div className="grid grid-cols-2 gap-3">
-            <EnginePreview bare />
-            <EnginePreview bare />
-          </div>
+          {/* Les deux tirages supplementaires ont ete retires quand le
+              hero est passe a trois pieces vivantes : six moteurs sur une
+              meme page, c'est la batterie d'un telephone en quelques
+              minutes. Le hero montre la variete, ce cadre-ci permet de
+              relancer le tirage - les deux roles sont couverts. */}
         </div>
       </div>
     </section>
