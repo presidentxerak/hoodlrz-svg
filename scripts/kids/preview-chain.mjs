@@ -138,7 +138,7 @@ const cards = hashes.map((h, i) => {
 
 writeFileSync(`${OUT}/index.html`, `<!doctype html>
 <meta charset="utf-8">
-<title>Hoodlrz Kids — rendu on-chain</title>
+<title>Hoodlrz Gen Kids — rendu on-chain</title>
 <style>
   :root { color-scheme: dark }
   body { margin:0; padding:28px; background:#0a0a0a; color:#eee;
@@ -153,7 +153,7 @@ writeFileSync(`${OUT}/index.html`, `<!doctype html>
   .t { display:flex; flex-wrap:wrap; gap:4px 10px; margin-top:6px; font-size:11px; color:#999 }
   .t b { color:#555; font-weight:500 }
 </style>
-<h1>Hoodlrz Kids</h1>
+<h1>Hoodlrz Gen Kids</h1>
 <p class="sub">
   Rendu par le moteur stocke sur la chaine ${CH.id} — contrat ${dep.engine}.<br>
   Hashs arbitraires, sans rapport avec la collection : la graine n'existe pas encore.

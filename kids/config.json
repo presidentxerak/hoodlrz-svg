@@ -1,6 +1,6 @@
 {
   "_lisezMoi": [
-    "Parametres de la collection Hoodlrz Kids.",
+    "Parametres de la collection Hoodlrz Gen Kids.",
     "",
     "Ce fichier est VERSIONNE et PUBLIC. Il ne contient que des adresses",
     "publiques et des dates. Aucune cle privee ne doit y figurer : elles",
@@ -10,7 +10,7 @@
     "en UTC : ecrire une heure de Paris ici decalerait le mint de 2 h."
   ],
   "collection": {
-    "name": "Hoodlrz Kids",
+    "name": "Hoodlrz Gen Kids",
     "symbol": "KIDS",
     "maxSupply": 8888,
     "reserve": 300,

@@ -1,5 +1,5 @@
 /**
- * ABI minimale du contrat Hoodlrz Kids, limitee a ce dont la page de
+ * ABI minimale du contrat Hoodlrz Gen Kids, limitee a ce dont la page de
  * mint a besoin. On n'embarque pas l'ABI complete : chaque entree
  * inutile est du poids envoye a tous les visiteurs.
  */

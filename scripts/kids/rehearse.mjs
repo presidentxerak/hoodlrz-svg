@@ -172,7 +172,7 @@ ok('seconde revelation refusee', await refuses(() => nft.revealSeed()));
 console.log('\n6. Metadonnees apres revelation');
 const uri = await nft.tokenURI(0);
 const meta = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'));
-ok('nom du token', meta.name === 'Hoodlrz Kid #0', meta.name);
+ok('nom du token', meta.name === 'Hoodlrz Gen Kid #0', meta.name);
 ok('9 attributs', Array.isArray(meta.attributes) && meta.attributes.length === 9);
 ok('image SVG on-chain', String(meta.image).startsWith('data:image/svg+xml;base64,'));
 ok('animation HTML on-chain', String(meta.animation_url).startsWith('data:text/html;base64,'));

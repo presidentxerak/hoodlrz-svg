@@ -9,7 +9,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {HoodlrzKidsRenderer} from "./HoodlrzKidsRenderer.sol";
 
 /**
- * @title  Hoodlrz Kids
+ * @title  Hoodlrz Gen Kids
  * @author XERAK
  * @notice Collection generative de 8888 pieces, integralement on-chain.
  *
@@ -94,7 +94,7 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
     error Locked();
 
     constructor(address renderer_, address royaltyReceiver_)
-        ERC721("Hoodlrz Kids", "KIDS")
+        ERC721("Hoodlrz Gen Kids", "KIDS")
         Ownable(msg.sender)
     {
         renderer = HoodlrzKidsRenderer(renderer_);
@@ -245,7 +245,7 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
                     "data:application/json;base64,",
                     _b64(
                         abi.encodePacked(
-                            '{"name":"Hoodlrz Kid #', _dec(tokenId),
+                            '{"name":"Hoodlrz Gen Kid #', _dec(tokenId),
                             '","description":"Graine non encore revelee. Les traits apparaitront a la fin du mint.","image":"data:image/svg+xml;base64,',
                             _b64(bytes(_placeholderSvg())),
                             '"}'

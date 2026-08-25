@@ -1,5 +1,5 @@
 /**
- * Diagnostic de l'installation Hoodlrz Kids.
+ * Diagnostic de l'installation Hoodlrz Gen Kids.
  *
  * Repond a une seule question : "ou j'en suis, et qu'est-ce que je fais
  * maintenant ?" Chaque controle qui echoue affiche la commande exacte
@@ -265,7 +265,7 @@ process.exit(blocking.length ? 1 : 0);
 /* ------------------------------------------------------------------ */
 function render() {
   const icon = { ok: `${C.ok}OK  ${C.off}`, bad: `${C.bad}A FAIRE${C.off}`, warn: `${C.warn}NOTE${C.off}` };
-  console.log(`\n${C.bold}Diagnostic Hoodlrz Kids${C.off}\n`);
+  console.log(`\n${C.bold}Diagnostic Hoodlrz Gen Kids${C.off}\n`);
   for (const s of steps) {
     const pad = s.state === 'ok' ? '    ' : s.state === 'warn' ? '  ' : '';
     console.log(`  ${icon[s.state]}${pad} ${s.n}. ${s.label}`);

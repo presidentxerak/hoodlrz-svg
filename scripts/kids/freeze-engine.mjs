@@ -1,5 +1,5 @@
 /**
- * Phase 1 - Gel du moteur Hoodlrz Kids.
+ * Phase 1 - Gel du moteur Hoodlrz Gen Kids.
  *
  * Prend kids/engine/source.html (le prototype d'exposition) et produit
  * kids/engine/frozen.html : l'artefact destine a partir on-chain et a ne

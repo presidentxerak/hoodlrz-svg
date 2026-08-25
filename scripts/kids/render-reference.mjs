@@ -55,7 +55,7 @@ mkdirSync(OUT, { recursive: true });
 
 const hashOf = (id) => solidityPackedKeccak256(['bytes32', 'uint256'], [seedBase, id]);
 
-console.log('\nRendus de reference Hoodlrz Kids');
+console.log('\nRendus de reference Hoodlrz Gen Kids');
 console.log(`  graine   ${seedBase.slice(0, 18)}…  ${isReal ? '(reelle)' : '(de travail - PAS la collection finale)'}`);
 console.log(`  supply   ${SUPPLY.toLocaleString('fr')}\n`);
 

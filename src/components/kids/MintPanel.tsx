@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Panneau de mint Hoodlrz Kids.
+ * Panneau de mint Hoodlrz Gen Kids.
  *
  * Trois etats se combinent et le panneau doit rester juste dans tous les
  * cas : la phase (avant / allowlist / public / termine), l'etat du wallet
@@ -183,7 +183,7 @@ export default function MintPanel() {
           : await c.mintPublic(qty);
       setMsg({ kind: "info", text: "Transaction sent, waiting for confirmation…" });
       await tx.wait();
-      setMsg({ kind: "ok", text: `${qty} Hoodlrz Kid${qty > 1 ? "s" : ""} minted.` });
+      setMsg({ kind: "ok", text: `${qty} Hoodlrz Gen Kid${qty > 1 ? "s" : ""} minted.` });
       refreshSupply();
     } catch (e) {
       setMsg({ kind: "err", text: humanError(e) });

@@ -5,7 +5,7 @@ import {HoodlrzKidsConstants as K} from "./HoodlrzKidsConstants.sol";
 
 /**
  * @title  HoodlrzKidsTraits
- * @notice Portage Solidity du generateur de traits du moteur Hoodlrz Kids.
+ * @notice Portage Solidity du generateur de traits du moteur Hoodlrz Gen Kids.
  *
  * @dev    Ce contrat doit produire EXACTEMENT les memes traits que le
  *         JavaScript embarque on-chain. Toute divergence donne un token dont

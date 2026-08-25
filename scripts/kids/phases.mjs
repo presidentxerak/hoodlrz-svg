@@ -31,7 +31,7 @@ const rows = [
   ['fin',       P.mintEndParis,        'mintEnd'],
 ];
 
-console.log('\nPhases de mint Hoodlrz Kids\n');
+console.log('\nPhases de mint Hoodlrz Gen Kids\n');
 console.log('  ' + 'etape'.padEnd(11) + 'Paris'.padEnd(26) + 'UTC'.padEnd(26) + 'timestamp');
 console.log('  ' + '-'.repeat(74));
 for (const [label, iso] of rows) {

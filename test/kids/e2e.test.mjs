@@ -29,7 +29,7 @@ const ok = (label, cond, detail = '') => {
 const section = (t) => console.log(`\n${t}`);
 
 /* ================================================================== */
-console.log('\nParcours complet Hoodlrz Kids sur EVM locale');
+console.log('\nParcours complet Hoodlrz Gen Kids sur EVM locale');
 
 const chain = await createChain();
 const T0 = Number(chain.now);
@@ -155,7 +155,7 @@ section('7. tokenURI complet');
 const uri = await nft.call('tokenURI', [7]);
 ok('data URI JSON', uri.startsWith('data:application/json;base64,'));
 const meta = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'));
-ok('nom du token', meta.name === 'Hoodlrz Kid #7', meta.name);
+ok('nom du token', meta.name === 'Hoodlrz Gen Kid #7', meta.name);
 ok('9 attributs', Array.isArray(meta.attributes) && meta.attributes.length === 9);
 ok('image SVG on-chain', meta.image.startsWith('data:image/svg+xml;base64,'));
 ok('animation HTML on-chain', meta.animation_url.startsWith('data:text/html;base64,'));

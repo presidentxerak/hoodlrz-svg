@@ -1,5 +1,5 @@
 /**
- * Verification d'un deploiement Hoodlrz Kids, depuis la chaine.
+ * Verification d'un deploiement Hoodlrz Gen Kids, depuis la chaine.
  *
  * A lancer DEUX fois, a deux moments qui n'ont pas le meme enjeu :
  *
@@ -129,7 +129,7 @@ const section = (t) => console.log(`\n${t}`);
 const provider = new JsonRpcProvider(RPC, undefined, { staticNetwork: true });
 const engine = new Contract(ENGINE, ENGINE_ABI, provider);
 
-console.log(`\nVerification Hoodlrz Kids`);
+console.log(`\nVerification Hoodlrz Gen Kids`);
 // Une cle d'API dans une URL reste une cle. Ce script sert justement a
 // produire un rapport qu'on montre - capture d'ecran, canal d'equipe -
 // donc elle ne doit jamais y figurer.
@@ -293,7 +293,7 @@ if (NFT) {
     const uri = await nft.tokenURI(TOKEN);
     ok('tokenURI en data URI', uri.startsWith('data:application/json;base64,'));
     const meta = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'));
-    ok('nom du token', meta.name === `Hoodlrz Kid #${TOKEN}`, meta.name);
+    ok('nom du token', meta.name === `Hoodlrz Gen Kid #${TOKEN}`, meta.name);
     ok('9 attributs', Array.isArray(meta.attributes) && meta.attributes.length === 9);
     ok('image SVG on-chain', String(meta.image).startsWith('data:image/svg+xml;base64,'));
     ok('animation HTML on-chain', String(meta.animation_url).startsWith('data:text/html;base64,'));

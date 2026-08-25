@@ -60,7 +60,7 @@ export default function EnginePreview({
             ref={frameRef}
             key={hash}
             src={`/kids/engine.html?hash=${hash}`}
-            title="Hoodlrz Kids preview"
+            title="Hoodlrz Gen Kids preview"
             // En mode fond, le cadre est rarement carre alors que la piece
             // l'est : etirer la deformerait, la contenir laisserait des
             // bandes noires. On la garde carree, au moins aussi grande que

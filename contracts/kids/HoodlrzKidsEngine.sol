@@ -5,7 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title  HoodlrzKidsEngine
- * @notice Stockage on-chain du moteur generatif Hoodlrz Kids.
+ * @notice Stockage on-chain du moteur generatif Hoodlrz Gen Kids.
  *
  * @dev    Le moteur est un fichier HTML autonome de ~116 Ko : aucun CDN,
  *         aucune police externe, aucune dependance. Il est stocke ici en

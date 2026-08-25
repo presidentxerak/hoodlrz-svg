@@ -1,5 +1,5 @@
 /**
- * Configuration Hoodlrz Kids exposee au navigateur.
+ * Configuration Hoodlrz Gen Kids exposee au navigateur.
  *
  * Les parametres de collection et les dates viennent de kids/config.json,
  * source unique partagee avec les scripts de deploiement : une date

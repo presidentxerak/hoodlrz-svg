@@ -3,7 +3,7 @@ pragma solidity 0.8.28;
 
 /**
  * @title  HoodlrzKidsConstants
- * @notice Tableaux et seuils du moteur generatif Hoodlrz Kids.
+ * @notice Tableaux et seuils du moteur generatif Hoodlrz Gen Kids.
  *
  * @dev    GENERE AUTOMATIQUEMENT par scripts/kids/derive-constants.mjs
  *         a partir de kids/engine/source.html. NE PAS EDITER A LA MAIN :

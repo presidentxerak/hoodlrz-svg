@@ -161,7 +161,7 @@ async function main() {
 
   const balance = await provider.getBalance(wallet.address);
 
-  console.log(`\nDeploiement Hoodlrz Kids${DRY ? '   [A BLANC]' : ''}`);
+  console.log(`\nDeploiement Hoodlrz Gen Kids${DRY ? '   [A BLANC]' : ''}`);
   console.log(`  reseau     ${CH.name}  (chainId ${chainId})`);
   console.log(`  rpc        ${viaAlchemy ? 'Alchemy' : 'endpoint public (rate-limited)'}`);
   console.log(`  deployeur  ${wallet.address}`);
@@ -261,6 +261,24 @@ async function main() {
   const engine = await ensure('engine', 'HoodlrzKidsEngine', []);
   const renderer = await ensure('renderer', 'HoodlrzKidsRenderer', [state.engine]);
   const kids = await ensure('nft', 'HoodlrzKids', [state.renderer, royaltyTo]);
+
+  // La reprise fait gagner un deploiement ; elle peut aussi faire
+  // reprendre le MAUVAIS. Si le nom grave dans le contrat retrouve ne
+  // correspond plus a celui de la config, c'est que la collection a ete
+  // renommee depuis - et continuer produirait des pieces au nom
+  // d'hier, sans que rien ne le signale.
+  const onChainName = await kids.name();
+  if (onChainName !== config.collection.name) {
+    fail(
+      `Le contrat retrouve s appelle « ${onChainName} »,\n` +
+      `or kids/config.json declare « ${config.collection.name} ».\n\n` +
+      `La collection a ete renommee depuis ce deploiement. Pour repartir\n` +
+      `d un contrat neuf :\n\n` +
+      `    rm ${stateFile}\n` +
+      `    npm run kids:deploy -- --${which}\n`
+    );
+  }
+
   state.royaltyReceiver = royaltyTo;
   state.reserveReceiver = reserveTo;
   save();

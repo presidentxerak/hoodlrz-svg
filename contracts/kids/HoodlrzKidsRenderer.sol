@@ -43,7 +43,7 @@ contract HoodlrzKidsRenderer {
     HoodlrzKidsEngine public immutable engine;
 
     string private constant DESCRIPTION =
-        "Hoodlrz Kids - collection generative integralement on-chain. "
+        "Hoodlrz Gen Kids - collection generative integralement on-chain. "
         "Le moteur de rendu est stocke dans la blockchain, pas sur un serveur : "
         "chaque piece se regenere depuis sa graine, indefiniment. "
         "Touchez l'image pour changer la punchline. XERAK.";
@@ -194,7 +194,7 @@ contract HoodlrzKidsRenderer {
 
         string memory json = string(
             abi.encodePacked(
-                '{"name":"Hoodlrz Kid #', tokenId.toString(),
+                '{"name":"Hoodlrz Gen Kid #', tokenId.toString(),
                 '","description":"', DESCRIPTION,
                 '","image":"data:image/svg+xml;base64,', Base64.encode(bytes(_svg(t))),
                 '","animation_url":"data:text/html;base64,',

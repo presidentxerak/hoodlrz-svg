@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Page de drop Hoodlrz Kids.
+ * Page de drop Hoodlrz Gen Kids.
  *
  * Construite sur le meme squelette que la page de drop Hoodlrz
  * (/collection/hoodlrz) : hero video, statistiques, compte a rebours,
