@@ -68,6 +68,33 @@ const CH = CHAINS[which];
 
 const fail = (msg) => { throw new Error(msg); };
 
+/** Chemin relatif au depot, quelle que soit la machine. */
+const relPath = (p) => p.replace(process.cwd() + '/', '');
+
+/**
+ * Remplace les chemins ABSOLUS par des chemins relatifs au depot dans
+ * l'entree standard JSON.
+ *
+ * evm.mjs reecrit tous les imports en chemins absolus pour que solc n'ait
+ * rien a resoudre. Utile a la compilation, genant a la publication : les
+ * cles porteraient alors l'arborescence de la machine qui a compile, ce
+ * qui est a la fois inutile et indiscret sur un explorateur public.
+ *
+ * Les cles ET les imports sont reecrits ensemble : les seconds doivent
+ * continuer a designer les premieres, sinon l'explorateur ne recompile
+ * plus rien.
+ */
+function normaliseInput(input) {
+  const map = Object.fromEntries(Object.keys(input.sources).map((k) => [k, relPath(k)]));
+  const sources = {};
+  for (const [abs, rel] of Object.entries(map)) {
+    let content = input.sources[abs].content;
+    for (const [a, r] of Object.entries(map)) content = content.split(a).join(r);
+    sources[rel] = { content };
+  }
+  return { ...input, sources };
+}
+
 /**
  * Interroge le RPC une fois, a la main, avant de laisser ethers s'en
  * saisir. ethers resume tout echec en « failed to detect network », ce
@@ -199,7 +226,9 @@ async function main() {
   mkdirSync('kids/build/verify', { recursive: true });
   for (const [name, art] of Object.entries(built)) {
     writeFileSync(`kids/build/verify/${name}.json`, JSON.stringify({
-      solcVersion: art.solcVersion, sourceName: art.sourceName, input: art.input,
+      solcVersion: art.solcVersion,
+      sourceName: relPath(art.sourceName),
+      input: normaliseInput(art.input),
     }, null, 2));
   }
 

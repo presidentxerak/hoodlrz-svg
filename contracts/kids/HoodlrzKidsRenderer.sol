@@ -207,6 +207,47 @@ contract HoodlrzKidsRenderer {
         return string(abi.encodePacked("data:application/json;base64,", Base64.encode(bytes(json))));
     }
 
+    /**
+     * @notice Metadonnees de la COLLECTION, lues par les marketplaces.
+     *
+     * @dev    tokenURI decrit une piece ; contractURI decrit l'ensemble -
+     *         c'est ce qui donne son nom, sa description, sa vignette et
+     *         sa banniere sur OpenSea. Sans lui, la collection s'affiche
+     *         sous une adresse de contrat et une image vide, ce qui est
+     *         exactement le contraire du message d'une oeuvre
+     *         integralement on-chain.
+     *
+     *         L'affiche vient du meme generateur que les pieces, tiree
+     *         d'un hash fixe : la vitrine est donc produite par le code
+     *         qu'elle annonce, et non par un fichier depose ailleurs.
+     *
+     *         Les royalties sont repetees ici parce que certaines places
+     *         de marche lisent ce champ plutot qu'EIP-2981. Les deux
+     *         doivent donc concorder - c'est verifie par les tests.
+     */
+    function contractURI(address royaltyReceiver, uint96 royaltyBps)
+        external
+        pure
+        returns (string memory)
+    {
+        // Hash arbitraire mais FIGE : la vignette de collection ne doit
+        // pas changer d'un appel a l'autre.
+        bytes32 vitrine = keccak256("hoodlrz-gen-kids-collection-poster");
+        string memory poster = _svg(T.derive(T.toHashString(vitrine)));
+
+        string memory json = string(
+            abi.encodePacked(
+                '{"name":"Hoodlrz Gen Kids"',
+                ',"description":"', DESCRIPTION,
+                '","image":"data:image/svg+xml;base64,', Base64.encode(bytes(poster)),
+                '","external_link":"https://hoodlrz.com/kids"',
+                ',"seller_fee_basis_points":', uint256(royaltyBps).toString(),
+                ',"fee_recipient":"', Strings.toHexString(royaltyReceiver), '"}'
+            )
+        );
+        return string(abi.encodePacked("data:application/json;base64,", Base64.encode(bytes(json))));
+    }
+
     /// @notice Affiche SVG seule, pratique pour verifier le rendu sans
     ///         decoder tout le tokenURI.
     function posterFor(bytes32 tokenHash) external pure returns (string memory) {

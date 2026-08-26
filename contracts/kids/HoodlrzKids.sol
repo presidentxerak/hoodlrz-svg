@@ -241,6 +241,21 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
      *  Metadonnees
      * ------------------------------------------------------------------ */
 
+    /**
+     * @notice Metadonnees de la collection, lues par les marketplaces.
+     * @dev    Nom, description, vignette et royalties de l'ENSEMBLE - la
+     *         page de collection sur OpenSea, par opposition a tokenURI
+     *         qui decrit une piece. Sans lui, la collection s'affiche
+     *         sous une adresse de contrat et une image vide.
+     *
+     *         Le beneficiaire est lu depuis l'etat, pas fige : si
+     *         setRoyaltyReceiver() est appele, les deux sources - EIP-2981
+     *         et ce champ - restent d'accord.
+     */
+    function contractURI() external view returns (string memory) {
+        return renderer.contractURI(royaltyReceiver, ROYALTY_BPS);
+    }
+
     function tokenURI(uint256 tokenId) public view override returns (string memory) {
         _requireOwned(tokenId);
         // Avant revelation, on renvoie un placeholder plutot que de revenir

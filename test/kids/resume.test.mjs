@@ -118,6 +118,41 @@ ok('les pieces sont chez le destinataire', Number(await nft.call('balanceOf', [T
 ok('un lot de plus est refuse',
    (await nft.expectRevert('mintReserve', [TO, 1])) === 'ReserveExhausted');
 
+/* ------------------------------------------------------------------ *
+ * 5. Le verrou du renderer
+ * ------------------------------------------------------------------ */
+// C'est le dernier geste irreversible du deploiement, et le seul qui
+// protege les collectionneurs : tant qu'il n'est pas pose, le proprietaire
+// peut remplacer le renderer et changer l'apparence de pieces deja
+// vendues. Une fois pose, l'adresse ne bouge plus - jamais.
+console.log('\n5. lockRenderer()');
+ok('renderer modifiable avant le verrou', (await nft.call('rendererLocked')) === false);
+
+// On prouve que c'est vrai, pas seulement que le booleen le dit.
+const autre = await chain.deploy('contracts/kids/HoodlrzKidsRenderer.sol', 'HoodlrzKidsRenderer',
+  [engine.address.toString()]);
+await nft.call('setRenderer', [autre.address.toString()]);
+ok('le renderer a bien pu etre remplace',
+   (await nft.call('renderer')).toLowerCase() === autre.address.toString().toLowerCase());
+
+// On remet le bon avant de verrouiller : verrouiller sur le mauvais
+// renderer serait definitif.
+await nft.call('setRenderer', [renderer.address.toString()]);
+ok('renderer d origine restaure',
+   (await nft.call('renderer')).toLowerCase() === renderer.address.toString().toLowerCase());
+
+await nft.call('lockRenderer');
+ok('verrou pose', (await nft.call('rendererLocked')) === true);
+ok('setRenderer refuse apres le verrou',
+   (await nft.expectRevert('setRenderer', [autre.address.toString()])) === 'Locked');
+ok('un second lockRenderer ne casse rien', (await nft.call('rendererLocked')) === true);
+
+// Le verrou ne doit toucher que le renderer : les royalties restent
+// modifiables, sinon une adresse perdue serait irrattrapable.
+await nft.call('setRoyaltyReceiver', [ACCOUNTS.CAROL.toString()]);
+ok('les royalties restent redirigeables',
+   (await nft.call('royaltyReceiver')).toLowerCase() === ACCOUNTS.CAROL.toString().toLowerCase());
+
 console.log(`\n==================================================`);
 console.log(`  ${pass} OK, ${fail} FAIL`);
 console.log(`==================================================\n`);

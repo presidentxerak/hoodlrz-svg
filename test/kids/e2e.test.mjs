@@ -229,6 +229,41 @@ section('10. Royalties');
   ok('interface declaree', await nft.call('supportsInterface', ['0x2a55205a']));
 }
 
+section('11. contractURI : la page de collection');
+{
+  // Ce que lira OpenSea pour la page de collection, par opposition a
+  // tokenURI qui decrit une piece. Sans lui, la collection s'affiche sous
+  // une adresse de contrat et une image vide.
+  const uri = await nft.call('contractURI');
+  ok('data URI JSON', uri.startsWith('data:application/json;base64,'));
+  const c = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'));
+
+  ok('nom de la collection', c.name === 'Hoodlrz Gen Kids', c.name);
+  ok('description presente', typeof c.description === 'string' && c.description.length > 40);
+  ok('vignette SVG on-chain', String(c.image).startsWith('data:image/svg+xml;base64,'));
+  ok('lien externe', String(c.external_link).includes('/kids'), c.external_link);
+
+  // Les deux sources de royalties doivent concorder : certaines places
+  // de marche lisent ce champ, d'autres EIP-2981. Un ecart entre les deux
+  // se traduirait par un taux applique different de celui annonce.
+  const [receiver, amount] = await nft.call('royaltyInfo', [0, 10_000n]);
+  ok('royalties identiques a EIP-2981',
+     BigInt(c.seller_fee_basis_points) === amount,
+     `contractURI ${c.seller_fee_basis_points} vs royaltyInfo ${amount}`);
+  ok('beneficiaire identique a EIP-2981',
+     String(c.fee_recipient).toLowerCase() === receiver.toLowerCase(),
+     c.fee_recipient);
+
+  // La vitrine doit etre stable : une vignette qui change a chaque appel
+  // ferait clignoter la page de collection.
+  ok('vignette stable entre deux appels', (await nft.call('contractURI')) === uri);
+
+  // Et elle doit vraiment dessiner, pas renvoyer un SVG vide.
+  const svg = Buffer.from(c.image.split(',')[1], 'base64').toString('utf8');
+  ok('la vignette est une vraie piece', svg.includes('<svg') && svg.length > 800,
+     `${svg.length} caracteres`);
+}
+
 console.log(`\n${'='.repeat(50)}`);
 console.log(`  ${pass} OK, ${fail} FAIL`);
 console.log('='.repeat(50) + '\n');
