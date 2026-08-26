@@ -60,6 +60,34 @@ if (!dep?.nft) {
 
 const coder = AbiCoder.defaultAbiCoder();
 
+/**
+ * Beneficiaire des royalties tel qu'il a ete passe au constructeur.
+ *
+ * Les premiers deploiements ne l'enregistraient pas : on retombe alors
+ * sur la configuration, en le disant. Ce repli n'est juste que si
+ * l'adresse n'a pas change depuis - d'ou l'avertissement plutot qu'un
+ * silence.
+ */
+let royaltyTo = dep.royaltyReceiver;
+if (!royaltyTo) {
+  royaltyTo = cfg.addresses?.royaltyReceiver;
+  if (!royaltyTo) {
+    console.error(`
+  Le beneficiaire des royalties est introuvable : ni dans le deploiement
+  enregistre, ni dans kids/config.json. Il a ete passe au constructeur du
+  NFT, et sans lui les arguments ne peuvent pas etre reencodes.
+
+  Redeployer l'enregistre desormais :
+    npm run kids:deploy -- --${which}
+`);
+    process.exit(2);
+  }
+  console.log(`  Note : le deploiement enregistre ne contient pas le beneficiaire`);
+  console.log(`  des royalties. Repli sur kids/config.json : ${royaltyTo}`);
+  console.log(`  Si cette adresse a change depuis le deploiement, la verification`);
+  console.log(`  du NFT echouera sur les arguments de constructeur.\n`);
+}
+
 /** Arguments de constructeur, encodes, tels que passes au deploiement. */
 const CONTRATS = [
   { name: 'HoodlrzKidsEngine', address: dep.engine, ctor: '0x' },
@@ -71,7 +99,7 @@ const CONTRATS = [
   {
     name: 'HoodlrzKids',
     address: dep.nft,
-    ctor: coder.encode(['address', 'address'], [dep.renderer, dep.royaltyReceiver]),
+    ctor: coder.encode(['address', 'address'], [dep.renderer, royaltyTo]),
   },
 ];
 

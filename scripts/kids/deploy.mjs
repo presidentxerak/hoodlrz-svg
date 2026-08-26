@@ -264,6 +264,13 @@ async function main() {
       engine: state.engine ?? null,
       renderer: state.renderer ?? null,
       nft: state.nft ?? null,
+      // Les destinataires font partie du deploiement, pas de la config :
+      // ils ont ete passes au constructeur et sont donc necessaires pour
+      // reencoder ses arguments a la verification. Les relire dans
+      // addresses supposerait qu'ils n'ont pas change depuis, ce qui est
+      // faux des qu'on redeploie apres les avoir modifies.
+      royaltyReceiver: royaltyTo,
+      reserveReceiver: reserveTo,
       artifactSha256: state.artifactSha256 ?? null,
       deployedAt: state.deployedAt ?? null,
     };
