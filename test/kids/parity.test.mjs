@@ -1,5 +1,5 @@
 /**
- * Phase 2 - Test differentiel JS <-> Solidity sur les 8888 tokens.
+ * Phase 2 - Test differentiel JS <-> Solidity sur les 3333 tokens.
  *
  * C'est le test qui decide si la collection peut sortir. Le moteur JS et le
  * contrat calculent les memes traits par deux chemins totalement independants ;
@@ -21,7 +21,7 @@ import { resolve } from 'node:path';
 import { solidityPackedKeccak256, AbiCoder } from 'ethers';
 import { compile, deploy } from '../../scripts/kids/evm.mjs';
 
-const N = parseInt(process.argv[2] || '8888', 10);
+const N = parseInt(process.argv[2] || '3333', 10);
 const SEED_BASE = '0x' + 'a7'.repeat(32);   // graine arbitraire mais fixe
 const BATCH = 400;                           // tokens par appel EVM
 

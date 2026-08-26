@@ -15,7 +15,7 @@ import {HoodlrzKidsEngine} from "./HoodlrzKidsEngine.sol";
  *
  *         - `attributes`   : les traits, recalcules ici par la bibliotheque
  *                            Solidity. Leur parite avec le moteur JS est
- *                            prouvee par test differentiel sur les 8888
+ *                            prouvee par test differentiel sur les 3333
  *                            tokens, pas supposee.
  *
  *         - `animation_url`: le HTML complet en data URI, avec le hash du

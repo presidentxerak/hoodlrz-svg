@@ -10,7 +10,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  * @dev    Le moteur est un fichier HTML autonome de ~116 Ko : aucun CDN,
  *         aucune police externe, aucune dependance. Il est stocke ici en
  *         bytecode de contrat (SSTORE2), une fois pour toute la collection.
- *         Les 8888 tokens ne different que par leur graine - il n'y a donc
+ *         Les 3333 tokens ne different que par leur graine - il n'y a donc
  *         aucun stockage par token.
  *
  *         DECOUPAGE

@@ -36,7 +36,7 @@ if (args.includes('--mainnet')) {
   console.error(`
   Refuse. Cette repetition appelle revealSeed(), qui est irreversible :
   la graine se pose une seule fois, et toute la collection en decoule.
-  Sur mainnet, cela figerait 8888 pieces avant meme le mint.
+  Sur mainnet, cela figerait 3333 pieces avant meme le mint.
 `);
   process.exit(2);
 }

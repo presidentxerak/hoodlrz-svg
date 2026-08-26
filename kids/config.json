@@ -12,7 +12,7 @@
   "collection": {
     "name": "Hoodlrz Gen Kids",
     "symbol": "KIDS",
-    "maxSupply": 8888,
+    "maxSupply": 3333,
     "reserve": 300,
     "maxPerWallet": 10,
     "royaltyBps": 500
@@ -30,7 +30,7 @@
       "Consequence traitee dans le contrat : revealSeed() n'attend plus la",
       "fin de la fenetre, il accepte aussi le cas 'plus rien a minter'. Sans",
       "cela la collection serait restee en placeholder jusqu'en 2036, meme",
-      "une fois les 8888 pieces distribuees.",
+      "une fois les 3333 pieces distribuees.",
       "",
       "Reste vrai : si la collection ne part pas entierement, la revelation",
       "n'a lieu qu'en 2036. C'est le prix d'une fenetre longue, assume."

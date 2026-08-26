@@ -15,7 +15,7 @@
     "kids:freeze": "node scripts/kids/freeze-engine.mjs",
     "kids:constants": "node scripts/kids/derive-constants.mjs",
     "kids:verify": "node scripts/kids/verify-frozen.mjs",
-    "kids:parity": "node test/kids/parity.test.mjs 8888",
+    "kids:parity": "node test/kids/parity.test.mjs 3333",
     "kids:e2e": "node test/kids/e2e.test.mjs",
     "kids:test": "npm run kids:verify && npm run kids:merkle && npm run kids:parity && npm run kids:e2e && npm run kids:soldout && npm run kids:resume && npm run kids:verifier",
     "kids:merkle": "node test/kids/merkle.test.mjs",

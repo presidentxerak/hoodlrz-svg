@@ -6,7 +6,7 @@
  * apres que la derniere piece a trouve preneur. Le contrat accepte donc
  * une seconde porte : plus rien a minter.
  *
- * Ce test la franchit pour de vrai - 8 888 pieces mintees dans l'EVM,
+ * Ce test la franchit pour de vrai - 3 333 pieces mintees dans l'EVM,
  * puis revelation AVANT mintEnd. Une lecture du code ne prouverait pas
  * que le compteur atteint exactement MAX_SUPPLY par les chemins
  * reellement empruntes (reserve, allowlist, public, plafond par wallet).
@@ -40,7 +40,7 @@ const nft = await chain.deploy(
 const MAX = Number(await nft.call('MAX_SUPPLY'));
 const RESERVE = Number(await nft.call('RESERVE'));
 const PER_WALLET = Number(await nft.call('MAX_PER_WALLET'));
-ok('parametres lus depuis la chaine', MAX === 8888 && RESERVE === 300 && PER_WALLET === 10,
+ok('parametres lus depuis la chaine', MAX === 3333 && RESERVE === 300 && PER_WALLET === 10,
    `${MAX} / ${RESERVE} / ${PER_WALLET}`);
 
 // Fenetre volontairement lointaine : c'est le cas reel (2036), et c'est
@@ -75,7 +75,7 @@ for (let i = 0; i < wallets; i++) {
 
 const minted = Number(await nft.call('totalMinted'));
 ok('supply atteinte', minted === MAX, `${minted} / ${MAX}`);
-ok('il a fallu au moins 859 wallets', wallets >= 859, `${wallets} wallets`);
+ok('il a fallu au moins 304 wallets', wallets >= 304, `${wallets} wallets`);
 ok('un mint de plus est refuse',
    (await nft.expectRevert('mintPublic', [1], { from: ACCOUNTS.CAROL })) === 'SupplyExhausted');
 

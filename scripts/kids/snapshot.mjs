@@ -206,7 +206,7 @@ if (writeConfig) {
 }
 
 console.log(`\n  capacite allowlist : ${meta.capaciteAllowlist.toLocaleString('fr')} pieces ` +
-            `(${clean.length} x ${config.collection.maxPerWallet}) sur 8 588 au public`);
+            `(${clean.length} x ${config.collection.maxPerWallet}) sur 3 033 au public`);
 if (!block) {
   console.log('\n  ATTENTION : pas de numero de bloc, snapshot non reproductible.');
   console.log('  Pour la production, utiliser --alchemy.');

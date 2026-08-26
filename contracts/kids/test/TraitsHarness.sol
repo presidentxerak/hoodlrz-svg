@@ -9,7 +9,7 @@ import {HoodlrzKidsTraits as T} from "../HoodlrzKidsTraits.sol";
  *
  * @dev    Contrat de TEST uniquement, jamais deploye en production.
  *
- *         Le test compare 8888 tokens entre le moteur JS et l'EVM. Un appel
+ *         Le test compare 3333 tokens entre le moteur JS et l'EVM. Un appel
  *         par token serait trop lent : on renvoie donc les traits d'une plage
  *         entiere en un seul appel, chaque token empaquete dans un uint256.
  *         Le decodage cote JS suit le meme ordre de champs.

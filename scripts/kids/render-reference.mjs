@@ -3,7 +3,7 @@
  *
  * A quoi ca sert, dans l'ordre d'importance :
  *
- *   1. APRES LE MINT. Une fois la graine revelee, on regenere les 8888
+ *   1. APRES LE MINT. Une fois la graine revelee, on regenere les 3333
  *      pieces ici et on les compare a ce que renvoie la chaine. Tout
  *      ecart signale un probleme entre le moteur stocke on-chain et
  *      celui qu'on croit avoir deploye.
@@ -26,7 +26,7 @@
  *   node scripts/kids/render-reference.mjs --rarity
  *   node scripts/kids/render-reference.mjs --sheets 4
  *   node scripts/kids/render-reference.mjs --tokens 0,7,42 --size 700
- *   node scripts/kids/render-reference.mjs --all          (8888 PNG, long)
+ *   node scripts/kids/render-reference.mjs --all          (3333 PNG, long)
  */
 
 import { launchChromium } from './browser.mjs';
@@ -42,7 +42,7 @@ const val = (f, d) => {
 };
 
 const OUT = 'kids/build/reference';
-const SUPPLY = Number(val('--supply', '8888'));
+const SUPPLY = Number(val('--supply', '3333'));
 
 /** Graine. Avant revelation on prend une graine de travail, clairement
  *  identifiee comme telle : les rendus produits ne sont PAS ceux de la

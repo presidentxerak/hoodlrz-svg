@@ -214,7 +214,7 @@ export default function MintPanel() {
       )}
 
       {/* Compteur de supply : seulement quand la chaine repond. Afficher
-          "0 / 8888" alors qu'on n'a rien lu serait un mensonge poli. */}
+          "0 / 3333" alors qu'on n'a rien lu serait un mensonge poli. */}
       {supply && (
         <div>
           <div className="flex items-baseline justify-between text-sm">

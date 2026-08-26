@@ -11,23 +11,30 @@ import {HoodlrzKidsRenderer} from "./HoodlrzKidsRenderer.sol";
 /**
  * @title  Hoodlrz Gen Kids
  * @author XERAK
- * @notice Collection generative de 8888 pieces, integralement on-chain.
+ * @notice Collection generative de 3333 pieces, integralement on-chain.
  *
- * @dev    PARAMETRES, arretes le 21/08/2026 et graves ici en constantes :
+ * @dev    PARAMETRES, arretes le 21/08/2026, supply revue le 23/08/2026,
+ *         graves ici en constantes :
  *
- *           supply totale      8888
- *           reserve createur    300  (3,4 %), mintee avant toute ouverture
- *           public             8588
- *           plafond par wallet   10  -> 859 wallets distincts au minimum
+ *           supply totale      3333
+ *           reserve createur    300  (9,0 %), mintee avant toute ouverture
+ *           public             3033
+ *           plafond par wallet   10  -> 304 wallets distincts au minimum
  *           prix              gratuit (gas seulement)
  *           royalties            5 % (EIP-2981, declaratif)
  *
  *         POURQUOI 10 ET PAS 100
- *         A 100 par wallet, 89 adresses suffisaient a rafler la collection
- *         entiere. En free mint sur une chaine a gas sub-centime, monter 89
- *         wallets ne coute rien a un bot. A 10, il en faut 859 : le vidage
+ *         A 100 par wallet, 31 adresses suffiraient a rafler la collection
+ *         entiere. En free mint sur une chaine a gas sub-centime, monter 31
+ *         wallets ne coute rien a un bot. A 10, il en faut 304 : le vidage
  *         reste possible mais devient couteux, et l'allowlist donne aux
  *         holders Hoodlrz une avance reelle plutot que symbolique.
+ *
+ *         Le plafond n'a PAS ete reduit avec la supply. A 3333 pieces pour
+ *         ~117 holders OG, 10 laisse a chacun de quoi constituer un petit
+ *         ensemble plutot qu'une piece unique - ce qui est le propre d'une
+ *         collection generative : on y cherche des combinaisons, pas un
+ *         jeton.
  *
  *         GRAINE
  *         Le hash d'un token est keccak256(seedBase, tokenId). `seedBase`
@@ -45,7 +52,7 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
     /* ------------------------------------------------------------------ *
      *  Constantes de collection
      * ------------------------------------------------------------------ */
-    uint256 public constant MAX_SUPPLY = 8888;
+    uint256 public constant MAX_SUPPLY = 3333;
     uint256 public constant RESERVE = 300;
     uint256 public constant MAX_PER_WALLET = 10;
     uint96 public constant ROYALTY_BPS = 500; // 5 %

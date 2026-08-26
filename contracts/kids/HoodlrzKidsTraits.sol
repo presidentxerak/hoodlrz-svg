@@ -10,7 +10,7 @@ import {HoodlrzKidsConstants as K} from "./HoodlrzKidsConstants.sol";
  * @dev    Ce contrat doit produire EXACTEMENT les memes traits que le
  *         JavaScript embarque on-chain. Toute divergence donne un token dont
  *         les attributs affiches sur la marketplace contredisent l'image.
- *         La parite est prouvee par test differentiel sur les 8888 tokens
+ *         La parite est prouvee par test differentiel sur les 3333 tokens
  *         (voir test/kids/parity.test.mjs) - elle n'est pas supposee.
  *
  *         TROIS PIEGES, traites explicitement :

@@ -50,11 +50,11 @@ const nft = await chain.deploy(
 );
 ok('NFT deploye', !!nft.address, `${nft.deployedSize} o`);
 ok('parametres graves',
-   (await nft.call('MAX_SUPPLY')) === 8888n &&
+   (await nft.call('MAX_SUPPLY')) === 3333n &&
    (await nft.call('RESERVE')) === 300n &&
    (await nft.call('MAX_PER_WALLET')) === 10n &&
    (await nft.call('ROYALTY_BPS')) === 500n,
-   '8888 / 300 / 10 / 5%');
+   '3333 / 300 / 10 / 5%');
 
 section('2. Televersement du moteur');
 const preChunks = JSON.parse(readFileSync('kids/build/engine-pre.json', 'utf8'));
