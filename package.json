@@ -36,7 +36,8 @@
     "kids:preview-chain": "node scripts/kids/preview-chain.mjs",
     "kids:rehearse": "node scripts/kids/rehearse.mjs",
     "kids:verify-contracts": "node scripts/kids/verify-contracts.mjs",
-    "kids:lock": "node scripts/kids/lock-renderer.mjs"
+    "kids:lock": "node scripts/kids/lock-renderer.mjs",
+    "kids:brand": "node scripts/kids/brand-assets.mjs"
   },
   "dependencies": {
     "@stripe/stripe-js": "^9.0.0",
