@@ -164,59 +164,42 @@ const band = (haut, bas, a) =>
 
 console.log('\nComposition…');
 
-/* ---- Icone de profil : une seule piece, plein cadre ---------------- */
-// Affichee en cercle et souvent en 32 px dans les listes. Deux
-// contraintes en decoulent : le visage doit occuper le centre du cadre,
-// puisque les coins seront rognes par le cercle, et la punchline doit
-// sortir du champ - un mot coupe en deux par le cercle fait sale, et le
-// texte qui survit devient illisible a cette taille.
+/* ------------------------------------------------------------------ *
+ * Aucun texte sur les visuels.
+ *
+ * OpenSea superpose deja le nom de la collection sur la banniere, et un
+ * titre grave dans l'image se retrouve double ou coupe selon la largeur
+ * de l'ecran. Sans texte, l'art passe a pleine intensite - ni voile ni
+ * bande sombre - et les visuels restent utilisables partout, y compris
+ * la ou la langue ou le nom changeraient.
+ * ------------------------------------------------------------------ */
+
+/* ---- Icone de profil ------------------------------------------------ */
+// Affichee en cercle et souvent en 32 px : le visage doit occuper le
+// centre, puisque les coins seront rognes.
 await compose('icon', 1000, 1000, `
 <div class="tiles">${img(3, 1.5, -9)}</div>`);
 
-/* ---- Banniere de collection ---------------------------------------- */
+/* ---- Banniere de collection ----------------------------------------- */
 await compose('banner', 1400, 400, `
-<div class="tiles">${img(0)}${img(1)}${img(2)}${img(4)}${img(5)}</div>
-<div class="veil" style="background:rgba(0,0,0,.30)"></div>
-${band(26, 76, .84)}
-<div class="mid">
-  <div style="font-size:74px; letter-spacing:.06em; line-height:1">HOODLRZ GEN KIDS</div>
-  <div class="sub" style="font-size:15px; margin-top:14px">3,333 pieces · fully on-chain · free mint</div>
-  <div class="chip" style="font-size:12px; margin-top:16px; padding:6px 14px">Robinhood Chain</div>
-</div>`);
+<div class="tiles">${img(0)}${img(1)}${img(2)}${img(4)}${img(5)}</div>`);
 
-/* ---- Vignette de mise en avant -------------------------------------- */
+/* ---- Vignette de mise en avant --------------------------------------- */
 await compose('featured', 600, 400, `
-<div class="tiles">${img(1)}${img(3)}</div>
-<div class="veil" style="background:rgba(0,0,0,.30)"></div>
-${band(22, 80, .86)}
-<div class="mid">
-  <div style="font-size:44px; letter-spacing:.05em; line-height:1.05">HOODLRZ<br>GEN KIDS</div>
-  <div class="sub" style="font-size:11px; margin-top:12px">3,333 · free mint</div>
-</div>`);
+<div class="tiles">${img(1)}${img(3)}</div>`);
 
-/* ---- Post carre ----------------------------------------------------- */
+/* ---- Post carre ------------------------------------------------------ */
 await compose('social', 1200, 1200, `
 <div class="tiles" style="flex-direction:column">
-  <div style="flex:1; display:flex">${img(0)}${img(2)}</div>
-  <div style="flex:1; display:flex">${img(4)}${img(5)}</div>
-</div>
-<div class="veil" style="background:rgba(0,0,0,.30)"></div>
-${band(28, 74, .84)}
-<div class="mid">
-  <div style="font-size:92px; letter-spacing:.05em; line-height:1.02">HOODLRZ<br>GEN KIDS</div>
-  <div class="sub" style="font-size:17px; margin-top:22px">The engine lives on-chain</div>
-  <div class="chip" style="font-size:13px; margin-top:22px; padding:8px 18px">3,333 · free mint · Robinhood Chain</div>
+  <div>${img(0)}${img(2)}</div>
+  <div>${img(4)}${img(5)}</div>
 </div>`);
 
-/* ---- Banniere X / Twitter ------------------------------------------- */
+/* ---- Banniere X / Twitter -------------------------------------------- */
+// Une photo de profil ronde vient se poser en bas a gauche : on y met la
+// piece la moins chargee pour qu'elle ne se batte pas avec l'avatar.
 await compose('header', 1500, 500, `
-<div class="tiles">${img(5)}${img(0)}${img(3)}${img(1)}${img(2)}</div>
-<div class="veil" style="background:rgba(0,0,0,.30)"></div>
-${band(28, 74, .84)}
-<div class="mid">
-  <div style="font-size:88px; letter-spacing:.06em; line-height:1">HOODLRZ GEN KIDS</div>
-  <div class="sub" style="font-size:16px; margin-top:16px">3,333 generative pieces · the renderer lives in the contract</div>
-</div>`);
+<div class="tiles">${img(5)}${img(0)}${img(3)}${img(1)}${img(2)}</div>`);
 
 await browser.close();
 

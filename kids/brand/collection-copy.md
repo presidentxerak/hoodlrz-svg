@@ -135,6 +135,12 @@ fixed hashes. They are reproducible, and they reveal nothing about the
 collection — those hashes are not derived from the seed, which will not
 exist until `revealSeed()`.
 
+**No text is burned into any of them.** OpenSea already overlays the
+collection name on the banner, and a title baked into the image ends up
+doubled or cropped depending on screen width. Without text the art runs
+at full strength — no veil, no dark band — and the same files stay usable
+if the name or the language ever changes.
+
 | File | Size | Use |
 |---|---|---|
 | `icon.png` | 1000×1000 | OpenSea profile picture — shown as a circle |
