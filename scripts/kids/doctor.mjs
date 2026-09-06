@@ -220,8 +220,16 @@ const RH = {
 
 {
   const env = existsSync('.env.local') ? readFileSync('.env.local', 'utf8') : '';
-  const custom = env.match(/^RH_TESTNET_RPC\s*=\s*(\S+)$/m)?.[1] ?? '';
-  const url = custom || RH.testnet.rpc;
+  // Espaces et tabulations seulement : avec \s, une ligne vide
+  // « RH_TESTNET_RPC= » laissait la capture sauter a la ligne suivante
+  // et prendre « RH_MAINNET_RPC= » pour une URL.
+  const custom = env.match(/^RH_TESTNET_RPC[ \t]*=[ \t]*(\S+)[ \t]*$/m)?.[1] ?? '';
+  // Meme resolution que kids:deploy : Alchemy si la cle est la, sinon le
+  // RPC public. Le diagnostic doit sonder l'endpoint qui servira vraiment.
+  const alchemy = env.match(/^ALCHEMY_API_KEY[ \t]*=[ \t]*(\S+)[ \t]*$/m)?.[1] ?? '';
+  const url = custom || (alchemy ? `https://robinhood-testnet.g.alchemy.com/v2/${alchemy}` : RH.testnet.rpc);
+  // Une cle d'API dans une URL reste une cle : jamais a l'ecran.
+  const shown = alchemy ? url.split(alchemy).join('***') : url;
 
   let detail, state, fix = null;
   try {
@@ -241,7 +249,7 @@ const RH = {
 
     if (seen === RH.testnet.id) {
       state = 'ok';
-      detail = `testnet joignable, chain ID ${seen} confirme\n           ${url}`;
+      detail = `testnet joignable, chain ID ${seen} confirme\n           ${shown}`;
     } else {
       state = 'bad';
       detail = `ce RPC repond chain ID ${seen}, or le testnet Robinhood est ${RH.testnet.id}`;
@@ -251,7 +259,7 @@ const RH = {
     // Injoignable n'est pas fatal tant qu'on ne deploie pas : le reseau
     // du poste peut filtrer, l'endpoint public peut limiter le debit.
     state = 'warn';
-    detail = `${url}\n           injoignable pour l instant (${String(e.message).slice(0, 60)})`;
+    detail = `${shown}\n           injoignable pour l instant (${String(e.message).slice(0, 60)})`;
     fix = 'sans consequence tant qu on ne deploie pas ; a revoir avant le testnet';
   }
   add(10, 'Robinhood Chain testnet', state, detail, fix);
