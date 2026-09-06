@@ -10,7 +10,7 @@
  *      SHA-256 a l'artefact local : si un octet manque, il le dit ici
  *      plutot que trop tard.
  *
- *   2. Apres le mint et `revealSeed()`, avant d'annoncer la collection.
+ *   2. Apres le mint et la revelation, avant d'annoncer la collection.
  *      Le script lit un tokenURI reel, en extrait le HTML, le fait
  *      rendre par un navigateur, et compare les traits obtenus a ceux
  *      annonces dans les metadonnees. C'est le seul controle qui prouve
@@ -105,6 +105,8 @@ const NFT_ABI = [
   'function totalMinted() view returns (uint256)',
   'function reserveMinted() view returns (uint256)',
   'function seedBase() view returns (bytes32)',
+  'function revealBlock() view returns (uint256)',
+  'function owner() view returns (address)',
   'function allowlistRoot() view returns (bytes32)',
   'function allowlistStart() view returns (uint64)',
   'function publicStart() view returns (uint64)',
@@ -286,7 +288,9 @@ if (NFT) {
    * ---------------------------------------------------------------- */
   section('4. Token reel');
   if (seedBase === ZERO32) {
-    note('graine non revelee', 'revealSeed() a passer apres la fin du mint');
+    const rb = Number(await nft.revealBlock());
+    if (rb === 0) note('graine non revelee', 'startReveal() puis finishReveal(), apres la fin du mint');
+    else note('revelation engagee, pas encore close', `finishReveal() des que le bloc parent ${rb} est lisible`);
   } else if (totalMinted === 0) {
     note('aucun token minte', 'rien a verifier');
   } else {

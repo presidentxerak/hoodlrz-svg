@@ -12,6 +12,7 @@ export const KIDS_ABI = [
   "function publicStart() view returns (uint64)",
   "function mintEnd() view returns (uint64)",
   "function seedBase() view returns (bytes32)",
+  "function revealBlock() view returns (uint256)",
   "function allowlistRoot() view returns (bytes32)",
   "function MAX_SUPPLY() view returns (uint256)",
   "function MAX_PER_WALLET() view returns (uint256)",
@@ -21,6 +22,10 @@ export const KIDS_ABI = [
   // Ecriture
   "function mintAllowlist(uint256 qty, bytes32[] proof)",
   "function mintPublic(uint256 qty)",
+  // Revelation en deux temps, ouverte a tous : un holder peut la passer
+  // lui-meme, sans attendre le createur.
+  "function startReveal()",
+  "function finishReveal()",
 
   // Erreurs, pour afficher un message utile plutot qu'un code brut
   "error MintClosed()",
@@ -28,6 +33,12 @@ export const KIDS_ABI = [
   "error SupplyExhausted()",
   "error BadProof()",
   "error ReserveFirst()",
+  "error ZeroQuantity()",
+  "error ContractsNotAllowed()",
+  "error RevealNotReady()",
+  "error RevealPending()",
+  "error RevealExpired()",
+  "error SeedAlreadySet()",
 ] as const;
 
 /** Traduit une erreur de revert en message lisible. */
@@ -45,6 +56,16 @@ export function humanError(err: unknown): string {
     return "This wallet is not on the Hoodlrz holders allowlist.";
   if (raw.includes("ReserveFirst"))
     return "The creator reserve has not been minted yet.";
+  if (raw.includes("ZeroQuantity")) return "Choose at least one piece.";
+  if (raw.includes("ContractsNotAllowed"))
+    return "The public mint only accepts regular wallets, not contract wallets.";
+  if (raw.includes("RevealNotReady"))
+    return "The committed block is not readable yet. Try again in a couple of minutes.";
+  if (raw.includes("RevealPending"))
+    return "A reveal is already committed. Finish it instead of starting a new one.";
+  if (raw.includes("RevealExpired"))
+    return "The read window has passed. Start the reveal again.";
+  if (raw.includes("SeedAlreadySet")) return "The seed is already revealed.";
   if (raw.includes("user rejected") || raw.includes("ACTION_REJECTED"))
     return "Transaction cancelled.";
   if (raw.includes("insufficient funds"))

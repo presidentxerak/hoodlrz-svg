@@ -89,7 +89,7 @@ if (pub - al < 6 * 3600) {
 const days = (end - pub) / 86400;
 if (days > 365) {
   console.log(`\n  Fenetre de mint de ${(days / 365).toFixed(1)} an(s).`);
-  console.log('  revealSeed() se declenchera donc au premier des deux :');
+  console.log('  La revelation (kids:reveal) sera possible au premier des deux :');
   console.log('    - les 3333 pieces mintees  ->  revelation immediate');
   console.log(`    - sinon la fin de fenetre  ->  ${new Date(P.mintEndParis).getFullYear()}`);
   console.log('  Jusque la, tokenURI renvoie un placeholder. C est voulu.');

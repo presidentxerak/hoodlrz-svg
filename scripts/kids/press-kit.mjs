@@ -239,8 +239,9 @@ const html = `<!doctype html><meta charset="utf-8">
     <h3>Nobody knows what they are minting</h3>
     <p>Token hashes come from a single seed that does not exist while minting is
     open. It is set once, irreversibly, after the pieces have already found their
-    owners. Until then every token shows a placeholder — so nobody, the creator
-    included, can look at the art and decide which token to keep.</p>
+    owners, and the mint cannot reopen afterwards. The reveal is a two-step call
+    anyone can make — commit to a block that does not exist yet, then read its
+    hash — so nobody, the creator included, picks the seed or the tokens.</p>
   </div>
 
   <div class="card accent">

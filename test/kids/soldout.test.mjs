@@ -7,7 +7,7 @@
  * une seconde porte : plus rien a minter.
  *
  * Ce test la franchit pour de vrai - 3 333 pieces mintees dans l'EVM,
- * puis revelation AVANT mintEnd. Une lecture du code ne prouverait pas
+ * puis revelation (startReveal puis finishReveal) AVANT mintEnd. Une lecture du code ne prouverait pas
  * que le compteur atteint exactement MAX_SUPPLY par les chemins
  * reellement empruntes (reserve, allowlist, public, plafond par wallet).
  *
@@ -83,11 +83,13 @@ console.log('\n4. Revelation avant la fin de fenetre');
 ok('on est bien avant mintEnd', Number(chain.now) < END,
    `${((END - Number(chain.now)) / 86400 / 365).toFixed(1)} ans restants`);
 
-await nft.call('revealSeed');
+await nft.call('startReveal');
+chain.mineBlocks(Number(await nft.call('REVEAL_DELAY')) + 1);
+await nft.call('finishReveal');
 const seedBase = await nft.call('seedBase');
 ok('graine posee', /^0x[0-9a-f]{64}$/.test(seedBase) && !/^0x0+$/.test(seedBase),
    seedBase.slice(0, 18) + '…');
-ok('seconde revelation refusee', (await nft.expectRevert('revealSeed')) === 'SeedAlreadySet');
+ok('seconde revelation refusee', (await nft.expectRevert('finishReveal')) === 'SeedAlreadySet');
 
 console.log('\n5. Les metadonnees sortent du placeholder');
 const uri = await nft.call('tokenURI', [7]);

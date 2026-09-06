@@ -138,21 +138,39 @@ await nft.call('mintPublic', [10], { from: ACCOUNTS.BOB });
 ok('bob mint son quota', (await nft.call('balanceOf', [ACCOUNTS.BOB.toString()])) === 10n);
 ok('total mint coherent', (await nft.call('totalMinted')) === 320n, '300 + 10 + 10');
 
-section('6. Revelation de la graine');
-ok('revelation refusee pendant le mint',
-   ['revert', 'Error'].includes(await nft.expectRevert('revealSeed')),
+section('6. Revelation de la graine, en deux temps');
+ok('engagement refuse pendant le mint',
+   ['revert', 'Error'].includes(await nft.expectRevert('startReveal')),
    'require("Mint en cours")');
 ok('tokenURI donne un placeholder avant revelation',
    (await nft.call('tokenURI', [0])).startsWith('data:application/json;base64,'));
 
 chain.warpTo(END + 60);
-await nft.call('revealSeed');
+// La revelation n'appartient pas au proprietaire : c'est Carol, qui n'a
+// aucun role, qui s'engage et qui cloture.
+await nft.call('startReveal', [], { from: ACCOUNTS.CAROL });
+const revealBlock = await nft.call('revealBlock');
+ok('bloc engage dans le futur', revealBlock === chain.blockNumber + (await nft.call('REVEAL_DELAY')),
+   `bloc ${revealBlock}`);
+ok('cloture refusee tant que le bloc n existe pas',
+   (await nft.expectRevert('finishReveal', [], { from: ACCOUNTS.CAROL })) === 'RevealNotReady');
+ok('graine encore nulle', (await nft.call('seedBase')) === '0x' + '0'.repeat(64));
+
+chain.mineBlocks(Number(await nft.call('REVEAL_DELAY')) + 1);
+await nft.call('finishReveal', [], { from: ACCOUNTS.CAROL });
 const seedBase = await nft.call('seedBase');
 ok('graine figee', seedBase !== '0x' + '0'.repeat(64), seedBase.slice(0, 18) + '...');
-ok('seconde revelation refusee', (await nft.expectRevert('revealSeed')) === 'SeedAlreadySet');
+ok('seconde cloture refusee', (await nft.expectRevert('finishReveal')) === 'SeedAlreadySet');
+ok('second engagement refuse', (await nft.expectRevert('startReveal')) === 'SeedAlreadySet');
+ok('plus aucun mint possible apres la graine',
+   (await nft.expectRevert('mintPublic', [1], { from: ACCOUNTS.CAROL })) === 'MintClosed');
 
 section('7. tokenURI complet');
 const uri = await nft.call('tokenURI', [7]);
+// Le cout de lecture compte : un tokenURI au-dela du plafond d'eth_call
+// d'un fournisseur RPC est un token invisible sur les marketplaces.
+console.log(`        gas de tokenURI : ${(Number(nft.lastGas) / 1e6).toFixed(2)} M`);
+ok('tokenURI sous 30 M de gas', nft.lastGas < 30_000_000n, `${nft.lastGas.toLocaleString('fr')}`);
 ok('data URI JSON', uri.startsWith('data:application/json;base64,'));
 const meta = JSON.parse(Buffer.from(uri.split(',')[1], 'base64').toString('utf8'));
 ok('nom du token', meta.name === 'Hoodlrz Gen Kid #7', meta.name);

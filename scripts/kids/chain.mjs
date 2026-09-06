@@ -9,7 +9,7 @@
 
 import { createEVM } from '@ethereumjs/evm';
 import { hexToBytes, bytesToHex, createAddressFromString, createZeroAddress } from '@ethereumjs/util';
-import { Interface } from 'ethers';
+import { Interface, keccak256, toBeHex } from 'ethers';
 import { compile } from './evm.mjs';
 
 const DEPLOYER = createAddressFromString('0x' + '11'.repeat(20));
@@ -19,15 +19,32 @@ const CAROL = createAddressFromString('0x' + 'ca'.repeat(20));   // hors allowli
 
 export const ACCOUNTS = { DEPLOYER, ALICE, BOB, CAROL };
 
+/**
+ * Hash d'un bloc de la chaine simulee. Deterministe et distinct par
+ * numero : c'est tout ce que la revelation en deux temps exige d'un
+ * blockhash pour etre testable - et exactement ce que fournit la chaine
+ * cible, dont blockhash est un pseudo-alea du sequenceur.
+ */
+export const blockHashOf = (n) => hexToBytes(keccak256(toBeHex(BigInt(n), 32)));
+
 export async function createChain() {
-  const evm = await createEVM();
+  // Sans ce mock, BLOCKHASH renvoie 32 octets nuls pour tout bloc : la
+  // revelation, qui refuse un hash nul, serait alors intestable.
+  const blockchain = {
+    async getBlock(n) { return { hash: () => blockHashOf(n) }; },
+    async putBlock() {},
+    shallowCopy() { return this; },
+  };
+  const evm = await createEVM({ blockchain });
   let timestamp = 1_700_000_000n;
+  let number = 1000n;
 
   /** Contexte de bloc injecte a chaque appel : c'est ce qui rend
-   *  block.timestamp pilotable, donc les phases de mint testables. */
+   *  block.timestamp et block.number pilotables, donc les phases de mint
+   *  et la revelation testables. */
   const blockCtx = () => ({
     header: {
-      number: 1n,
+      number,
       cliqueSigner: () => createZeroAddress(),
       coinbase: createZeroAddress(),
       timestamp,
@@ -49,6 +66,12 @@ export async function createChain() {
     /** Avance l'horloge de la chaine. */
     warpTo(t) { timestamp = BigInt(t); },
     warpBy(dt) { timestamp += BigInt(dt); },
+
+    get blockNumber() { return number; },
+    /** Avance le compteur de blocs (sans toucher a l'horloge : les deux
+     *  sont independants sur la chaine cible, et on veut pouvoir tester
+     *  l'un sans l'autre). */
+    mineBlocks(n) { number += BigInt(n); },
 
     /** Compile, deploie, et retourne un objet contrat typé par son ABI. */
     async deploy(file, name, args = [], from = DEPLOYER) {

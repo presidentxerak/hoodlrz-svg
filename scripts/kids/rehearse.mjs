@@ -10,7 +10,7 @@
  * lieu de plusieurs jours. Tout ce qui casserait le 11 septembre casse
  * ici, ou ca ne coute rien.
  *
- * IRREVERSIBLE sur le deploiement vise : revealSeed() ne se joue qu'une
+ * IRREVERSIBLE sur le deploiement vise : la revelation ne se joue qu'une
  * fois. Le script refuse donc le mainnet, categoriquement. La repetition
  * consomme le deploiement testnet ; en refaire un autre coute six
  * transactions de moteur, ce qui est precisement le prix a payer pour ne
@@ -34,7 +34,7 @@ const STEP = Math.max(1, Number(val('--minutes', '2'))) * 60;   // duree d'une p
 
 if (args.includes('--mainnet')) {
   console.error(`
-  Refuse. Cette repetition appelle revealSeed(), qui est irreversible :
+  Refuse. Cette repetition revele la graine, ce qui est irreversible :
   la graine se pose une seule fois, et toute la collection en decoule.
   Sur mainnet, cela figerait 3333 pieces avant meme le mint.
 `);
@@ -68,9 +68,13 @@ const ABI = [
   'function allowlistRoot() view returns (bytes32)',
   'function mintAllowlist(uint256,bytes32[])',
   'function mintPublic(uint256)',
-  'function revealSeed()',
+  'function startReveal()',
+  'function finishReveal()',
+  'function revealBlock() view returns (uint256)',
+  'function REVEAL_DELAY() view returns (uint256)',
   'function lockRenderer()',
   'function seedBase() view returns (bytes32)',
+  'function setRoyaltyReceiver(address)',
   'function tokenHash(uint256) view returns (bytes32)',
   'function tokenURI(uint256) view returns (string)',
   'function totalMinted() view returns (uint256)',
@@ -86,6 +90,21 @@ console.log(`\nRepetition generale — Robinhood Chain Testnet`);
 console.log(`  NFT        ${dep.nft}`);
 console.log(`  operateur  ${wallet.address}`);
 console.log(`  fenetres   ${STEP / 60} min par phase\n`);
+
+// Un deploiement anterieur a la revue de securite n'a pas la revelation
+// en deux temps : la repetition echouerait a mi-parcours, graine posee
+// ou non. On le dit avant de toucher a quoi que ce soit.
+try {
+  await nft.REVEAL_DELAY();
+} catch {
+  console.error(`  Ce deploiement date d'avant la revue de securite (pas de
+  startReveal/finishReveal). Redeployer un testnet neuf :
+
+    rm kids/build/deployment-46630.json
+    npm run kids:deploy -- --testnet
+`);
+  process.exit(2);
+}
 
 if ((await nft.seedBase()) !== '0x' + '0'.repeat(64)) {
   console.error(`  La graine est deja revelee sur ce deploiement : la repetition
@@ -157,16 +176,46 @@ ok('plafond de 10 par wallet respecte',
 ok('un 6e lot depassant le plafond est refuse',
    await refuses(() => nft.mintPublic(6)));
 
-/* ---- 5. Revelation ------------------------------------------------- */
+/* ---- 4 bis. Ce qui doit etre fige pendant le mint ------------------ */
+// Ces refus sont ceux de la revue de securite : un mint ouvert ne se
+// reprogramme pas, et sa liste ne change pas.
+console.log('\n4 bis. Verrous pendant le mint');
+ok('setPhases refuse pendant le mint', await refuses(() => nft.setPhases(AL, PUB, END + 60)));
+ok('setAllowlistRoot refuse pendant le mint', await refuses(() => nft.setAllowlistRoot(tree.root)));
+
+/* ---- 5. Revelation, en deux temps ---------------------------------- */
 console.log('\n5. Revelation de la graine');
-ok('revelation refusee pendant le mint', await refuses(() => nft.revealSeed()));
+ok('engagement refuse pendant le mint', await refuses(() => nft.startReveal()));
 await until(END + 5, 'fin de fenetre');
 process.stdout.write('\r');
 
-await (await nft.revealSeed()).wait();
+await (await nft.startReveal()).wait();
+const rb = Number(await nft.revealBlock());
+ok('engagement pose sur un bloc futur', rb > 0, `bloc parent ${rb}`);
+ok('cloture refusee tant que le bloc n existe pas', await refuses(() => nft.finishReveal()));
+
+// block.number est ici celui de la chaine PARENTE, qui avance toutes
+// les ~12 s : le seul moyen fiable de savoir si le hash est lisible est
+// de demander au contrat lui-meme, par un appel a blanc.
+const delay = Number(await nft.REVEAL_DELAY());
+console.log(`  attente de ${delay + 1} blocs parents (~${Math.round((delay + 1) * 12 / 60)} min)…`);
+for (let i = 0; ; i++) {
+  try { await nft.finishReveal.staticCall(); break; }
+  catch (e) {
+    if (/RevealExpired/.test(String(e.message))) {
+      console.error('  fenetre de lecture depassee : relancer startReveal()');
+      process.exit(1);
+    }
+    process.stdout.write(`\r  bloc ${rb} pas encore lisible (${i * 10} s)…   `);
+    await wait(10_000);
+  }
+}
+process.stdout.write('\r');
+await (await nft.finishReveal()).wait();
 const seed = await nft.seedBase();
 ok('graine posee', /^0x[0-9a-f]{64}$/.test(seed) && seed !== '0x' + '0'.repeat(64), seed.slice(0, 18) + '…');
-ok('seconde revelation refusee', await refuses(() => nft.revealSeed()));
+ok('seconde cloture refusee', await refuses(() => nft.finishReveal()));
+ok('second engagement refuse', await refuses(() => nft.startReveal()));
 
 /* ---- 6. Metadonnees reelles ---------------------------------------- */
 console.log('\n6. Metadonnees apres revelation');

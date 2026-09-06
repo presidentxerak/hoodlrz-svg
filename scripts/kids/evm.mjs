@@ -32,7 +32,18 @@ function resolveImport(importPath, fromDir) {
  * Reglages alignes sur hardhat.config.ts pour que le bytecode teste ici soit
  * exactement celui qui sera deploye.
  */
+const cache = new Map();
+
 export function compile(entryFile, contractName) {
+  // Les tests deploient les memes contrats des dizaines de fois : solc
+  // est de loin le poste le plus lent, et les sources ne changent pas
+  // pendant un run.
+  const key = `${resolve(entryFile)}::${contractName}`;
+  if (!cache.has(key)) cache.set(key, compileUncached(entryFile, contractName));
+  return cache.get(key);
+}
+
+function compileUncached(entryFile, contractName) {
   const entry = resolve(entryFile);
 
   // On indexe les sources par chemin ABSOLU et on reecrit chaque import vers
@@ -81,6 +92,7 @@ export function compile(entryFile, contractName) {
       return {
         abi: c.abi,
         bytecode: '0x' + c.evm.bytecode.object,
+        deployedBytecode: '0x' + c.evm.deployedBytecode.object,
         deployedSize: c.evm.deployedBytecode.object.length / 2,
         warnings: warnings.map((w) => w.formattedMessage),
         // Entree standard JSON et version exacte du compilateur : ce sont

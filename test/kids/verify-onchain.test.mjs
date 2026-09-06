@@ -9,7 +9,7 @@
  * Deux passages, qui correspondent aux deux moments d'usage reels :
  *   - avant seal() et avant le mint : le script doit signaler ce qui
  *     reste a faire sans crier a l'erreur
- *   - apres seal(), mint et revealSeed() : tout doit etre vert
+ *   - apres seal(), mint et finishReveal() : tout doit etre vert
  *
  * On verifie aussi qu'il DETECTE une anomalie : un moteur incomplet ne
  * doit pas passer. Un controleur qui ne sait rien refuser ne controle rien.
@@ -99,7 +99,7 @@ console.log('\nB. Avant seal(), avant le mint');
 /* ------------------------------------------------------------------ *
  * C. Deploiement complet : tout doit etre vert.
  * ------------------------------------------------------------------ */
-console.log('\nC. Apres seal(), mint et revealSeed()');
+console.log('\nC. Apres seal(), mint et finishReveal()');
 {
   const config = JSON.parse(readFileSync('kids/config.json', 'utf8'));
   const ts = (iso) => Math.floor(new Date(iso).getTime() / 1000);
@@ -123,7 +123,9 @@ console.log('\nC. Apres seal(), mint et revealSeed()');
   chain.warpTo(AL + 60);
   await nft.call('mintAllowlist', [4, proofFor(tree, leafOf(ACCOUNTS.ALICE.toString()))], { from: ACCOUNTS.ALICE });
   chain.warpTo(END + 60);
-  await nft.call('revealSeed');
+  await nft.call('startReveal');
+  chain.mineBlocks(Number(await nft.call('REVEAL_DELAY')) + 1);
+  await nft.call('finishReveal');
 
   const r = await verify(shim.url, ENG, NFT, 12);
   ok('sortie sans erreur', r.code === 0, `code ${r.code}`);

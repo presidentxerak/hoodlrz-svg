@@ -315,6 +315,25 @@ async function main() {
     );
   }
 
+  // Meme piege avec le CODE : un contrat repris apres une modification
+  // des sources est un contrat d'hier, sans les correctifs. Le moteur et
+  // le NFT n'ont pas d'immutable, leur bytecode deploye doit donc etre
+  // exactement celui que l'on vient de compiler. (Le renderer porte
+  // l'adresse du moteur en immutable : on ne peut pas le comparer tel
+  // quel, mais il est redeploye avec le moteur.)
+  for (const [key, name] of [['engine', 'HoodlrzKidsEngine'], ['nft', 'HoodlrzKids']]) {
+    const onChainCode = (await provider.getCode(state[key])).toLowerCase();
+    if (onChainCode !== built[name].deployedBytecode.toLowerCase()) {
+      fail(
+        `Le bytecode de ${name} retrouve a ${state[key]}\n` +
+        `n est pas celui des sources actuelles : les contrats ont change\n` +
+        `depuis ce deploiement. Pour repartir de contrats neufs :\n\n` +
+        `    rm ${stateFile}\n` +
+        `    npm run kids:deploy -- --${which}\n`
+      );
+    }
+  }
+
   state.royaltyReceiver = royaltyTo;
   state.reserveReceiver = reserveTo;
   save();
@@ -396,7 +415,8 @@ Reste a faire, a la main et dans cet ordre :
   4. setAllowlistRoot(<racine du snapshot>)
   5. setPhases(...)                 npm run kids:phases donne l appel exact
   6. lockRenderer()                 seulement une fois le rendu valide
-  7. apres le sold-out ou la fin de fenetre : revealSeed()
+  7. apres le sold-out ou la fin de fenetre : npm run kids:reveal
+     (startReveal puis finishReveal - n importe qui peut les passer)
 `);
 }
 

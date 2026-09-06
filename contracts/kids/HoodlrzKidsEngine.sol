@@ -48,9 +48,23 @@ contract HoodlrzKidsEngine is Ownable {
     event ChunkStored(bool isPre, uint256 index, address pointer, uint256 size);
     event Sealed(bytes32 artifactHash, uint256 totalBytes);
 
+    /// @notice Marqueur qui separe les deux moities dans l'artefact publie.
+    ///         Le SHA-256 annonce couvre l'artefact AVEC ce marqueur ; la
+    ///         chaine stocke les moities SANS. Le scellement recompose donc
+    ///         le fichier exact avant de comparer.
+    bytes public constant MARKER = "__HASH__";
+
+    /// @notice Taille maximale d'un morceau : la limite EIP-170 (24 576 o)
+    ///         moins l'octet STOP en tete du runtime. Au-dela, la longueur
+    ///         ecrite sur deux octets dans le code de creation deborderait
+    ///         en silence et le morceau serait tronque.
+    uint256 public constant MAX_CHUNK = 24_575;
+
     error AlreadySealed();
     error NotSealed();
     error EmptyChunk();
+    error ChunkTooLarge();
+    error HashMismatch(bytes32 expected, bytes32 actual);
 
     constructor() Ownable(msg.sender) {}
 
@@ -101,6 +115,7 @@ contract HoodlrzKidsEngine is Ownable {
     /// @param  isPre true pour la partie avant le hash, false pour apres.
     function appendChunk(bool isPre, bytes calldata data) external onlyOwner whileOpen {
         if (data.length == 0) revert EmptyChunk();
+        if (data.length > MAX_CHUNK) revert ChunkTooLarge();
         address p = _sstore2Write(data);
         if (isPre) {
             preChunks.push(p);
@@ -116,8 +131,16 @@ contract HoodlrzKidsEngine is Ownable {
     /// @dev    Volontairement irreversible : c'est le geste qui transforme un
     ///         deploiement en oeuvre. A n'appeler qu'apres avoir verifie le
     ///         rendu depuis la chaine (voir scripts/kids/verify-onchain.mjs).
+    ///
+    ///         Le hash n'est pas cru sur parole : le contrat recompose
+    ///         l'artefact depuis ses propres morceaux et le recalcule. Un
+    ///         moteur incomplet ou un hash mal copie ne peuvent donc pas
+    ///         etre scelles - c'est ce qui fait du SHA-256 publie une preuve
+    ///         et non une declaration.
     function seal(bytes32 expectedHash) external onlyOwner whileOpen {
         require(preChunks.length > 0 && postChunks.length > 0, "Moteur incomplet");
+        bytes32 actual = sha256(abi.encodePacked(pre(), MARKER, post()));
+        if (actual != expectedHash) revert HashMismatch(expectedHash, actual);
         artifactHash = expectedHash;
         sealed_ = true;
         emit Sealed(expectedHash, totalBytes());
@@ -161,7 +184,9 @@ contract HoodlrzKidsEngine is Ownable {
 
     function _size(address p) private view returns (uint256 s) {
         assembly { s := extcodesize(p) }
-        unchecked { s = s - 1; }
+        // Un pointeur ne peut pas etre vide (STOP en tete), mais on ne
+        // laisse pas un underflow dans un chemin de lecture pour autant.
+        if (s != 0) s -= 1;
     }
 
     function chunkCounts() external view returns (uint256 preCount, uint256 postCount) {

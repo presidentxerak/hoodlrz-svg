@@ -400,9 +400,20 @@ function HowItWorks() {
         <Explain title="Nobody knows what they are minting">
           Token hashes come from a single seed that does not exist while
           minting is open. It is fixed once — irreversibly — after the pieces
-          have already found their owners. Until then every token shows a
-          placeholder. Nobody, including me, can look at the art and decide
-          which token to buy.
+          have already found their owners, and the mint cannot reopen
+          afterwards. Until then every token shows a placeholder. Nobody,
+          including me, can look at the art and decide which token to buy.
+        </Explain>
+
+        <Explain title="Nobody picks the seed either">
+          The reveal takes two steps, and anyone can trigger both. First a
+          call commits to a block that does not exist yet, ten parent-chain
+          blocks ahead. Then, once that block is there, a second call reads
+          its hash and fixes the seed from it. Whoever presses the button
+          cannot know the outcome, and a reveal that is abandoned to try again
+          leaves a public trace on-chain. The remaining trust sits with the
+          chain&apos;s sequencer, which produces those hashes — the same trust
+          you already place in it for every transaction here.
         </Explain>
 
         <Explain title="The reveal does not wait ten years">

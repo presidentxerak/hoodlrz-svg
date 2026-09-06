@@ -4,8 +4,10 @@ pragma solidity 0.8.28;
 import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {IERC2981} from "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {HoodlrzKidsRenderer} from "./HoodlrzKidsRenderer.sol";
 
 /**
@@ -30,25 +32,37 @@ import {HoodlrzKidsRenderer} from "./HoodlrzKidsRenderer.sol";
  *         reste possible mais devient couteux, et l'allowlist donne aux
  *         holders Hoodlrz une avance reelle plutot que symbolique.
  *
- *         Le plafond n'a PAS ete reduit avec la supply. A 3333 pieces pour
- *         ~117 holders OG, 10 laisse a chacun de quoi constituer un petit
- *         ensemble plutot qu'une piece unique - ce qui est le propre d'une
- *         collection generative : on y cherche des combinaisons, pas un
- *         jeton.
+ *         Le plafond est compte par adresse, et le mint public refuse les
+ *         appels venant d'un contrat : sans cela, une seule transaction
+ *         pouvait deployer 304 contrats jetables et vider la collection
+ *         d'un coup. Le prix a payer est que les wallets contractuels
+ *         (Safe, comptes abstraits) ne peuvent pas passer par la porte
+ *         publique. C'est assume : sur cette chaine, ce sont des EOA.
  *
  *         GRAINE
  *         Le hash d'un token est keccak256(seedBase, tokenId). `seedBase`
- *         est fixe une seule fois, apres la fin du mint, a partir d'un
- *         blockhash posterieur : personne - pas meme le deployeur - ne peut
- *         donc choisir quel token recevra quels traits pendant le mint.
+ *         est fixe une seule fois, apres la fin de la distribution, en
+ *         DEUX temps : on s'engage d'abord sur un bloc futur, puis on lit
+ *         son hash une fois qu'il existe. Ni le createur ni personne ne
+ *         choisit donc la graine - voir la section « Revelation ».
  *         Aucun stockage par token n'est necessaire.
+ *
+ *         CE QUI EST FIGE UNE FOIS LE MINT OUVERT
+ *         Des que block.timestamp atteint allowlistStart, les phases et la
+ *         racine d'allowlist ne bougent plus. Et des que la graine est
+ *         posee, plus rien ne se minte : la graine rend les traits de
+ *         chaque tokenId calculables, et un mint apres coup serait un
+ *         tirage a livre ouvert.
  *
  *         PIEGE DE CHAINE
  *         Les phases sont pilotees par block.timestamp, JAMAIS par
  *         block.number : sur la chaine cible (Arbitrum Orbit), block.number
- *         renvoie une estimation du bloc L1, pas du bloc local.
+ *         renvoie une estimation du bloc de la chaine parente, pas du bloc
+ *         local. La revelation, elle, s'appuie justement sur ce
+ *         block.number parent : c'est ce qui la met hors de portee de
+ *         l'appelant.
  */
-contract HoodlrzKids is ERC721, IERC2981, Ownable {
+contract HoodlrzKids is ERC721, IERC2981, Ownable2Step {
     /* ------------------------------------------------------------------ *
      *  Constantes de collection
      * ------------------------------------------------------------------ */
@@ -56,6 +70,13 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
     uint256 public constant RESERVE = 300;
     uint256 public constant MAX_PER_WALLET = 10;
     uint96 public constant ROYALTY_BPS = 500; // 5 %
+
+    /// @notice Distance, en blocs de la chaine parente, entre l'engagement
+    ///         et le bloc dont le hash fera la graine. Dix blocs Ethereum,
+    ///         soit environ deux minutes : assez pour que ce hash n'existe
+    ///         pas encore au moment de s'engager, assez court pour que la
+    ///         fenetre de lecture (256 blocs) reste confortable.
+    uint256 public constant REVEAL_DELAY = 10;
 
     /* ------------------------------------------------------------------ *
      *  Etat
@@ -67,6 +88,10 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
 
     /// @notice Base de graine, figee apres le mint. Nulle = pas encore revelee.
     bytes32 public seedBase;
+
+    /// @notice Bloc (chaine parente) dont le hash fera la graine.
+    ///         Zero = aucune revelation engagee.
+    uint256 public revealBlock;
 
     /// @notice Beneficiaire des royalties.
     address public royaltyReceiver;
@@ -86,9 +111,15 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
     /// @notice Verrou du renderer. Une fois pose, l'adresse ne change plus.
     bool public rendererLocked;
 
-    event SeedRevealed(bytes32 seedBase, uint256 blockNumber);
+    event RevealStarted(uint256 revealBlock, address by);
+    event SeedRevealed(bytes32 seedBase, uint256 revealBlock);
     event PhasesSet(uint64 allowlistStart, uint64 publicStart, uint64 mintEnd);
+    event AllowlistRootSet(bytes32 root);
+    event RendererSet(address renderer);
     event RendererLocked(address renderer);
+    event RoyaltyReceiverSet(address receiver);
+    /// @dev ERC-7572 : signale aux marketplaces de relire contractURI().
+    event ContractURIUpdated();
 
     error MintClosed();
     error WalletCapReached();
@@ -99,11 +130,21 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
     error ReserveExhausted();
     error ReserveFirst();
     error Locked();
+    error ZeroAddress();
+    error ZeroQuantity();
+    error ContractsNotAllowed();
+    error PhasesLocked();
+    error RevealNotReady();
+    error RevealPending();
+    error RevealExpired();
+    error EngineNotSealed();
+    error OwnershipStillNeeded();
 
     constructor(address renderer_, address royaltyReceiver_)
         ERC721("Hoodlrz Gen Kids", "KIDS")
         Ownable(msg.sender)
     {
+        if (renderer_ == address(0) || royaltyReceiver_ == address(0)) revert ZeroAddress();
         renderer = HoodlrzKidsRenderer(renderer_);
         royaltyReceiver = royaltyReceiver_;
     }
@@ -112,7 +153,21 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
      *  Administration
      * ------------------------------------------------------------------ */
 
+    /// @dev Vrai des que la phase allowlist a commence : a partir de la,
+    ///      les regles du mint ne bougent plus.
+    function _mintStarted() private view returns (bool) {
+        return allowlistStart != 0 && block.timestamp >= allowlistStart;
+    }
+
+    /**
+     * @notice Programme les trois dates du mint.
+     * @dev    Libre tant que le mint n'a pas commence ; fige ensuite. Sans
+     *         ce verrou, le proprietaire pouvait avancer la fin, reveler la
+     *         graine, puis rouvrir : les pieces restantes se seraient alors
+     *         mintees en connaissant leurs traits.
+     */
     function setPhases(uint64 alStart, uint64 pubStart, uint64 end) external onlyOwner {
+        if (seedBase != bytes32(0) || _mintStarted()) revert PhasesLocked();
         require(alStart <= pubStart && pubStart < end, "Phases incoherentes");
         allowlistStart = alStart;
         publicStart = pubStart;
@@ -120,24 +175,51 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
         emit PhasesSet(alStart, pubStart, end);
     }
 
+    /// @notice Pose la racine de l'allowlist. Figee des l'ouverture du mint.
     function setAllowlistRoot(bytes32 root) external onlyOwner {
+        if (_mintStarted()) revert PhasesLocked();
         allowlistRoot = root;
+        emit AllowlistRootSet(root);
     }
 
     function setRenderer(address r) external onlyOwner {
         if (rendererLocked) revert Locked();
+        if (r == address(0)) revert ZeroAddress();
         renderer = HoodlrzKidsRenderer(r);
+        emit RendererSet(r);
     }
 
-    /// @dev Irreversible : fige l'adresse du renderer. A appeler une fois le
-    ///      rendu verifie depuis la chaine.
+    /**
+     * @dev Irreversible : fige l'adresse du renderer. A appeler une fois le
+     *      rendu verifie depuis la chaine.
+     *
+     *      Le verrou n'a de sens que si ce qu'il fige est complet : un
+     *      renderer dont le moteur n'est pas scelle laisserait l'art
+     *      modifiable par une autre porte. On l'exige donc ici, plutot que
+     *      de s'en remettre a l'ordre des operations d'un script.
+     */
     function lockRenderer() external onlyOwner {
+        if (address(renderer).code.length == 0) revert ZeroAddress();
+        if (!renderer.engine().sealed_()) revert EngineNotSealed();
         rendererLocked = true;
         emit RendererLocked(address(renderer));
     }
 
     function setRoyaltyReceiver(address r) external onlyOwner {
+        if (r == address(0)) revert ZeroAddress();
         royaltyReceiver = r;
+        emit RoyaltyReceiverSet(r);
+        emit ContractURIUpdated();
+    }
+
+    /**
+     * @dev Renoncer a la propriete avant que la collection soit achevee la
+     *      laisserait sans personne pour poser le verrou du renderer. La
+     *      revelation, elle, n'a pas besoin du proprietaire.
+     */
+    function renounceOwnership() public override onlyOwner {
+        if (seedBase == bytes32(0) || !rendererLocked) revert OwnershipStillNeeded();
+        super.renounceOwnership();
     }
 
     /* ------------------------------------------------------------------ *
@@ -150,7 +232,7 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
         if (reserveMinted + qty > RESERVE) revert ReserveExhausted();
         // La reserve doit etre servie avant que quiconque puisse minter :
         // une reserve prelevee apres coup se paie cher en reputation.
-        require(allowlistStart == 0 || block.timestamp < allowlistStart, "Trop tard pour la reserve");
+        require(!_mintStarted(), "Trop tard pour la reserve");
         reserveMinted += qty;
         _mintMany(to, qty);
     }
@@ -160,6 +242,10 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
      * ------------------------------------------------------------------ */
 
     function _mintMany(address to, uint256 qty) private {
+        if (qty == 0) revert ZeroQuantity();
+        // Une fois la graine posee, les traits de chaque tokenId sont
+        // publics. Minter ensuite reviendrait a choisir sa piece.
+        if (seedBase != bytes32(0)) revert MintClosed();
         uint256 start = totalMinted;
         if (start + qty > MAX_SUPPLY) revert SupplyExhausted();
         totalMinted = start + qty;
@@ -188,10 +274,12 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
     }
 
     /// @notice Mint public.
+    /// @dev    Reserve aux comptes externes : voir l'en-tete du contrat.
     function mintPublic(uint256 qty) external {
         if (publicStart == 0 || block.timestamp < publicStart || block.timestamp >= mintEnd) {
             revert MintClosed();
         }
+        if (msg.sender != tx.origin) revert ContractsNotAllowed();
         if (reserveMinted < RESERVE) revert ReserveFirst();
         _checkCap(qty);
         _mintMany(msg.sender, qty);
@@ -202,33 +290,61 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
      * ------------------------------------------------------------------ */
 
     /**
-     * @notice Fige la base de graine une fois la distribution terminee.
-     * @dev    Melange le blockhash du bloc precedent, le timestamp et le
-     *         nombre de tokens mintes. Le blockhash n'est PAS une source
-     *         d'alea sure sur une chaine a sequenceur centralise - mais ici
-     *         il n'y a rien a gagner a le manipuler : la graine est fixee
-     *         une fois le mint termine, donc apres que les tokens ont ete
-     *         distribues. Personne ne peut viser un token en particulier.
-     *
-     *         Ce n'est volontairement PAS le meme probleme qu'un tirage
-     *         gacha, ou l'alea decide qui recoit quoi et doit etre verifiable.
+     * @dev Vrai quand plus rien ne peut etre minte : la fenetre est close,
+     *      ou la collection est partie entierement. La seconde porte n'est
+     *      pas un confort - la fenetre court jusqu'en 2036, et sans elle la
+     *      collection resterait en placeholder dix ans apres que la
+     *      derniere piece a trouve preneur.
      */
-    function revealSeed() external onlyOwner {
+    function _distributionOver() private view returns (bool) {
+        return mintEnd != 0 && (block.timestamp >= mintEnd || totalMinted == MAX_SUPPLY);
+    }
+
+    /**
+     * @notice Premier temps : s'engager sur un bloc futur. Ouvert a tous.
+     *
+     * @dev    POURQUOI DEUX TEMPS, ET POURQUOI TOUT LE MONDE
+     *         Une graine tiree du bloc courant se choisit : celui qui
+     *         decide de l'instant de l'appel peut calculer la graine de
+     *         chaque instant candidat, en deduire les traits de ses propres
+     *         tokens, et n'appuyer que quand le tirage lui plait. Ici on
+     *         s'engage sur un bloc qui n'existe pas encore : au moment de
+     *         l'appel, personne ne connait son hash.
+     *
+     *         Reste l'appelant qui laisserait passer la fenetre de lecture
+     *         pour retenter sa chance. C'est pour cela que les deux temps
+     *         sont ouverts a tous : n'importe quel collectionneur peut
+     *         clore la revelation dans la fenetre, et chaque tentative
+     *         laisse un evenement RevealStarted sur la chaine. Le
+     *         proprietaire n'y a aucun pouvoir de plus que quiconque.
+     *
+     *         Sur la chaine cible, blockhash est produit par le sequenceur
+     *         et n'est pas une source d'alea cryptographique. La seule
+     *         partie capable d'y influer est donc l'operateur de la chaine
+     *         lui-meme - c'est la limite de confiance, et elle est dite
+     *         telle quelle dans la documentation publique.
+     */
+    function startReveal() external {
         if (seedBase != bytes32(0)) revert SeedAlreadySet();
-        // La seule condition qui compte est que la distribution soit finie.
-        // On y arrive de deux facons : la fenetre se ferme, ou il ne reste
-        // plus rien a minter. La seconde n'est pas un confort - la fenetre
-        // de mint court jusqu'en 2036, et sans elle la collection resterait
-        // en placeholder dix ans apres que la derniere piece a trouve
-        // preneur.
-        require(
-            mintEnd != 0 && (block.timestamp >= mintEnd || totalMinted == MAX_SUPPLY),
-            "Mint en cours"
-        );
-        seedBase = keccak256(
-            abi.encodePacked(blockhash(block.number - 1), block.timestamp, totalMinted, address(this))
-        );
-        emit SeedRevealed(seedBase, block.number);
+        require(_distributionOver(), "Mint en cours");
+        // Un engagement en cours ne se remplace pas tant que son hash est
+        // encore lisible : sinon on choisirait parmi plusieurs tirages.
+        if (revealBlock != 0 && block.number <= revealBlock + 256) revert RevealPending();
+        revealBlock = block.number + REVEAL_DELAY;
+        emit RevealStarted(revealBlock, msg.sender);
+    }
+
+    /// @notice Second temps : lire le hash du bloc engage et figer la
+    ///         graine. Ouvert a tous, dans les 256 blocs qui suivent.
+    function finishReveal() external {
+        if (seedBase != bytes32(0)) revert SeedAlreadySet();
+        if (revealBlock == 0 || block.number <= revealBlock) revert RevealNotReady();
+        bytes32 h = blockhash(revealBlock);
+        // Fenetre de lecture depassee : le hash n'est plus accessible.
+        // startReveal() est de nouveau possible.
+        if (h == bytes32(0)) revert RevealExpired();
+        seedBase = keccak256(abi.encodePacked(h, address(this), totalMinted));
+        emit SeedRevealed(seedBase, revealBlock);
     }
 
     /// @notice Hash d'un token, dont derive toute la piece.
@@ -265,11 +381,11 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
             return string(
                 abi.encodePacked(
                     "data:application/json;base64,",
-                    _b64(
+                    Base64.encode(
                         abi.encodePacked(
-                            '{"name":"Hoodlrz Gen Kid #', _dec(tokenId),
+                            '{"name":"Hoodlrz Gen Kid #', Strings.toString(tokenId),
                             '","description":"Graine non encore revelee. Les traits apparaitront a la fin du mint.","image":"data:image/svg+xml;base64,',
-                            _b64(bytes(_placeholderSvg())),
+                            Base64.encode(bytes(_placeholderSvg())),
                             '"}'
                         )
                     )
@@ -303,57 +419,5 @@ contract HoodlrzKids is ERC721, IERC2981, Ownable {
 
     function supportsInterface(bytes4 id) public view override(ERC721, IERC165) returns (bool) {
         return id == type(IERC2981).interfaceId || super.supportsInterface(id);
-    }
-
-    /* ------------------------------------------------------------------ *
-     *  Utilitaires internes
-     * ------------------------------------------------------------------ */
-
-    function _b64(bytes memory data) private pure returns (string memory) {
-        // On delegue a l'implementation d'OpenZeppelin via le renderer plutot
-        // que de dupliquer une table Base64 : import direct ici pour rester
-        // autonome si le renderer n'est pas encore branche.
-        return _base64(data);
-    }
-
-    bytes private constant B64_TABLE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-    function _base64(bytes memory data) private pure returns (string memory) {
-        if (data.length == 0) return "";
-        uint256 encodedLen = 4 * ((data.length + 2) / 3);
-        bytes memory result = new bytes(encodedLen + 32);
-        bytes memory table = B64_TABLE;
-        assembly {
-            let tablePtr := add(table, 1)
-            let resultPtr := add(result, 32)
-            for { let i := 0 } lt(i, mload(data)) { i := add(i, 3) } {
-                let input := and(mload(add(add(data, 0x20), i)), 0xffffff0000000000000000000000000000000000000000000000000000000000)
-                let out := mload(add(tablePtr, and(shr(250, input), 0x3F)))
-                out := shl(8, out)
-                out := add(out, and(mload(add(tablePtr, and(shr(244, input), 0x3F))), 0xFF))
-                out := shl(8, out)
-                out := add(out, and(mload(add(tablePtr, and(shr(238, input), 0x3F))), 0xFF))
-                out := shl(8, out)
-                out := add(out, and(mload(add(tablePtr, and(shr(232, input), 0x3F))), 0xFF))
-                out := shl(224, out)
-                mstore(resultPtr, out)
-                resultPtr := add(resultPtr, 4)
-            }
-            switch mod(mload(data), 3)
-            case 1 { mstore(sub(resultPtr, 2), shl(240, 0x3d3d)) }
-            case 2 { mstore(sub(resultPtr, 1), shl(248, 0x3d)) }
-            mstore(result, encodedLen)
-        }
-        return string(result);
-    }
-
-    function _dec(uint256 v) private pure returns (string memory) {
-        if (v == 0) return "0";
-        uint256 n = v;
-        uint256 len;
-        while (n != 0) { len++; n /= 10; }
-        bytes memory b = new bytes(len);
-        while (v != 0) { b[--len] = bytes1(uint8(48 + v % 10)); v /= 10; }
-        return string(b);
     }
 }
