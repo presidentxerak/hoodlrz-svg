@@ -250,54 +250,81 @@ function Stat({ label, value }: { label: string; value: string }) {
 function Hero() {
   return (
     <section className="relative flex min-h-[88vh] w-full flex-col items-center justify-center overflow-hidden px-4 py-16 sm:py-24">
-      {/* La grille des OG Hoodlrz, plein cadre.
-          Elle montre les pieces elles-memes plutot qu'un decor : sur une
-          page qui demande de prouver qu'on en detient une, voir a quoi
-          elles ressemblent fait plus que n'importe quelle phrase.
-          muted est obligatoire pour que autoPlay marche : aucun
-          navigateur ne lance un son sans geste de l'utilisateur, et une
-          video bloquee laisse un rectangle noir a la place du fond.
-          playsInline empeche iOS de la passer en plein ecran tout seul.
-          preload="auto" parce qu'elle est le premier ecran : la charger
-          paresseusement montrerait l'affiche pendant deux secondes. */}
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        preload="auto"
-        poster="/images/hero-poster.jpg"
-        aria-hidden
-        className="absolute inset-0 h-full w-full object-cover"
-      >
-        <source src="/hoodlrz-banner-1.mp4" type="video/mp4" />
-      </video>
+      {/*
+        Hoodlrz Houses, en fond plein cadre.
 
-      {/* Deux voiles plutot qu'un seul a 60 %. Un voile uniforme assez
-          dense pour rendre le texte lisible efface la video ; un voile
-          leger partout plus une ombre concentree au centre garde le
-          dessin visible sur les bords et le texte lisible au milieu. */}
-      <div className="absolute inset-0 bg-black/45" aria-hidden />
+        C'est un GIF anime et non une video, et c'est le bon choix ici :
+        le dessin est une trame noir et blanc, donc du bruit, que les
+        encodeurs avec perte compressent tres mal. Converti en WebP
+        anime il pesait 3 Mo contre 1,6 Mo en GIF - la palette du GIF
+        gagne sur ce genre d'image. L'ancienne video, elle, pesait 21 Mo.
+
+        Le mouvement est un grain qui scintille, cinq images de 30 ms en
+        boucle. Sous prefers-reduced-motion, le navigateur charge a la
+        place une image fixe : un scintillement plein ecran est
+        exactement ce que ce reglage existe pour eviter, et `picture`
+        permet de ne telecharger QUE celle des deux qui sert.
+      */}
+      <picture>
+        <source
+          media="(prefers-reduced-motion: reduce)"
+          srcSet="/images/hero-houses-fixe.webp"
+          type="image/webp"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/hero-houses.gif"
+          alt=""
+          aria-hidden
+          // Le premier ecran : le charger paresseusement laisserait un
+          // rectangle noir pendant une seconde.
+          fetchPriority="high"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </picture>
+
+      {/* Un seul voile, et leger.
+          L'ancienne video etait coloree et saturee : il fallait
+          l'assombrir beaucoup pour que le texte passe. Ce dessin est
+          deja noir, blanc et fin ; le couvrir d'un voile dense
+          l'effacerait. Reste une ombre concentree derriere le bloc
+          central, la ou le texte doit se detacher des traits blancs. */}
+      <div className="absolute inset-0 bg-black/20" aria-hidden />
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 65% 65% at 50% 50%, rgba(0,0,0,.85), rgba(0,0,0,0) 80%)",
+            "radial-gradient(ellipse 58% 58% at 50% 52%, rgba(0,0,0,.88), rgba(0,0,0,0) 78%)",
         }}
         aria-hidden
       />
 
       <div className="relative z-10 flex w-full max-w-xl flex-col items-center gap-5 text-center">
-        <h1 className="font-hoodlrz text-2xl font-bold leading-none tracking-wider text-white sm:text-3xl">
-          hOodlrz
-        </h1>
-        <p className="text-xs uppercase tracking-[0.2em] text-white/50">
-          Own the identity. Collect the culture.
-        </p>
+        {/*
+          Le titre est lu, pas vu.
+
+          Le dessin porte deja son enseigne HOODLRZ, peinte sur le toit.
+          Ecrire le nom du site juste en dessous donnait deux HOODLRZ
+          empiles a trois centimetres l'un de l'autre, le second pose en
+          travers du premier. La page a besoin d'un titre pour les
+          moteurs et les lecteurs d'ecran ; elle n'a pas besoin de
+          l'afficher la ou l'image le dit mieux.
+        */}
+        <h1 className="sr-only">Hoodlrz — own the identity, collect the culture</h1>
 
         <TokenGate />
 
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-widest text-white/45">
+        {/*
+          Les liens tombent sur le panneau « Welcome to Hoodlrz Houses »
+          du dessin, ou du texte blanc sur un trait blanc ne se lit pas.
+          Un fond propre sous la rangee, plutot qu'un voile de plus sur
+          toute l'image qui l'aurait eteinte.
+        */}
+        <div
+          className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border border-white/10
+                     bg-black/70 px-4 py-2 text-[11px] uppercase tracking-widest text-white/60
+                     backdrop-blur-sm"
+        >
           <Link href="/kids" className="transition-colors hover:text-white">
             Gen Kids · {KIDS.maxSupply.toLocaleString("en-GB")} on-chain
           </Link>
