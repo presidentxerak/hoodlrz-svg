@@ -32,6 +32,13 @@ export interface Database {
            *  membres, ni echangeables, ni on-chain. */
           hdlrz: number;
           hdlrz_claimed_on: string | null;
+          /** La piece choisie comme photo de profil (migration 012).
+           *  Le contrat et le numero sont gardes pour pouvoir reverifier
+           *  la detention ; l'URL est recalculee, jamais recue du client. */
+          avatar_contract: string | null;
+          avatar_token_id: number | null;
+          avatar_image: string | null;
+          avatar_checked_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -50,6 +57,10 @@ export interface Database {
           e2e_key_set_at?: string | null;
           hdlrz?: number;
           hdlrz_claimed_on?: string | null;
+          avatar_contract?: string | null;
+          avatar_token_id?: number | null;
+          avatar_image?: string | null;
+          avatar_checked_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -68,6 +79,10 @@ export interface Database {
           e2e_key_set_at?: string | null;
           hdlrz?: number;
           hdlrz_claimed_on?: string | null;
+          avatar_contract?: string | null;
+          avatar_token_id?: number | null;
+          avatar_image?: string | null;
+          avatar_checked_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -919,6 +934,7 @@ export interface Database {
           id: string;
           pseudonym: string;
           e2e_public_key: string;
+          avatar_image: string | null;
         };
         Relationships: [];
       };

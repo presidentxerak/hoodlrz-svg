@@ -134,7 +134,12 @@ create policy "membres ecrivent leurs messages" on public.messages
 -- Une vue n'expose que ce qu'elle selectionne. security_invoker est
 -- laisse a false (le defaut) pour que la vue lise la table avec les
 -- droits de son proprietaire, sans ouvrir la table elle-meme.
-create or replace view public.member_directory as
+-- `drop` puis `create`, et non `create or replace` : Postgres refuse de
+-- retirer OU d'ajouter une colonne a une vue existante par remplacement.
+-- Une migration ulterieure qui enrichit l'annuaire casserait alors le
+-- rejeu de celle-ci.
+drop view if exists public.member_directory;
+create view public.member_directory as
   select id, pseudonym, e2e_public_key
   from public.accounts
   where is_holder = true

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     .from("posts")
     .select(
       `id, body, created_at, author_id,
-       author:accounts!posts_author_id_fkey(pseudonym),
+       author:accounts!posts_author_id_fkey(pseudonym, avatar_image),
        prediction:predictions(id, question, category, closes_at, status,
                               outcome, pool_yes, pool_no)`,
     )

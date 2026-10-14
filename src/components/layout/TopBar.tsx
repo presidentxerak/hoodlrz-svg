@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function TopBar() {
   const [connecte, setConnecte] = useState(false);
   const [identite, setIdentite] = useState("");
+  const [avatar, setAvatar] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -34,12 +35,15 @@ export default function TopBar() {
       setConnecte(connecteMaintenant);
       if (!connecteMaintenant) {
         setIdentite("");
+        setAvatar(null);
         return;
       }
       try {
         const r = await fetch("/api/auth/holder");
         const j = await r.json();
-        if (vivant && j.pseudonym) setIdentite(j.pseudonym);
+        if (!vivant) return;
+        if (j.pseudonym) setIdentite(j.pseudonym);
+        setAvatar(j.avatar ?? null);
       } catch {
         // Sans pseudonyme on n'affiche rien : mieux vaut un coin vide
         // qu'une adresse qui leve l'anonymat.
@@ -101,13 +105,23 @@ export default function TopBar() {
 
           {connecte ? (
             <>
-              {identite && (
+              {(identite || avatar) && (
                 <Link
                   href="/profile"
-                  className="hidden max-w-[160px] truncate font-mono text-[11px] text-muted
-                             transition-colors hover:text-foreground sm:inline"
+                  title={identite}
+                  className="flex items-center gap-2 text-muted transition-colors hover:text-foreground"
                 >
-                  {identite}
+                  {avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatar}
+                      alt=""
+                      className="h-7 w-7 shrink-0 border border-[var(--border)] object-cover"
+                    />
+                  ) : null}
+                  <span className="hidden max-w-[160px] truncate font-mono text-[11px] sm:inline">
+                    {identite}
+                  </span>
                 </Link>
               )}
               <button

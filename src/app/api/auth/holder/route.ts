@@ -33,7 +33,7 @@ async function compte() {
 
   const { data } = await supabase
     .from("accounts")
-    .select("id, auth_id, wallet_address, is_holder, holder_checked_at, holdings, pseudonym")
+    .select("id, auth_id, wallet_address, is_holder, holder_checked_at, holdings, pseudonym, avatar_image")
     .eq("auth_id", user.id)
     .single();
   // La colonne auth_id est nullable dans le schema ; ici elle vaut
@@ -58,6 +58,7 @@ export async function GET() {
     holder: Boolean(c.is_holder),
     holdings: c.holdings ?? {},
     pseudonym: c.pseudonym,
+    avatar: c.avatar_image,
     stale: age > FRAICHEUR_SECONDES,
   });
 }

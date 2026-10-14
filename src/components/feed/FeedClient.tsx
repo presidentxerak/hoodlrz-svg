@@ -18,12 +18,17 @@ import { IconCoins, IconGift, IconSend } from "@/components/ui/icons";
 import { PageShell, PageHeader, EmptyState } from "@/components/app/Page";
 import PredictionCard, { type Prediction, type MaPosition } from "./PredictionCard";
 
+interface Auteur {
+  pseudonym: string;
+  avatar_image: string | null;
+}
+
 interface Post {
   id: string;
   body: string;
   created_at: string;
   author_id: string;
-  author: { pseudonym: string } | { pseudonym: string }[] | null;
+  author: Auteur | Auteur[] | null;
   prediction: Prediction | Prediction[] | null;
 }
 
@@ -258,7 +263,21 @@ export default function FeedClient() {
             const pred = un(p.prediction);
             return (
               <article key={p.id} className="border border-[var(--border)] bg-[var(--surface)] p-4">
-                <header className="mb-2 flex items-baseline gap-2">
+                <header className="mb-2 flex items-center gap-2">
+                  {auteur?.avatar_image ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={auteur.avatar_image}
+                      alt=""
+                      loading="lazy"
+                      className="h-7 w-7 shrink-0 border border-[var(--border)] object-cover"
+                    />
+                  ) : (
+                    // Un carre vide plutot que rien : sans lui, les lignes
+                    // des membres sans photo ne s'alignent pas avec les
+                    // autres et la colonne se met a zigzaguer.
+                    <span className="h-7 w-7 shrink-0 border border-[var(--border)] bg-[var(--surface-alt)]" />
+                  )}
                   <span className="font-mono text-xs text-foreground">
                     {auteur?.pseudonym ?? "member"}
                   </span>

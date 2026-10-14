@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import PFPViewer from "@/components/ui/PFPViewer";
+import AvatarPicker from "@/components/profile/AvatarPicker";
 import { createClient } from "@/lib/supabase/client";
 import {
   HOODLRZ_NFT_ADDRESS,
@@ -308,8 +309,16 @@ export default function MyCollectionPage() {
     <div className="mx-auto w-full max-w-5xl px-4 pt-16 pb-20 sm:pt-20">
       {/* ── Header ── */}
       <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[48px]">
-        My Collection
+        Profile
       </h1>
+
+      {/* La photo de profil, choisie parmi les pieces detenues. Posee en
+          premier : c'est la seule chose de cette page qu'on vient
+          changer, le reste se consulte. */}
+      <section className="mt-8 border border-[var(--border)] bg-[var(--surface)] p-6">
+        <h2 className="mb-1 text-sm font-semibold text-foreground">Profile picture</h2>
+        <AvatarPicker />
+      </section>
 
       {/* ── Profile Card ── */}
       <div className="mt-8 border border-[var(--border)] bg-[var(--surface)] p-6 space-y-4">
