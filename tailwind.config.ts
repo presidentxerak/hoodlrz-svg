@@ -42,6 +42,26 @@ const config: Config = {
         full: "9999px",
       },
       keyframes: {
+        /** Le capuchon qui respire : deux unites de haut en bas, sur six
+         *  secondes. Plus rapide, ca devient un tic. */
+        respire: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-2px)" },
+        },
+        /** Le clignement. Il occupe moins de 3 % du cycle : un oeil ferme
+         *  plus longtemps a l'air endormi, pas vivant. */
+        cligne: {
+          "0%, 92%, 100%": { transform: "scaleY(1)" },
+          "95%": { transform: "scaleY(0.1)" },
+        },
+        /** Le tag qui s'ecrit, puis s'efface pour recommencer. Le trace
+         *  passe par stroke-dashoffset : c'est la seule facon d'animer un
+         *  dessin qui s'ecrit sans redessiner le chemin a chaque image. */
+        trace: {
+          "0%": { strokeDashoffset: "120" },
+          "45%, 70%": { strokeDashoffset: "0" },
+          "100%": { strokeDashoffset: "-120" },
+        },
         /**
          * Le bandeau des chaines. Il glisse d'exactement la moitie de sa
          * largeur : la liste y est doublee, donc a -50 % la seconde copie

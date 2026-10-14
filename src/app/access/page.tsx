@@ -6,6 +6,7 @@ import Input from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 import { surWallets, type WalletDetecte } from "@/lib/web3/providers";
 import { choisirWallet } from "@/lib/web3/signer";
+import HoodlrzScene from "@/components/landing/HoodlrzScene";
 
 type AuthTab = "wallet" | "email";
 type EmailMode = "signin" | "signup";
@@ -337,7 +338,38 @@ export default function AccessPage() {
   }
 
   return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4">
+    <div className="grid min-h-dvh lg:grid-cols-2">
+      {/*
+        Le volet d'illustrations.
+        Masque sous 1024 px : sur un telephone, la place sert au
+        formulaire, et une image decorative qui pousse les champs sous la
+        ligne de flottaison coute des connexions.
+      */}
+      <aside className="relative hidden overflow-hidden bg-black lg:block" aria-hidden>
+        <HoodlrzScene className="absolute inset-0 h-full w-full" />
+        {/* Un voile qui fonce vers la droite : le dessin reste lisible au
+            bord gauche et s'efface la ou commence le formulaire. */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.75))" }}
+        />
+        {/* Un second voile, vertical celui-la, uniquement derriere le
+            texte. Sans lui, la legende se lit par-dessus un personnage et
+            les deux deviennent illisibles - ce qui etait le cas. */}
+        <div
+          className="absolute inset-x-0 bottom-0 h-1/3"
+          style={{ background: "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.92) 60%)" }}
+        />
+        <div className="absolute bottom-0 left-0 right-0 p-8">
+          <p className="font-hoodlrz text-3xl font-bold tracking-wider text-white">hOodlrz</p>
+          <p className="mt-2 max-w-[34ch] text-sm leading-relaxed text-white/60">
+            A private network for holders. Encrypted groups, a feed, Yes / No
+            markets and a weekly read.
+          </p>
+        </div>
+      </aside>
+
+      <div className="flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm flex flex-col items-center gap-8">
         {/* Title */}
         <div className="flex flex-col items-center gap-2">
@@ -594,6 +626,7 @@ export default function AccessPage() {
             </button>
           </div>
         )}
+      </div>
       </div>
     </div>
   );
