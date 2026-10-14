@@ -39,6 +39,12 @@ export default function AccessPage() {
    *  « pas de PFP » : ce n'est pas la faute du visiteur, et la reponse
    *  n'est pas « achete une piece ». */
   const [schemaKo, setSchemaKo] = useState(false);
+  /** Ce que chaque contrat a repondu. Affiche sous le refus : sans ce
+   *  detail, « vous ne detenez rien » est indiscernable d'un mauvais
+   *  contrat ou d'un RPC muet, et on cherche a l'aveugle. */
+  const [details, setDetails] = useState<
+    { nom: string; contrat: string; chainId: number; via: string; solde?: number; erreur?: string }[]
+  >([]);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -60,6 +66,7 @@ export default function AccessPage() {
           const vers = new URLSearchParams(window.location.search).get("redirect");
           window.location.href = vers && vers.startsWith("/") ? vers : "/feed";
         } else {
+          if (Array.isArray(j.details)) setDetails(j.details);
           setBarre(true);
         }
       } catch {
@@ -255,6 +262,7 @@ export default function AccessPage() {
       // Le serveur a lu la chaine et nous dit laquelle des deux portes
       // s'ouvre : le reseau, ou l'explication de ce qui manque.
       const verdict = await verifyRes.json().catch(() => ({ holder: false }));
+      if (Array.isArray(verdict.details)) setDetails(verdict.details);
       if (verdict.schema === "incomplet") {
         setWalletStep("idle");
         setSchemaKo(true);
@@ -361,6 +369,7 @@ npm run db:migrate`}
               setWalletError("");
               const r = await fetch("/api/auth/holder", { method: "POST" });
               const j = await r.json().catch(() => ({ holder: false }));
+              if (Array.isArray(j.details)) setDetails(j.details);
               if (j.holder) {
                 window.location.href = "/feed";
                 return;
@@ -379,6 +388,42 @@ npm run db:migrate`}
           </button>
 
           {walletError && <p className="text-xs text-accent-red">{walletError}</p>}
+
+          {/*
+            CE QUI A ETE LU, CONTRAT PAR CONTRAT.
+
+            Un refus sans justification est intenable : le membre voit ses
+            pieces dans son wallet et le site dit non, sans qu'on puisse
+            savoir si c'est le mauvais contrat, la mauvaise chaine ou un
+            RPC muet. Le detail est donc affiche. Il ne revele rien de
+            prive : des adresses de contrat publiques et un nom d'hote.
+          */}
+          {details.length > 0 && (
+            <details className="w-full text-left">
+              <summary className="cursor-pointer text-xs uppercase tracking-widest text-muted">
+                What was checked
+              </summary>
+              <ul className="mt-3 flex flex-col gap-2">
+                {details.map((d) => (
+                  <li
+                    key={d.nom + d.contrat}
+                    className="border border-[var(--border)] bg-[var(--surface)] p-3 text-[11px] leading-relaxed"
+                  >
+                    <span className="font-medium text-foreground">{d.nom}</span>
+                    <span className="text-muted"> · chain {d.chainId} · {d.via}</span>
+                    <span className="mt-1 block break-all font-mono text-muted">{d.contrat}</span>
+                    {d.erreur ? (
+                      <span className="mt-1 block text-accent-red">{d.erreur}</span>
+                    ) : (
+                      <span className="mt-1 block text-foreground">
+                        balance {d.solde ?? 0}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
 
           <p className="max-w-[40ch] text-xs leading-relaxed text-muted">
             Ownership is read from the chain, never from a list. Buy on any
@@ -429,49 +474,25 @@ npm run db:migrate`}
             Access
           </h1>
           <p className="text-center text-sm leading-relaxed text-muted">
-            Connect with your wallet or sign in with email.
+            The network opens to wallets that hold a Hoodlrz PFP.
           </p>
         </div>
 
-        {/* Tabs */}
-        <div className="w-full flex border border-[var(--border)]">
-          <button
-            onClick={() => setTab("wallet")}
-            className={[
-              "flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors",
-              tab === "wallet"
-                ? "bg-[#627eea]/10 text-[#627eea] border-b-2 border-[#627eea]"
-                : "text-muted hover:text-foreground",
-            ].join(" ")}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <svg width="14" height="14" viewBox="0 0 784 784" fill="none">
-                <path d="M392 0L387.5 15.3V536.2L392 540.7L631.5 400.5L392 0Z" fill="currentColor" fillOpacity="0.8"/>
-                <path d="M392 0L152.5 400.5L392 540.7V289.6V0Z" fill="currentColor"/>
-                <path d="M392 586.3L389.5 589.3V776.7L392 784L631.7 446.2L392 586.3Z" fill="currentColor" fillOpacity="0.8"/>
-                <path d="M392 784V586.3L152.5 446.2L392 784Z" fill="currentColor"/>
-              </svg>
-              Wallet
-            </span>
-          </button>
-          <button
-            onClick={() => setTab("email")}
-            className={[
-              "flex-1 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors",
-              tab === "email"
-                ? "bg-accent-red/10 text-accent-red border-b-2 border-accent-red"
-                : "text-muted hover:text-foreground",
-            ].join(" ")}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="2" y="4" width="20" height="16" rx="2"/>
-                <path d="M22 7l-10 6L2 7"/>
-              </svg>
-              Email
-            </span>
-          </button>
-        </div>
+        {/*
+          UNE SEULE ENTREE MISE EN AVANT : le wallet.
+
+          Il y avait deux onglets d'egale importance, Wallet et Email.
+          L'entree par courriel est pourtant un cul-de-sac pour le
+          reseau : le statut de detenteur n'est inscrit que par la
+          verification de signature, donc un compte sans wallet ne peut
+          JAMAIS passer la porte. Lui donner la moitie de l'ecran
+          revenait a proposer une deuxieme connexion qui ne mene nulle
+          part - d'ou l'impression d'avoir plusieurs fenetres de
+          connexion dont aucune ne marche.
+
+          Le courriel reste accessible, en bas et nomme pour ce qu'il
+          sert vraiment : les commandes de vinyles.
+        */}
 
         {/* ═══ Wallet Tab ═══ */}
         {tab === "wallet" && (
@@ -575,6 +596,24 @@ npm run db:migrate`}
               <p className="text-xs text-red-500 text-center">{walletError}</p>
             )}
           </div>
+        )}
+
+        {tab === "wallet" && (
+          <button
+            onClick={() => setTab("email")}
+            className="text-xs text-muted underline underline-offset-4 transition-colors hover:text-foreground"
+          >
+            Vinyl shop account — sign in with email
+          </button>
+        )}
+
+        {tab === "email" && (
+          <button
+            onClick={() => setTab("wallet")}
+            className="text-xs text-muted underline underline-offset-4 transition-colors hover:text-foreground"
+          >
+            ← Back to wallet
+          </button>
         )}
 
         {/* ═══ Email Tab ═══ */}

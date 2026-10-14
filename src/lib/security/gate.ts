@@ -33,7 +33,7 @@ export const FRAICHEUR_SECONDES = 6 * 60 * 60;
 const BALANCE_OF = ["function balanceOf(address) view returns (uint256)"];
 
 interface Source {
-  nom: "og" | "onchain" | "kids";
+  nom: "og" | "onchain" | "kids" | "extra";
   adresse: string;
   rpc: string;
   chainId: number;
@@ -57,6 +57,32 @@ function sources(): Source[] {
     .deployments?.["4663"];
 
   const liste: Source[] = [];
+
+  /**
+   * Contrats supplementaires, poses en variable d'environnement.
+   *
+   * Format : « 0xadresse:chainId », separes par des virgules. Le chainId
+   * est optionnel et vaut 1 par defaut.
+   *
+   * POURQUOI CE N'EST PAS DU LUXE
+   * Si la porte interroge la mauvaise adresse, tout le reste est juste
+   * et le resultat est faux : des detenteurs sont refuses. Sans cette
+   * variable, corriger demande un changement de code et un deploiement.
+   * Avec elle, c'est une ligne dans les reglages de l'hebergeur, donc
+   * une minute au lieu d'un quart d'heure.
+   */
+  for (const brut of (process.env.HOODLRZ_EXTRA_CONTRACTS ?? "").split(",")) {
+    const [adresse, chaine] = brut.trim().split(":");
+    if (!/^0x[a-fA-F0-9]{40}$/.test(adresse ?? "")) continue;
+    const id = Number(chaine ?? 1);
+    liste.push({
+      nom: "extra",
+      adresse,
+      rpc: id === 4663 ? rh : eth,
+      chainId: Number.isFinite(id) ? id : 1,
+    });
+  }
+
   if (HOODLRZ_STREET_ADDRESS) {
     liste.push({ nom: "og", adresse: HOODLRZ_STREET_ADDRESS, rpc: eth, chainId: 1 });
   }
@@ -67,6 +93,20 @@ function sources(): Source[] {
     liste.push({ nom: "kids", adresse: kids.nft, rpc: rh, chainId: 4663 });
   }
   return liste;
+}
+
+/** Ce qu'a donne UNE source, en clair. Sert a diagnostiquer : sans ce
+ *  detail, un verdict « zero piece » est indiscernable d'un mauvais
+ *  contrat, d'une mauvaise chaine ou d'un RPC muet - et on cherche a
+ *  l'aveugle, ce qui est exactement ce qui s'est passe. */
+export interface DetailSource {
+  nom: string;
+  contrat: string;
+  chainId: number;
+  /** Hote du RPC, sans la cle. */
+  via: string;
+  solde?: number;
+  erreur?: string;
 }
 
 export interface Verdict {
@@ -85,6 +125,8 @@ export interface Verdict {
    * detenue, meme si une autre chaine n'a pas repondu.
    */
   fiable: boolean;
+  /** Le detail source par source. */
+  details: DetailSource[];
   verifieA: string;
 }
 
@@ -95,9 +137,27 @@ export interface Verdict {
  */
 export async function verifierDetention(adresse: string): Promise<Verdict> {
   const pieces: Record<string, number> = {};
+  const details: DetailSource[] = [];
   let partiel = false;
 
+  /** L'hote du RPC, sans la cle : elle ne doit jamais sortir du serveur. */
+  const hote = (url: string) => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return "inconnu";
+    }
+  };
+
   const lectures = sources().map(async (s) => {
+    const detail: DetailSource = {
+      nom: s.nom,
+      contrat: s.adresse,
+      chainId: s.chainId,
+      via: hote(s.rpc),
+    };
+    details.push(detail);
+
     // Trois essais, espaces. Un fournisseur RPC rend un echec passager
     // bien plus souvent qu'on ne le croit - limite de debit, noeud qui
     // bascule - et un seul essai transforme ce hoquet en « ce membre ne
@@ -108,10 +168,15 @@ export async function verifierDetention(adresse: string): Promise<Verdict> {
         const contrat = new Contract(s.adresse, BALANCE_OF, provider);
         const solde = await contrat.balanceOf(adresse);
         pieces[s.nom] = Number(solde);
+        detail.solde = Number(solde);
         return;
-      } catch {
+      } catch (e) {
         if (essai === 3) {
           partiel = true;
+          // Le message est conserve tel quel : « could not decode result
+          // data » signale un contrat absent de cette chaine, « 401 » une
+          // cle RPC sans acces. Les deux se corrigent, mais pas pareil.
+          detail.erreur = String((e as Error)?.message ?? e).slice(0, 160);
           return;
         }
         await new Promise((r) => setTimeout(r, 300 * essai));
@@ -144,6 +209,7 @@ export async function verifierDetention(adresse: string): Promise<Verdict> {
      * ce drapeau est faux.
      */
     fiable: total > 0 || !partiel,
+    details,
     verifieA: new Date().toISOString(),
   };
 }

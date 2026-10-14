@@ -259,6 +259,7 @@ export async function POST(request: NextRequest) {
       // l'interface doit alors proposer de reessayer, pas annoncer que
       // le wallet ne detient rien.
       reliable: verdict.fiable,
+      details: verdict.details,
       schema: schemaOk ? "ok" : "incomplet",
     });
   } catch (err) {

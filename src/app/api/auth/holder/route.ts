@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
       holdings: c.holdings ?? {},
       partial: true,
       reliable: false,
+      details: verdict.details,
       error: "Une des chaines n'a pas repondu. Statut inchange, reessayez.",
     });
   }
@@ -172,5 +173,9 @@ export async function POST(request: NextRequest) {
     holdings: verdict.pieces,
     partial: verdict.partiel,
     reliable: true,
+    // Renvoye au proprietaire du compte seulement, et sans cle : c'est
+    // ce qui permet de voir d'un coup d'oeil quel contrat a ete lu, sur
+    // quelle chaine, et ce qu'il a repondu.
+    details: verdict.details,
   });
 }
