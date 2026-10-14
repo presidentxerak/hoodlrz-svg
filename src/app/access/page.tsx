@@ -69,12 +69,33 @@ export default function AccessPage() {
   const [tab, setTab] = useState<AuthTab>("wallet");
   const [emailMode, setEmailMode] = useState<EmailMode>("signin");
 
-  // If already logged in, redirect to My Collection
+  /**
+   * La porte des detenteurs.
+   *
+   * Un membre connecte mais sans PFP est renvoye ici par le middleware
+   * avec ?gate=holder. Il ne faut surtout pas le relancer aussitot vers
+   * une section fermee : il repartirait vers /access, et ainsi de suite.
+   * La destination est donc decidee apres avoir demande son statut.
+   */
+  const [barre, setBarre] = useState(false);
+
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.user) {
-        window.location.href = "/profile";
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session?.user) return;
+      try {
+        const r = await fetch("/api/auth/holder");
+        const j = await r.json();
+        if (j.holder) {
+          const vers = new URLSearchParams(window.location.search).get("redirect");
+          window.location.href = vers && vers.startsWith("/") ? vers : "/feed";
+        } else {
+          setBarre(true);
+        }
+      } catch {
+        // Statut illisible : on laisse la page ouverte plutot que de
+        // renvoyer vers une porte qui refusera.
+        setBarre(true);
       }
     });
   }, []);
@@ -245,14 +266,25 @@ export default function AccessPage() {
         return;
       }
 
+      // La signature prouve le wallet ; elle ne prouve pas la detention.
+      // Le serveur a lu la chaine et nous dit laquelle des deux portes
+      // s'ouvre : le reseau, ou l'explication de ce qui manque.
+      const verdict = await verifyRes.json().catch(() => ({ holder: false }));
+      if (!verdict.holder) {
+        setWalletStep("idle");
+        setBarre(true);
+        return;
+      }
+
       // Success. We swap to the "done" state and then redirect. If the
       // navigation is blocked by the in-app WebView (rare but happens on
       // some MetaMask Mobile versions), the user can tap the visible
-      // "Continue to My Collection" button as a manual fallback.
+      // "Continue" button as a manual fallback.
       setWalletStep("done");
       setTimeout(() => {
         try {
-          window.location.href = "/profile";
+          const vers = new URLSearchParams(window.location.search).get("redirect");
+          window.location.href = vers && vers.startsWith("/") ? vers : "/feed";
         } catch {
           /* fallback button is shown */
         }
@@ -273,6 +305,66 @@ export default function AccessPage() {
   }
 
   const wallets = getAvailableWallets();
+
+  /**
+   * L'ecran que voit un wallet sans PFP.
+   *
+   * Il remplace la page entiere plutot que de s'y ajouter : laisser les
+   * onglets de connexion sous le refus inviterait a resigner en boucle,
+   * alors que la seule action utile est d'acquerir une piece - ou de
+   * relancer la lecture si l'achat vient d'etre fait.
+   */
+  if (barre) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center px-4">
+        <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
+          <h1 className="font-hoodlrz text-[32px] font-bold leading-none tracking-wider sm:text-[44px]">
+            Holders only
+          </h1>
+          <p className="text-sm leading-relaxed text-muted">
+            The network opens to wallets that hold a Hoodlrz PFP. Your wallet is
+            connected and verified; it just does not hold one yet.
+          </p>
+
+          <div className="flex w-full flex-col gap-2 sm:flex-row">
+            <a
+              href="/kids"
+              className="flex-1 border border-[var(--border)] px-4 py-2.5 text-xs font-bold uppercase
+                         tracking-widest text-foreground transition-colors hover:bg-[var(--surface)]"
+            >
+              Gen Kids
+            </a>
+            <a
+              href="/collection/hoodlrz"
+              className="flex-1 border border-[var(--border)] px-4 py-2.5 text-xs font-bold uppercase
+                         tracking-widest text-foreground transition-colors hover:bg-[var(--surface)]"
+            >
+              OG Hoodlrz
+            </a>
+          </div>
+
+          <button
+            onClick={async () => {
+              const r = await fetch("/api/auth/holder", { method: "POST" });
+              const j = await r.json().catch(() => ({ holder: false }));
+              if (j.holder) window.location.href = "/feed";
+              else setWalletError("Still no Hoodlrz PFP on this wallet.");
+            }}
+            className="bg-accent-magenta px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white"
+          >
+            I just bought one — check again
+          </button>
+
+          {walletError && <p className="text-xs text-accent-red">{walletError}</p>}
+
+          <p className="max-w-[40ch] text-xs leading-relaxed text-muted">
+            Ownership is read from the chain, never from a list. Buy on any
+            marketplace and the door opens on the next check.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[70vh] items-center justify-center px-4">

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { limiter } from "@/lib/security/ratelimit";
 
 export async function POST(request: NextRequest) {
   try {
+    // Chaque appel ecrit une ligne en base. Sans limite, cette route est
+    // un moyen gratuit de remplir la table des nonces.
+    const trop = limiter(request, { nom: "wallet-nonce", par: 20, fenetre: 60 });
+    if (trop) return trop;
+
     const { address } = (await request.json()) as { address?: string };
 
     if (!address || typeof address !== "string" || !/^0x[a-fA-F0-9]{40}$/.test(address)) {

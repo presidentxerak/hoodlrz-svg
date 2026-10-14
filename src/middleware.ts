@@ -124,6 +124,25 @@ export async function middleware(request: NextRequest) {
       vers.pathname = "/";
       return NextResponse.redirect(vers);
     }
+    return reponse;
+  }
+
+  // La porte des detenteurs. Le verdict a ete inscrit sur le compte par
+  // la verification de signature, et peut etre rafraichi par
+  // /api/auth/holder apres un achat ; on ne relit pas la chaine ici,
+  // deux appels RPC par navigation rendraient le site inutilisable.
+  const { data: compte } = await supabase
+    .from("accounts")
+    .select("is_holder")
+    .eq("auth_id", user.id)
+    .single();
+
+  if (!compte?.is_holder) {
+    const vers = request.nextUrl.clone();
+    vers.pathname = "/access";
+    vers.searchParams.set("gate", "holder");
+    vers.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(vers);
   }
 
   return reponse;

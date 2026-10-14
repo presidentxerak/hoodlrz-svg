@@ -17,6 +17,13 @@ export interface Database {
           pseudonym: string | null;
           rewards_balance: number;
           is_admin: boolean;
+          /** Adresse EVM en minuscules. Jamais montree aux autres membres. */
+          wallet_address: string | null;
+          /** Verdict de la derniere lecture de chaine (migration 008). */
+          is_holder: boolean;
+          holder_checked_at: string | null;
+          /** Nombre de pieces par contrat, au moment de la verification. */
+          holdings: Record<string, number>;
           created_at: string;
           updated_at: string;
         };
@@ -27,6 +34,10 @@ export interface Database {
           pseudonym?: string | null;
           rewards_balance?: number;
           is_admin?: boolean;
+          wallet_address?: string | null;
+          is_holder?: boolean;
+          holder_checked_at?: string | null;
+          holdings?: Record<string, number>;
           created_at?: string;
           updated_at?: string;
         };
@@ -37,6 +48,10 @@ export interface Database {
           pseudonym?: string | null;
           rewards_balance?: number;
           is_admin?: boolean;
+          wallet_address?: string | null;
+          is_holder?: boolean;
+          holder_checked_at?: string | null;
+          holdings?: Record<string, number>;
           created_at?: string;
           updated_at?: string;
         };

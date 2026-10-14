@@ -8,9 +8,11 @@
  * laterale n'existe pas, donc le logo revient ici - c'est le seul endroit
  * ou il tienne.
  *
- * L'identite affichee est l'adresse tronquee, jamais un courriel. Sur un
- * reseau anonyme, afficher « untel@gmail.com » en haut a droite d'une
- * capture d'ecran suffit a lever l'anonymat de son auteur.
+ * L'identite affichee est le PSEUDONYME, jamais l'adresse et jamais un
+ * courriel. Une adresse est publique par nature : elle donne le solde,
+ * l'historique des echanges et souvent un nom ENS. L'afficher en haut a
+ * droite de chaque capture d'ecran reviendrait a annuler l'anonymat que
+ * la porte pretend offrir.
  */
 
 import { useEffect, useState } from "react";
@@ -19,41 +21,40 @@ import { Bell, LogOut, Search } from "lucide-react";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 
-/** « 0x2606…a143 » : assez pour se reconnaitre, trop peu pour etre suivi
- *  par un lecteur de passage. */
-function abreger(adresse: string) {
-  return `${adresse.slice(0, 6)}…${adresse.slice(-4)}`;
-}
-
 export default function TopBar() {
   const [connecte, setConnecte] = useState(false);
   const [identite, setIdentite] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
+    let vivant = true;
 
-    function lire(user: { email?: string | null } | null) {
-      if (!user) {
-        setConnecte(false);
+    async function lire(connecteMaintenant: boolean) {
+      if (!vivant) return;
+      setConnecte(connecteMaintenant);
+      if (!connecteMaintenant) {
         setIdentite("");
         return;
       }
-      setConnecte(true);
-      const email = user.email ?? "";
-      // Les comptes wallet portent un courriel de synthese
-      // « <adresse>@wallet.hoodlrz.com » : on n'en garde que l'adresse.
-      if (email.endsWith("@wallet.hoodlrz.com")) {
-        setIdentite(abreger(email.replace("@wallet.hoodlrz.com", "")));
-      } else {
-        setIdentite("");
+      try {
+        const r = await fetch("/api/auth/holder");
+        const j = await r.json();
+        if (vivant && j.pseudonym) setIdentite(j.pseudonym);
+      } catch {
+        // Sans pseudonyme on n'affiche rien : mieux vaut un coin vide
+        // qu'une adresse qui leve l'anonymat.
       }
     }
 
-    supabase.auth.getSession().then(({ data }) => lire(data.session?.user ?? null));
+    supabase.auth.getSession().then(({ data }) => lire(Boolean(data.session?.user)));
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_e, session) => lire(session?.user ?? null));
-    return () => subscription.unsubscribe();
+    } = supabase.auth.onAuthStateChange((_e, session) => lire(Boolean(session?.user)));
+
+    return () => {
+      vivant = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const deconnecter = async () => {
@@ -101,9 +102,13 @@ export default function TopBar() {
           {connecte ? (
             <>
               {identite && (
-                <span className="hidden font-mono text-[11px] text-muted sm:inline">
+                <Link
+                  href="/profile"
+                  className="hidden max-w-[160px] truncate font-mono text-[11px] text-muted
+                             transition-colors hover:text-foreground sm:inline"
+                >
                   {identite}
-                </span>
+                </Link>
               )}
               <button
                 onClick={deconnecter}

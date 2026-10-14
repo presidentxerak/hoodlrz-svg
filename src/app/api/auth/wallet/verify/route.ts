@@ -3,9 +3,18 @@ import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { limiter } from "@/lib/security/ratelimit";
+import { verifierDetention } from "@/lib/security/gate";
+import { nouveauPseudonyme } from "@/lib/app/pseudonym";
 
 export async function POST(request: NextRequest) {
   try {
+    // Une signature se force par rejeu : dix tentatives par minute et par
+    // appelant suffisent largement a un humain, et rendent le balayage
+    // d'adresses sans interet.
+    const trop = limiter(request, { nom: "wallet-verify", par: 10, fenetre: 60 });
+    if (trop) return trop;
+
     const { address, signature, nonce } = (await request.json()) as {
       address?: string;
       signature?: string;
@@ -58,7 +67,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Signature does not match address." }, { status: 400 });
     }
 
-    // ── 3. Find or create user (1 wallet = 1 account) ──
+    // ── 3. La porte : ce wallet detient-il une PFP Hoodlrz ? ──
+    // La lecture se fait ici, une fois la signature prouvee : interroger
+    // la chaine avant la preuve ferait de cette route un service gratuit
+    // de consultation de soldes pour n'importe qui.
+    const verdict = await verifierDetention(addrLower);
+
+    // ── 4. Find or create user (1 wallet = 1 account) ──
     const walletEmail = `${addrLower}@wallet.hoodlrz.com`;
     // Generate a strong random password (not derived from secrets)
     const walletPassword = crypto.randomBytes(32).toString("hex");
@@ -76,6 +91,15 @@ export async function POST(request: NextRequest) {
       userId = existingAccount.auth_id;
       // Update password for this session (random each time = no predictable password)
       await admin.auth.admin.updateUserById(userId, { password: walletPassword });
+      await admin
+        .from("accounts")
+        .update({
+          wallet_address: addrLower,
+          is_holder: verdict.detenteur,
+          holder_checked_at: verdict.verifieA,
+          holdings: verdict.pieces,
+        })
+        .eq("auth_id", userId);
     } else {
       // Create new user with random password
       const { data: newUser, error: createError } = await admin.auth.admin.createUser({
@@ -92,16 +116,29 @@ export async function POST(request: NextRequest) {
 
       userId = newUser.user.id;
 
-      // Create account record
-      const shortAddr = `${address.slice(0, 6)}...${address.slice(-4)}`;
-      await admin.from("accounts").upsert({
-        auth_id: userId,
-        email: walletEmail,
-        pseudonym: shortAddr,
-      }, { onConflict: "auth_id" });
+      // Le pseudonyme est tire au sort : il ne doit rien laisser deviner
+      // de l'adresse, sans quoi l'anonymat du reseau n'existe pas.
+      // Quelques essais en cas de collision sur l'index unique.
+      let pseudonyme = nouveauPseudonyme();
+      for (let essai = 0; essai < 5; essai++) {
+        const { error } = await admin.from("accounts").upsert(
+          {
+            auth_id: userId,
+            email: walletEmail,
+            pseudonym: pseudonyme,
+            wallet_address: addrLower,
+            is_holder: verdict.detenteur,
+            holder_checked_at: verdict.verifieA,
+            holdings: verdict.pieces,
+          },
+          { onConflict: "auth_id" },
+        );
+        if (!error) break;
+        pseudonyme = nouveauPseudonyme();
+      }
     }
 
-    // ── 4. Create session ──
+    // ── 5. Create session ──
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const cookieStore = cookies();
@@ -133,7 +170,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create session." }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, address: addrLower });
+    // La session est creee meme pour un non-detenteur : il faut pouvoir
+    // lui dire ce qui lui manque, et lui laisser relancer la verification
+    // apres un achat sans recommencer la signature.
+    return NextResponse.json({
+      success: true,
+      address: addrLower,
+      holder: verdict.detenteur,
+      holdings: verdict.pieces,
+      partial: verdict.partiel,
+    });
   } catch (err) {
     console.error("[auth/wallet/verify] Error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });
