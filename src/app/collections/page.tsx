@@ -36,32 +36,32 @@ const CARTES: Record<string, Carte> = {
     slug: "og",
     titre: "OG Hoodlrz",
     resume:
-      "1 337 identites encapuchonnees sur Ethereum. ERC-721 classique, dessinees a la main par XERAK.",
+      "1,337 hooded identities on Ethereum. A plain ERC-721, drawn by hand by XERAK.",
     badge: { texte: "ERC-721", variante: "success" },
     media: { type: "video", src: "/hoodlrz-banner-1.mp4" },
     faits: [
-      { valeur: "1 337", libelle: "pieces" },
-      { valeur: "Ethereum", libelle: "chaine" },
+      { valeur: "1,337", libelle: "pieces" },
+      { valeur: "Ethereum", libelle: "chain" },
     ],
   },
   kids: {
     slug: "kids",
     titre: "Hoodlrz Gen Kids",
     resume:
-      "3 333 pieces entierement on-chain : l'art, les traits et le moteur de rendu vivent dans le contrat, sans serveur ni IPFS.",
+      "3,333 pieces entirely on chain: the art, the traits and the rendering engine all live in the contract. No server, no IPFS.",
     badge: { texte: "Full on-chain", variante: "legendary" },
     media: { type: "image", src: "/kids/img/0.png" },
     faits: [
-      { valeur: "3 333", libelle: "pieces" },
-      { valeur: "Robinhood", libelle: "chaine" },
-      { valeur: "100 %", libelle: "on-chain" },
+      { valeur: "3,333", libelle: "pieces" },
+      { valeur: "Robinhood", libelle: "chain" },
+      { valeur: "100%", libelle: "on chain" },
     ],
   },
   vinyl: {
     slug: "vinyl",
     titre: "Genesis Vinyl",
     resume:
-      "25 pochettes dessinees a la main avec disques presses sur mesure. Quatre titres par face, trois editions.",
+      "25 hand-drawn sleeves with custom pressed discs. Four tracks a side, three editions.",
     badge: { texte: "Genesis", variante: "legendary" },
     media: { type: "image", src: "/images/genesis/black/01-black.png" },
     faits: [
@@ -78,7 +78,7 @@ export default function CollectionsPage() {
     <PageShell large>
       <PageHeader
         title="Collections"
-        subtitle="Chaque drop de l'univers Hoodlrz. Detenir une piece ouvre le reseau prive."
+        subtitle="Every drop in the Hoodlrz universe. Holding a piece opens the private network."
       />
 
       <div className="grid gap-6 sm:grid-cols-2">
