@@ -33,7 +33,7 @@ async function compte() {
 
   const { data } = await supabase
     .from("accounts")
-    .select("auth_id, wallet_address, is_holder, holder_checked_at, holdings, pseudonym")
+    .select("id, auth_id, wallet_address, is_holder, holder_checked_at, holdings, pseudonym")
     .eq("auth_id", user.id)
     .single();
   // La colonne auth_id est nullable dans le schema ; ici elle vaut
@@ -51,6 +51,10 @@ export async function GET() {
     : Infinity;
 
   return NextResponse.json({
+    // L'identifiant de compte sert de donnee associee au chiffrement des
+    // messages : un message est lie a son auteur et ne se dechiffre pas
+    // ailleurs. Il n'est renvoye qu'a son proprietaire.
+    accountId: c.id,
     holder: Boolean(c.is_holder),
     holdings: c.holdings ?? {},
     pseudonym: c.pseudonym,

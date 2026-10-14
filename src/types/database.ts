@@ -24,6 +24,10 @@ export interface Database {
           holder_checked_at: string | null;
           /** Nombre de pieces par contrat, au moment de la verification. */
           holdings: Record<string, number>;
+          /** Cle publique X25519, hex (migration 009). La privee est
+           *  derivee d'une signature de wallet et ne quitte pas l'appareil. */
+          e2e_public_key: string | null;
+          e2e_key_set_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -38,6 +42,8 @@ export interface Database {
           is_holder?: boolean;
           holder_checked_at?: string | null;
           holdings?: Record<string, number>;
+          e2e_public_key?: string | null;
+          e2e_key_set_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -52,6 +58,8 @@ export interface Database {
           is_holder?: boolean;
           holder_checked_at?: string | null;
           holdings?: Record<string, number>;
+          e2e_public_key?: string | null;
+          e2e_key_set_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -582,9 +590,104 @@ export interface Database {
         };
         Relationships: [];
       };
+
+      /* ── Messagerie chiffree (migration 009) ──────────────────────
+       * Aucun de ces types ne porte de texte en clair : `title_enc`,
+       * `key_sealed` et `body_enc` sont des conteneurs chiffres que
+       * seul un membre du groupe peut ouvrir. */
+      conversations: {
+        Row: {
+          id: string;
+          kind: "group" | "direct";
+          title_enc: Json | null;
+          created_by: string | null;
+          created_at: string;
+          last_at: string;
+        };
+        Insert: {
+          id?: string;
+          kind?: "group" | "direct";
+          title_enc?: Json | null;
+          created_by?: string | null;
+          created_at?: string;
+          last_at?: string;
+        };
+        Update: {
+          id?: string;
+          kind?: "group" | "direct";
+          title_enc?: Json | null;
+          created_by?: string | null;
+          created_at?: string;
+          last_at?: string;
+        };
+        Relationships: [];
+      };
+
+      conversation_members: {
+        Row: {
+          conversation_id: string;
+          account_id: string;
+          /** La cle du groupe scellee pour ce membre : {e, iv, c}. */
+          key_sealed: Json;
+          role: "owner" | "member";
+          joined_at: string;
+        };
+        Insert: {
+          conversation_id: string;
+          account_id: string;
+          key_sealed: Json;
+          role?: "owner" | "member";
+          joined_at?: string;
+        };
+        Update: {
+          conversation_id?: string;
+          account_id?: string;
+          key_sealed?: Json;
+          role?: "owner" | "member";
+          joined_at?: string;
+        };
+        Relationships: [];
+      };
+
+      messages: {
+        Row: {
+          id: string;
+          conversation_id: string;
+          author_id: string;
+          /** {iv, c}. Lie a sa conversation et a son auteur par
+           *  l'authentification AES-GCM. */
+          body_enc: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          conversation_id: string;
+          author_id: string;
+          body_enc: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          conversation_id?: string;
+          author_id?: string;
+          body_enc?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
-      [_ in never]: never;
+      /** Pseudonyme et cle publique, rien d'autre. Jamais d'adresse de
+       *  wallet : une politique RLS filtre des lignes, pas des colonnes,
+       *  donc l'annuaire passe par une vue. */
+      member_directory: {
+        Row: {
+          id: string;
+          pseudonym: string;
+          e2e_public_key: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       [_ in never]: never;
