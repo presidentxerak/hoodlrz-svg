@@ -6,6 +6,11 @@ import { cookies } from "next/headers";
 import { limiter } from "@/lib/security/ratelimit";
 import { verifierDetention } from "@/lib/security/gate";
 import { nouveauPseudonyme } from "@/lib/app/pseudonym";
+import {
+  colonneManquante,
+  signalerSchemaComplet,
+  signalerSchemaIncomplet,
+} from "@/lib/security/schema";
 
 export async function POST(request: NextRequest) {
   try {
@@ -87,19 +92,53 @@ export async function POST(request: NextRequest) {
 
     let userId: string;
 
-    if (existingAccount?.auth_id) {
-      userId = existingAccount.auth_id;
-      // Update password for this session (random each time = no predictable password)
-      await admin.auth.admin.updateUserById(userId, { password: walletPassword });
-      await admin
+    /**
+     * LA CONNEXION NE DOIT JAMAIS DEPENDRE DES COLONNES RECENTES.
+     *
+     * Les colonnes du reseau prive - wallet_address, is_holder, holdings,
+     * hdlrz - arrivent avec les migrations 008 a 012. Un deploiement qui
+     * part avant qu'elles soient passees est le cas normal : le code se
+     * deploie tout seul, les migrations se lancent a la main.
+     *
+     * Les ecrire dans la MEME requete que la creation du compte faisait
+     * donc echouer la creation entiere sur une colonne inconnue, et la
+     * connexion par wallet avec elle. C'est exactement ce qui s'est
+     * produit. Le compte est donc cree avec les seules colonnes qui ont
+     * toujours existe, puis enrichi dans une seconde requete dont
+     * l'echec est signale mais n'empeche rien.
+     */
+    let schemaOk = true;
+
+    const enrichir = async (id: string, nouveau: boolean) => {
+      const { error } = await admin
         .from("accounts")
         .update({
           wallet_address: addrLower,
           is_holder: verdict.detenteur,
           holder_checked_at: verdict.verifieA,
           holdings: verdict.pieces,
+          ...(nouveau ? { hdlrz: 1200 } : {}),
         })
-        .eq("auth_id", userId);
+        .eq("auth_id", id);
+
+      if (!error) {
+        signalerSchemaComplet();
+        return true;
+      }
+      if (colonneManquante(error)) {
+        signalerSchemaIncomplet();
+        schemaOk = false;
+        return false;
+      }
+      console.error("[auth/wallet/verify] Enrichissement refuse :", error.message);
+      return false;
+    };
+
+    if (existingAccount?.auth_id) {
+      userId = existingAccount.auth_id;
+      // Update password for this session (random each time = no predictable password)
+      await admin.auth.admin.updateUserById(userId, { password: walletPassword });
+      await enrichir(userId, false);
     } else {
       // Create new user with random password
       const { data: newUser, error: createError } = await admin.auth.admin.createUser({
@@ -119,40 +158,38 @@ export async function POST(request: NextRequest) {
       // Le pseudonyme est tire au sort : il ne doit rien laisser deviner
       // de l'adresse, sans quoi l'anonymat du reseau n'existe pas.
       // Quelques essais en cas de collision sur l'index unique.
-      //
+      let pseudonyme = nouveauPseudonyme();
+      let cree = false;
+      for (let essai = 0; essai < 5 && !cree; essai++) {
+        const { error } = await admin
+          .from("accounts")
+          .upsert(
+            { auth_id: userId, email: walletEmail, pseudonym: pseudonyme },
+            { onConflict: "auth_id" },
+          );
+        if (!error) cree = true;
+        else pseudonyme = nouveauPseudonyme();
+      }
+
+      if (!cree) {
+        console.error("[auth/wallet/verify] Compte non cree apres 5 essais.");
+        return NextResponse.json({ error: "Failed to create account." }, { status: 500 });
+      }
+
       // Le don de bienvenue accompagne la creation : un reseau de
       // predictions ou le nouvel arrivant ne peut rien miser avant le
       // lendemain ne donne pas envie de revenir.
-      const BIENVENUE = 1200;
-      let pseudonyme = nouveauPseudonyme();
-      for (let essai = 0; essai < 5; essai++) {
-        const { error } = await admin.from("accounts").upsert(
-          {
-            auth_id: userId,
-            email: walletEmail,
-            pseudonym: pseudonyme,
-            wallet_address: addrLower,
-            is_holder: verdict.detenteur,
-            holder_checked_at: verdict.verifieA,
-            holdings: verdict.pieces,
-            hdlrz: BIENVENUE,
-          },
-          { onConflict: "auth_id" },
-        );
-        if (!error) {
-          const { data: cree } = await admin
-            .from("accounts")
-            .select("id")
-            .eq("auth_id", userId)
-            .single();
-          if (cree) {
-            await admin
-              .from("hdlrz_ledger")
-              .insert({ account_id: cree.id, delta: BIENVENUE, reason: "welcome" });
-          }
-          break;
+      if (await enrichir(userId, true)) {
+        const { data: compte } = await admin
+          .from("accounts")
+          .select("id")
+          .eq("auth_id", userId)
+          .single();
+        if (compte) {
+          await admin
+            .from("hdlrz_ledger")
+            .insert({ account_id: compte.id, delta: 1200, reason: "welcome" });
         }
-        pseudonyme = nouveauPseudonyme();
       }
     }
 
@@ -194,9 +231,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       address: addrLower,
-      holder: verdict.detenteur,
+      // Schema incomplet : la session est bien ouverte, mais le statut de
+      // detenteur n'a pas pu etre enregistre. L'interface le dit plutot
+      // que de renvoyer l'utilisateur vers une porte qui refusera sans
+      // explication.
+      holder: schemaOk ? verdict.detenteur : false,
       holdings: verdict.pieces,
       partial: verdict.partiel,
+      schema: schemaOk ? "ok" : "incomplet",
     });
   } catch (err) {
     console.error("[auth/wallet/verify] Error:", err);

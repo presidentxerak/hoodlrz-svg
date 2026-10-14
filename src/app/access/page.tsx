@@ -35,6 +35,15 @@ export default function AccessPage() {
    * La destination est donc decidee apres avoir demande son statut.
    */
   const [barre, setBarre] = useState(false);
+  /** La base n'a pas encore les colonnes du reseau prive. Distinct de
+   *  « pas de PFP » : ce n'est pas la faute du visiteur, et la reponse
+   *  n'est pas « achete une piece ». */
+  const [schemaKo, setSchemaKo] = useState(false);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("gate") === "schema") setSchemaKo(true);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -43,6 +52,10 @@ export default function AccessPage() {
       try {
         const r = await fetch("/api/auth/holder");
         const j = await r.json();
+        if (j.schema === "incomplet") {
+          setSchemaKo(true);
+          return;
+        }
         if (j.holder) {
           const vers = new URLSearchParams(window.location.search).get("redirect");
           window.location.href = vers && vers.startsWith("/") ? vers : "/feed";
@@ -242,6 +255,11 @@ export default function AccessPage() {
       // Le serveur a lu la chaine et nous dit laquelle des deux portes
       // s'ouvre : le reseau, ou l'explication de ce qui manque.
       const verdict = await verifyRes.json().catch(() => ({ holder: false }));
+      if (verdict.schema === "incomplet") {
+        setWalletStep("idle");
+        setSchemaKo(true);
+        return;
+      }
       if (!verdict.holder) {
         setWalletStep("idle");
         setBarre(true);
@@ -285,6 +303,30 @@ export default function AccessPage() {
    * alors que la seule action utile est d'acquerir une piece - ou de
    * relancer la lecture si l'achat vient d'etre fait.
    */
+  if (schemaKo) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center px-4">
+        <div className="flex w-full max-w-lg flex-col items-center gap-5 text-center">
+          <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider sm:text-[40px]">
+            Almost there
+          </h1>
+          <p className="text-sm leading-relaxed text-muted">
+            Your wallet is connected and verified. The database has not been
+            migrated yet, so the network cannot read who holds what.
+          </p>
+          <pre className="w-full overflow-x-auto border border-[var(--border)] bg-[var(--surface)] p-4 text-left text-xs text-foreground">
+{`npm run db:migrate -- --baseline 007
+npm run db:migrate`}
+          </pre>
+          <p className="max-w-[46ch] text-xs leading-relaxed text-muted">
+            Nothing is lost: accounts created in the meantime are kept, and
+            their holder status is read on the next sign-in.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (barre) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4">

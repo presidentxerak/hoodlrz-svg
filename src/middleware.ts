@@ -22,6 +22,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { isGated } from "@/lib/app/nav";
+import { colonneManquante } from "@/lib/security/schema";
 
 /**
  * La politique.
@@ -139,11 +140,26 @@ export async function middleware(request: NextRequest) {
   // la verification de signature, et peut etre rafraichi par
   // /api/auth/holder apres un achat ; on ne relit pas la chaine ici,
   // deux appels RPC par navigation rendraient le site inutilisable.
-  const { data: compte } = await supabase
+  const { data: compte, error } = await supabase
     .from("accounts")
     .select("is_holder")
     .eq("auth_id", user.id)
     .single();
+
+  /**
+   * Les migrations du reseau prive ne sont pas passees.
+   *
+   * Sans ce cas, la lecture echoue sur une colonne inconnue, le membre
+   * est renvoye vers /access, qui le renvoie ici, et ainsi de suite. Il
+   * voit une page qui clignote sans un mot d'explication. On l'envoie
+   * vers un ecran qui dit ce qui manque.
+   */
+  if (colonneManquante(error)) {
+    const vers = request.nextUrl.clone();
+    vers.pathname = "/access";
+    vers.searchParams.set("gate", "schema");
+    return NextResponse.redirect(vers);
+  }
 
   if (!compte?.is_holder) {
     const vers = request.nextUrl.clone();

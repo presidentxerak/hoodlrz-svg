@@ -21,6 +21,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifierDetention, FRAICHEUR_SECONDES } from "@/lib/security/gate";
 import { limiter } from "@/lib/security/ratelimit";
+import {
+  colonneManquante,
+  signalerSchemaComplet,
+  signalerSchemaIncomplet,
+} from "@/lib/security/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +36,52 @@ async function compte() {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("accounts")
-    .select("id, auth_id, wallet_address, is_holder, holder_checked_at, holdings, pseudonym, avatar_image")
+    .select(
+      "id, auth_id, wallet_address, is_holder, holder_checked_at, holdings, pseudonym, avatar_image",
+    )
     .eq("auth_id", user.id)
     .single();
-  // La colonne auth_id est nullable dans le schema ; ici elle vaut
-  // forcement l'identifiant de la session, mais le typage ne le sait pas.
-  // On renvoie celui de la session plutot que de forcer le type.
-  return data ? { ...data, auth_id: user.id } : null;
+
+  if (data) {
+    signalerSchemaComplet();
+    // La colonne auth_id est nullable dans le schema ; ici elle vaut
+    // forcement l'identifiant de la session, mais le typage ne le sait
+    // pas. On renvoie celui de la session plutot que de forcer le type.
+    return { ...data, auth_id: user.id, schemaOk: true };
+  }
+
+  /**
+   * Repli quand les migrations du reseau prive ne sont pas passees.
+   *
+   * Sans ce repli, la requete ci-dessus echoue sur « column
+   * wallet_address does not exist », cette route rend 401, et TOUTE
+   * l'application se comporte comme si personne n'etait connecte - y
+   * compris apres une signature de wallet reussie. L'utilisateur voit
+   * une page qui ne repond pas, sans un mot d'explication.
+   */
+  if (!colonneManquante(error)) return null;
+  signalerSchemaIncomplet();
+
+  const { data: minimal } = await supabase
+    .from("accounts")
+    .select("id, pseudonym")
+    .eq("auth_id", user.id)
+    .single();
+  if (!minimal) return null;
+
+  return {
+    id: minimal.id,
+    auth_id: user.id,
+    pseudonym: minimal.pseudonym,
+    wallet_address: null,
+    is_holder: false,
+    holder_checked_at: null,
+    holdings: {},
+    avatar_image: null,
+    schemaOk: false,
+  };
 }
 
 export async function GET() {
@@ -60,6 +102,7 @@ export async function GET() {
     pseudonym: c.pseudonym,
     avatar: c.avatar_image,
     stale: age > FRAICHEUR_SECONDES,
+    schema: c.schemaOk ? "ok" : "incomplet",
   });
 }
 
@@ -77,6 +120,18 @@ export async function POST(request: NextRequest) {
     identite: c.auth_id,
   });
   if (trop) return trop;
+
+  if (!c.schemaOk) {
+    return NextResponse.json(
+      {
+        error:
+          "La base n'a pas encore les colonnes du reseau prive. Migrations 008 a 012 a passer.",
+        holder: false,
+        schema: "incomplet",
+      },
+      { status: 503 },
+    );
+  }
 
   if (!c.wallet_address) {
     return NextResponse.json(

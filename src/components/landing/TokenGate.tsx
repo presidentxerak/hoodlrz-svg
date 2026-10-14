@@ -68,6 +68,7 @@ export default function TokenGate() {
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
         if (!j) return;
+        if (j.schema === "incomplet") return;
         setAvoirs(j.holdings ?? {});
         setEtape(j.holder ? "detenteur" : "refuse");
       })
@@ -109,6 +110,15 @@ export default function TokenGate() {
       });
       const j = await r2.json();
       if (!r2.ok) throw new Error(j.error ?? "Verification refusee.");
+
+      // La base n'a pas encore les colonnes du reseau prive : la session
+      // est ouverte, mais le statut n'a pas pu etre enregistre. On
+      // envoie vers l'ecran qui le dit, plutot que d'annoncer a tort que
+      // le wallet ne detient rien.
+      if (j.schema === "incomplet") {
+        window.location.href = "/access?gate=schema";
+        return;
+      }
 
       setAvoirs(j.holdings ?? {});
       setEtape(j.holder ? "detenteur" : "refuse");
