@@ -28,6 +28,10 @@ export interface Database {
            *  derivee d'une signature de wallet et ne quitte pas l'appareil. */
           e2e_public_key: string | null;
           e2e_key_set_at: string | null;
+          /** Points internes (migration 010). Ni transferables entre
+           *  membres, ni echangeables, ni on-chain. */
+          hdlrz: number;
+          hdlrz_claimed_on: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -44,6 +48,8 @@ export interface Database {
           holdings?: Record<string, number>;
           e2e_public_key?: string | null;
           e2e_key_set_at?: string | null;
+          hdlrz?: number;
+          hdlrz_claimed_on?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -60,6 +66,8 @@ export interface Database {
           holdings?: Record<string, number>;
           e2e_public_key?: string | null;
           e2e_key_set_at?: string | null;
+          hdlrz?: number;
+          hdlrz_claimed_on?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -675,6 +683,160 @@ export interface Database {
         };
         Relationships: [];
       };
+
+      /* ── Feed, Hdlrz et predictions (migration 010) ────────────────
+       * Le feed n'est PAS chiffre : un post s'adresse a tout le reseau,
+       * et le chiffrer pour quelques milliers de membres n'apporterait
+       * rien. Ce qui est prive est chiffre, ce qui est public ne l'est
+       * pas, rien n'est entre les deux. */
+      posts: {
+        Row: {
+          id: string;
+          author_id: string;
+          body: string;
+          prediction_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          author_id: string;
+          body: string;
+          prediction_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          author_id?: string;
+          body?: string;
+          prediction_id?: string | null;
+          created_at?: string;
+        };
+        /** Declarees pour que les jointures imbriquees soient typees :
+         *  sans elles, `posts(..., prediction:predictions(...))` ne
+         *  compile pas, le client ne sachant pas que la relation existe. */
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "posts_prediction_fk";
+            columns: ["prediction_id"];
+            isOneToOne: false;
+            referencedRelation: "predictions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+
+      predictions: {
+        Row: {
+          id: string;
+          author_id: string;
+          question: string;
+          category: "crypto" | "nft" | "memecoin";
+          closes_at: string;
+          status: "open" | "closed" | "resolved" | "void";
+          outcome: boolean | null;
+          resolution_note: string | null;
+          resolved_at: string | null;
+          /** Reserves parimutuelles, tenues a jour par hdlrz_stake. */
+          pool_yes: number;
+          pool_no: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          author_id: string;
+          question: string;
+          category?: "crypto" | "nft" | "memecoin";
+          closes_at: string;
+          status?: "open" | "closed" | "resolved" | "void";
+          outcome?: boolean | null;
+          resolution_note?: string | null;
+          resolved_at?: string | null;
+          pool_yes?: number;
+          pool_no?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          author_id?: string;
+          question?: string;
+          category?: "crypto" | "nft" | "memecoin";
+          closes_at?: string;
+          status?: "open" | "closed" | "resolved" | "void";
+          outcome?: boolean | null;
+          resolution_note?: string | null;
+          resolved_at?: string | null;
+          pool_yes?: number;
+          pool_no?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      prediction_stakes: {
+        Row: {
+          id: string;
+          prediction_id: string;
+          account_id: string;
+          side: boolean;
+          amount: number;
+          paid: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          prediction_id: string;
+          account_id: string;
+          side: boolean;
+          amount: number;
+          paid?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          prediction_id?: string;
+          account_id?: string;
+          side?: boolean;
+          amount?: number;
+          paid?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+
+      hdlrz_ledger: {
+        Row: {
+          id: number;
+          account_id: string;
+          delta: number;
+          reason: "welcome" | "daily" | "stake" | "payout" | "refund" | "admin";
+          ref: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          account_id: string;
+          delta: number;
+          reason: "welcome" | "daily" | "stake" | "payout" | "refund" | "admin";
+          ref?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          account_id?: string;
+          delta?: number;
+          reason?: "welcome" | "daily" | "stake" | "payout" | "refund" | "admin";
+          ref?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       /** Pseudonyme et cle publique, rien d'autre. Jamais d'adresse de
@@ -690,7 +852,23 @@ export interface Database {
       };
     };
     Functions: {
-      [_ in never]: never;
+      /** Debite et mise en une seule transaction : deux requetes
+       *  separees laisseraient deux onglets depenser le meme solde. */
+      hdlrz_stake: {
+        Args: { pred: string; cote: boolean; montant: number };
+        Returns: number;
+      };
+      /** Le don quotidien. Une date et non un intervalle de 24 h, pour
+       *  que « une fois par jour » se comprenne sans calcul. */
+      hdlrz_daily: {
+        Args: Record<string, never>;
+        Returns: number;
+      };
+      /** Repartition parimutuelle. Reserve aux administrateurs. */
+      hdlrz_resolve: {
+        Args: { pred: string; resultat: boolean; note: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;

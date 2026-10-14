@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { PageShell, PageHeader, EmptyState } from "@/components/app/Page";
+import FeedClient from "@/components/feed/FeedClient";
 
 export const metadata: Metadata = {
   title: "Feed — Hoodlrz",
@@ -10,27 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function FeedPage() {
-  return (
-    <PageShell>
-      <PageHeader
-        title="Feed"
-        subtitle="What the holders are posting. Calls, charts, drops and noise, in one column."
-      />
-      <EmptyState
-        title="The feed opens with the posts."
-        action={
-          <Link
-            href="/groups"
-            className="border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase tracking-widest
-                       text-foreground transition-colors hover:bg-[var(--surface-alt)]"
-          >
-            Go to groups
-          </Link>
-        }
-      >
-        Posting, reactions and replies land with the feed itself. The wall is
-        built, the bricks come next.
-      </EmptyState>
-    </PageShell>
-  );
+  return <FeedClient />;
 }

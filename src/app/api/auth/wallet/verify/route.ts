@@ -119,6 +119,11 @@ export async function POST(request: NextRequest) {
       // Le pseudonyme est tire au sort : il ne doit rien laisser deviner
       // de l'adresse, sans quoi l'anonymat du reseau n'existe pas.
       // Quelques essais en cas de collision sur l'index unique.
+      //
+      // Le don de bienvenue accompagne la creation : un reseau de
+      // predictions ou le nouvel arrivant ne peut rien miser avant le
+      // lendemain ne donne pas envie de revenir.
+      const BIENVENUE = 1200;
       let pseudonyme = nouveauPseudonyme();
       for (let essai = 0; essai < 5; essai++) {
         const { error } = await admin.from("accounts").upsert(
@@ -130,10 +135,23 @@ export async function POST(request: NextRequest) {
             is_holder: verdict.detenteur,
             holder_checked_at: verdict.verifieA,
             holdings: verdict.pieces,
+            hdlrz: BIENVENUE,
           },
           { onConflict: "auth_id" },
         );
-        if (!error) break;
+        if (!error) {
+          const { data: cree } = await admin
+            .from("accounts")
+            .select("id")
+            .eq("auth_id", userId)
+            .single();
+          if (cree) {
+            await admin
+              .from("hdlrz_ledger")
+              .insert({ account_id: cree.id, delta: BIENVENUE, reason: "welcome" });
+          }
+          break;
+        }
         pseudonyme = nouveauPseudonyme();
       }
     }
