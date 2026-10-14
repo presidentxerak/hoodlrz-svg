@@ -504,7 +504,7 @@ export default function EthMintFlow({ disabled = false }: EthMintFlowProps) {
                 View transaction &rarr;
               </a>
             )}
-            <Button variant="primary" size="lg" href="/my-collection" className="w-full text-center">
+            <Button variant="primary" size="lg" href="/profile" className="w-full text-center">
               View My Collection
             </Button>
             <Button variant="secondary" onClick={() => setState("idle")} className="w-full">

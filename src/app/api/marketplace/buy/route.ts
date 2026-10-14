@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         sellerAccountId: listing.seller_id,
         buyerAccountId: buyerAccount.id,
       },
-      success_url: `${origin}/my-collection?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/profile?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/collections?checkout=cancelled`,
     });
 

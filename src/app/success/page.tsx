@@ -178,7 +178,7 @@ function SuccessContent() {
           <Button
             variant="secondary"
             size="md"
-            href="/my-collection"
+            href="/profile"
           >
             View My Profile
           </Button>

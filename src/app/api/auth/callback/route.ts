@@ -48,5 +48,5 @@ export async function GET(request: NextRequest) {
   }
 
   // Always redirect to My Collection after email confirmation
-  return NextResponse.redirect(new URL("/my-collection", requestUrl.origin));
+  return NextResponse.redirect(new URL("/profile", requestUrl.origin));
 }

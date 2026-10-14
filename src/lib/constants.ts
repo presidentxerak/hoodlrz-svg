@@ -21,7 +21,7 @@ export const NAV_LINKS = [
   { label: "Vinyl", href: "/genesis" },
   { label: "Gallery", href: "/gallery" },
   { label: "About", href: "/about" },
-  { label: "My Collection", href: "/my-collection" },
+  { label: "My Collection", href: "/profile" },
 ] as const;
 
 export const GENESIS_COLLECTION_SLUG = "genesis";

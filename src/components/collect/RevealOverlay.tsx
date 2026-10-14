@@ -255,7 +255,7 @@ export default function RevealOverlay({
             }}
           >
             <a
-              href="/my-collection"
+              href="/profile"
               className="reveal-action-btn border border-white/20 text-white hover:bg-white/10"
             >
               View Collection

@@ -74,7 +74,7 @@ export default function AccessPage() {
     const supabase = createClient();
     supabase.auth.getSession().then(({ data }) => {
       if (data.session?.user) {
-        window.location.href = "/my-collection";
+        window.location.href = "/profile";
       }
     });
   }, []);
@@ -145,7 +145,7 @@ export default function AccessPage() {
         }
 
         setLoading(false);
-        window.location.href = "/my-collection";
+        window.location.href = "/profile";
       } else {
         // Sign up: send magic link to confirm email
         const res = await fetch("/api/auth/signup", {
@@ -252,7 +252,7 @@ export default function AccessPage() {
       setWalletStep("done");
       setTimeout(() => {
         try {
-          window.location.href = "/my-collection";
+          window.location.href = "/profile";
         } catch {
           /* fallback button is shown */
         }
@@ -371,7 +371,7 @@ export default function AccessPage() {
                 in-app WebView blocks window.location.href. */}
             {walletStep === "done" && (
               <a
-                href="/my-collection"
+                href="/profile"
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold uppercase tracking-widest border border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
               >
                 Continue to My Collection →

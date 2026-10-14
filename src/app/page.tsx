@@ -183,7 +183,7 @@ function SiteMap() {
       desc: "A playable city. Explore it, earn Hoodz, and claim rewards from the treasury.",
     },
     {
-      href: "/my-collection",
+      href: "/profile",
       title: "My Collection",
       desc: "Connect a wallet to see the Hoodlrz you hold, across every collection.",
     },
