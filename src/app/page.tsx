@@ -250,7 +250,10 @@ function Stat({ label, value }: { label: string; value: string }) {
 function Hero() {
   return (
     <section className="relative flex min-h-[88vh] w-full flex-col items-center justify-center overflow-hidden px-4 py-16 sm:py-24">
-      {/* La video des OG Hoodlrz, plein cadre.
+      {/* La grille des OG Hoodlrz, plein cadre.
+          Elle montre les pieces elles-memes plutot qu'un decor : sur une
+          page qui demande de prouver qu'on en detient une, voir a quoi
+          elles ressemblent fait plus que n'importe quelle phrase.
           muted est obligatoire pour que autoPlay marche : aucun
           navigateur ne lance un son sans geste de l'utilisateur, et une
           video bloquee laisse un rectangle noir a la place du fond.
@@ -267,7 +270,7 @@ function Hero() {
         aria-hidden
         className="absolute inset-0 h-full w-full object-cover"
       >
-        <source src="/hero-hoodlrz-video.mp4" type="video/mp4" />
+        <source src="/hoodlrz-banner-1.mp4" type="video/mp4" />
       </video>
 
       {/* Deux voiles plutot qu'un seul a 60 %. Un voile uniforme assez

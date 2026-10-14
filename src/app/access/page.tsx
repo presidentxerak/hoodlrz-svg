@@ -358,10 +358,20 @@ npm run db:migrate`}
 
           <button
             onClick={async () => {
+              setWalletError("");
               const r = await fetch("/api/auth/holder", { method: "POST" });
               const j = await r.json().catch(() => ({ holder: false }));
-              if (j.holder) window.location.href = "/feed";
-              else setWalletError("Still no Hoodlrz PFP on this wallet.");
+              if (j.holder) {
+                window.location.href = "/feed";
+                return;
+              }
+              // Une chaine muette n'est pas un refus : le dire evite
+              // d'envoyer acheter une piece a quelqu'un qui en a deja.
+              setWalletError(
+                j.reliable === false
+                  ? "Une des chaines n'a pas repondu. Reessayez dans un instant."
+                  : "Still no Hoodlrz PFP on this wallet.",
+              );
             }}
             className="bg-accent-magenta px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white"
           >

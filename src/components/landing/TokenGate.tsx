@@ -121,7 +121,27 @@ export default function TokenGate() {
       }
 
       setAvoirs(j.holdings ?? {});
-      setEtape(j.holder ? "detenteur" : "refuse");
+
+      // Une lecture incomplete n'est pas un refus : on le dit et on
+      // laisse reessayer, plutot que d'annoncer a tort que le wallet ne
+      // detient rien.
+      if (!j.holder && j.reliable === false) {
+        setEtape("repos");
+        setErreur("Une des chaines n'a pas repondu. Reessayez dans un instant.");
+        return;
+      }
+
+      if (j.holder) {
+        setEtape("detenteur");
+        // Le membre vient de signer et le serveur a dit oui : lui
+        // demander un clic de plus pour « entrer » est une etape pour
+        // rien. On montre le resultat une seconde, puis on l'emmene.
+        setTimeout(() => {
+          window.location.href = "/feed";
+        }, 1100);
+        return;
+      }
+      setEtape("refuse");
     } catch (e) {
       const m = (e as Error).message ?? "";
       setErreur(
@@ -160,6 +180,9 @@ export default function TokenGate() {
               ? `${total} piece${total > 1 ? "s" : ""} found. You are in.`
               : "Verified. You are in."}
           </p>
+          {/* La redirection part toute seule ; ce bouton est le filet
+              pour les navigateurs integres aux applications, qui
+              bloquent parfois une navigation programmee. */}
           <Link
             href="/feed"
             className="mt-5 inline-flex w-full items-center justify-center bg-accent-magenta px-6 py-3
@@ -191,7 +214,20 @@ export default function TokenGate() {
             </Link>
           </div>
           <button
-            onClick={verifier}
+            onClick={async () => {
+              setErreur(null);
+              const r = await fetch("/api/auth/holder", { method: "POST" });
+              const j = await r.json().catch(() => ({ holder: false }));
+              if (j.holder) {
+                window.location.href = "/feed";
+                return;
+              }
+              setErreur(
+                j.reliable === false
+                  ? "Une des chaines n'a pas repondu. Reessayez dans un instant."
+                  : "Still no Hoodlrz PFP on this wallet.",
+              );
+            }}
             className="mt-4 text-xs text-white/50 underline underline-offset-4 hover:text-white"
           >
             I just bought one — check again

@@ -74,8 +74,17 @@ export interface Verdict {
   detenteur: boolean;
   /** Nombre de pieces par contrat, pour l'affichage du profil. */
   pieces: Record<string, number>;
-  /** Au moins une source n'a pas repondu : un « non » n'est pas definitif. */
+  /** Au moins une source n'a pas repondu. */
   partiel: boolean;
+  /**
+   * Le verdict peut-il etre inscrit en base ?
+   *
+   * Faux uniquement quand le total est nul ET qu'une source a manque :
+   * c'est le seul cas ou « non » signifie en realite « je ne sais pas ».
+   * Un « oui » est toujours fiable - une piece comptee est une piece
+   * detenue, meme si une autre chaine n'a pas repondu.
+   */
+  fiable: boolean;
   verifieA: string;
 }
 
@@ -89,23 +98,52 @@ export async function verifierDetention(adresse: string): Promise<Verdict> {
   let partiel = false;
 
   const lectures = sources().map(async (s) => {
-    try {
-      const provider = new JsonRpcProvider(s.rpc, s.chainId, { staticNetwork: true });
-      const contrat = new Contract(s.adresse, BALANCE_OF, provider);
-      const solde = await contrat.balanceOf(adresse);
-      pieces[s.nom] = Number(solde);
-    } catch {
-      partiel = true;
+    // Trois essais, espaces. Un fournisseur RPC rend un echec passager
+    // bien plus souvent qu'on ne le croit - limite de debit, noeud qui
+    // bascule - et un seul essai transforme ce hoquet en « ce membre ne
+    // detient rien ».
+    for (let essai = 1; essai <= 3; essai++) {
+      try {
+        const provider = new JsonRpcProvider(s.rpc, s.chainId, { staticNetwork: true });
+        const contrat = new Contract(s.adresse, BALANCE_OF, provider);
+        const solde = await contrat.balanceOf(adresse);
+        pieces[s.nom] = Number(solde);
+        return;
+      } catch {
+        if (essai === 3) {
+          partiel = true;
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 300 * essai));
+      }
     }
   });
 
   await Promise.all(lectures);
 
   const total = Object.keys(pieces).reduce((n, k) => n + (pieces[k] ?? 0), 0);
+
   return {
     detenteur: total > 0,
     pieces,
     partiel,
+    /**
+     * LE POINT QUI COMPTE, ET QUI MANQUAIT.
+     *
+     * Ce drapeau dit si le « non » est digne de foi. Un total de zero
+     * alors qu'une source n'a pas repondu ne veut pas dire « ce wallet
+     * ne detient rien » : il veut dire « je ne sais pas ».
+     *
+     * Sans cette distinction, un hoquet de fournisseur suffisait a
+     * degrader un detenteur en non-detenteur et a l'ecrire en base. Le
+     * membre voyait « 11 pieces trouvees, vous etes dedans », puis se
+     * faisait refuser a la porte dans la seconde qui suit. C'est
+     * exactement ce qui s'est produit.
+     *
+     * Les appelants ne doivent JAMAIS inscrire is_holder = false quand
+     * ce drapeau est faux.
+     */
+    fiable: total > 0 || !partiel,
     verifieA: new Date().toISOString(),
   };
 }

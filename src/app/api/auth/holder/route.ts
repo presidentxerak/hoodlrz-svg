@@ -142,6 +142,19 @@ export async function POST(request: NextRequest) {
 
   const verdict = await verifierDetention(c.wallet_address);
 
+  // Un « non » rendu alors qu'une source n'a pas repondu n'est pas
+  // inscrit : il degraderait un detenteur sur un hoquet de fournisseur.
+  // On rend alors l'ancien statut, qui lui a ete verifie.
+  if (!verdict.fiable) {
+    return NextResponse.json({
+      holder: Boolean(c.is_holder),
+      holdings: c.holdings ?? {},
+      partial: true,
+      reliable: false,
+      error: "Une des chaines n'a pas repondu. Statut inchange, reessayez.",
+    });
+  }
+
   // L'ecriture passe par le client administrateur : les politiques RLS
   // interdisent au membre de modifier son propre statut de detenteur, ce
   // qui est precisement le but.
@@ -158,5 +171,6 @@ export async function POST(request: NextRequest) {
     holder: verdict.detenteur,
     holdings: verdict.pieces,
     partial: verdict.partiel,
+    reliable: true,
   });
 }

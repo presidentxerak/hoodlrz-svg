@@ -110,13 +110,30 @@ export async function POST(request: NextRequest) {
     let schemaOk = true;
 
     const enrichir = async (id: string, nouveau: boolean) => {
+      /**
+       * UN « NON » INCERTAIN N'EST PAS INSCRIT.
+       *
+       * Quand une source de chaine n'a pas repondu et que le total est
+       * nul, le verdict ne vaut pas « ce wallet ne detient rien » mais
+       * « je ne sais pas ». L'ecrire quand meme degradait un detenteur
+       * en non-detenteur sur un simple hoquet de fournisseur : le membre
+       * voyait « 11 pieces trouvees », puis se faisait refuser a la
+       * porte dans la seconde suivante.
+       *
+       * Dans ce cas on met a jour l'adresse du wallet, qui est sure, et
+       * on laisse is_holder tel qu'il etait.
+       */
       const { error } = await admin
         .from("accounts")
         .update({
           wallet_address: addrLower,
-          is_holder: verdict.detenteur,
-          holder_checked_at: verdict.verifieA,
-          holdings: verdict.pieces,
+          ...(verdict.fiable
+            ? {
+                is_holder: verdict.detenteur,
+                holder_checked_at: verdict.verifieA,
+                holdings: verdict.pieces,
+              }
+            : {}),
           ...(nouveau ? { hdlrz: 1200 } : {}),
         })
         .eq("auth_id", id);
@@ -238,6 +255,10 @@ export async function POST(request: NextRequest) {
       holder: schemaOk ? verdict.detenteur : false,
       holdings: verdict.pieces,
       partial: verdict.partiel,
+      // Faux quand une source n'a pas repondu et que le total est nul :
+      // l'interface doit alors proposer de reessayer, pas annoncer que
+      // le wallet ne detient rien.
+      reliable: verdict.fiable,
       schema: schemaOk ? "ok" : "incomplet",
     });
   } catch (err) {
