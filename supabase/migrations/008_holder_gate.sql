@@ -23,6 +23,26 @@ create unique index if not exists accounts_wallet_address_idx
 
 -- Le pseudonyme devient l'identite publique : il doit etre unique, sinon
 -- deux membres peuvent se faire passer l'un pour l'autre dans un groupe.
+--
+-- Les comptes existants peuvent deja porter deux fois le meme. Creer
+-- l'index sans rien faire echouerait la migration entiere sur un cas
+-- rare ; on departage donc d'abord, en gardant le pseudonyme au plus
+-- ancien et en suffixant les suivants. Un membre renomme s'en apercoit
+-- et peut le changer, alors qu'une migration bloquee n'avance personne.
+do $$
+begin
+  update public.accounts a
+     set pseudonym = a.pseudonym || '-' || r.rang
+    from (
+      select id,
+             row_number() over (partition by lower(pseudonym)
+                                order by created_at, id) - 1 as rang
+        from public.accounts
+       where pseudonym is not null
+    ) r
+   where a.id = r.id and r.rang > 0;
+end $$;
+
 create unique index if not exists accounts_pseudonym_idx
   on public.accounts (lower(pseudonym))
   where pseudonym is not null;
