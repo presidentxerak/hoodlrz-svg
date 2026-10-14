@@ -18,6 +18,7 @@
     "net:crypto": "tsx test/network/crypto.test.mts",
     "net:wallets": "tsx test/network/wallets.test.mts",
     "net:gate": "tsx test/network/gate.test.mts",
+    "net:session": "tsx test/network/session.test.mts",
     "kids:freeze": "node scripts/kids/freeze-engine.mjs",
     "kids:constants": "node scripts/kids/derive-constants.mjs",
     "kids:verify": "node scripts/kids/verify-frozen.mjs",

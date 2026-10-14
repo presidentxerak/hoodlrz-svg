@@ -23,6 +23,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { isGated } from "@/lib/app/nav";
 import { colonneManquante } from "@/lib/security/schema";
+import { redirigerAvecCookies } from "@/lib/security/redirect";
 
 /**
  * La politique.
@@ -111,6 +112,23 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  /**
+   * TOUTE REDIRECTION DOIT EMPORTER LES COOKIES RAFRAICHIS.
+   *
+   * `getUser()` fait tourner le jeton quand il est proche d'expirer :
+   * Supabase ecrit alors les nouveaux cookies sur `reponse`. Rendre un
+   * `NextResponse.redirect` tout neuf les jette. Le navigateur garde
+   * l'ancien jeton de rafraichissement, qui vient d'etre invalide cote
+   * serveur - et la session est morte.
+   *
+   * C'est ce qui produisait le symptome signale : on se connecte, on
+   * passe la porte, et l'application redemande aussitot la connexion.
+   * Le bug est d'autant plus trompeur qu'il ne se produit QUE quand la
+   * redirection tombe pendant un rafraichissement, donc par
+   * intermittence.
+   */
+  const rediriger = (vers: URL) => redirigerAvecCookies(vers, reponse, csp);
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -119,7 +137,7 @@ export async function middleware(request: NextRequest) {
     const vers = request.nextUrl.clone();
     vers.pathname = "/access";
     vers.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(vers);
+    return rediriger(vers);
   }
 
   if (adminRoute) {
@@ -131,7 +149,7 @@ export async function middleware(request: NextRequest) {
     if (error || !compte?.is_admin) {
       const vers = request.nextUrl.clone();
       vers.pathname = "/";
-      return NextResponse.redirect(vers);
+      return rediriger(vers);
     }
     return reponse;
   }
@@ -158,7 +176,7 @@ export async function middleware(request: NextRequest) {
     const vers = request.nextUrl.clone();
     vers.pathname = "/access";
     vers.searchParams.set("gate", "schema");
-    return NextResponse.redirect(vers);
+    return rediriger(vers);
   }
 
   if (!compte?.is_holder) {
@@ -166,7 +184,7 @@ export async function middleware(request: NextRequest) {
     vers.pathname = "/access";
     vers.searchParams.set("gate", "holder");
     vers.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(vers);
+    return rediriger(vers);
   }
 
   return reponse;
