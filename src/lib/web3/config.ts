@@ -23,6 +23,18 @@ export const HOODLRZ_STREET_ADDRESS =
 export const HOODLRZ_STREET_CHAIN_ID = 1; // mainnet
 
 /**
+ * Nombre de pieces de la collection OG Hoodlrz, celle dessinee a la main.
+ *
+ * Ecrit ici parce que trois ecrans l'annoncent - la page d'accueil, la
+ * page Collections et le bandeau des chaines - et qu'un chiffre recopie
+ * trois fois finit par differer. Il a d'ailleurs deja differe : le
+ * bandeau annoncait 1 337, qui est la supply de HoodlrzOnChain, la
+ * collection generative. Deux collections, deux nombres, et une seule
+ * facon de ne plus les confondre.
+ */
+export const HOODLRZ_STREET_SUPPLY = 333;
+
+/**
  * Collection OG Hoodlrz sur OpenSea.
  *
  * L'URL par contrat marche toujours et ne demande rien a configurer.

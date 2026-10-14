@@ -4,6 +4,7 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { PageShell, PageHeader } from "@/components/app/Page";
 import { COLLECTIONS } from "@/lib/app/nav";
+import { HOODLRZ_STREET_SUPPLY } from "@/lib/web3/config";
 
 export const metadata: Metadata = {
   title: "Collections — Hoodlrz",
@@ -36,11 +37,11 @@ const CARTES: Record<string, Carte> = {
     slug: "og",
     titre: "OG Hoodlrz",
     resume:
-      "1,337 hooded identities on Ethereum. A plain ERC-721, drawn by hand by XERAK.",
+      `${HOODLRZ_STREET_SUPPLY} hooded identities on Ethereum. A plain ERC-721, every piece drawn by hand by XERAK.`,
     badge: { texte: "ERC-721", variante: "success" },
     media: { type: "video", src: "/hoodlrz-banner-1.mp4" },
     faits: [
-      { valeur: "1,337", libelle: "pieces" },
+      { valeur: String(HOODLRZ_STREET_SUPPLY), libelle: "pieces" },
       { valeur: "Ethereum", libelle: "chain" },
     ],
   },

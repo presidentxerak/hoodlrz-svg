@@ -4,12 +4,13 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import FaqAccordion from "@/components/ui/FaqAccordion";
-import EnginePreview from "@/components/kids/EnginePreview";
+import TokenGate from "@/components/landing/TokenGate";
+import ChainPartners from "@/components/landing/ChainPartners";
 import { HOODLRZ_FAQ } from "@/lib/faq";
-import { KIDS, KIDS_CHAIN, KIDS_OPENSEA_URL, PHASE_ISO, fmtDate } from "@/lib/kids/config";
-import { HOODLRZ_OPENSEA_URL } from "@/lib/web3/config";
+import { KIDS, KIDS_CHAIN } from "@/lib/kids/config";
+import { HOODLRZ_OPENSEA_URL, HOODLRZ_STREET_SUPPLY } from "@/lib/web3/config";
 
-const STREET_SUPPLY = 333;
+const STREET_SUPPLY = HOODLRZ_STREET_SUPPLY;
 const ITEMS_PER_PAGE = 24;
 
 interface TraitAttribute {
@@ -49,6 +50,9 @@ export default function HomePage() {
   return (
     <div className="flex flex-col items-center">
       <Hero />
+      <div className="mx-auto w-full max-w-5xl px-4">
+        <ChainPartners />
+      </div>
       <div className="mx-auto w-full max-w-5xl px-4 pb-24">
         <OgHoodlrz />
         <Universe />
@@ -245,31 +249,42 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function Hero() {
   return (
-    <section className="relative flex w-full flex-col items-center justify-center gap-6 px-4 pt-20 pb-16 sm:pt-28 sm:pb-20 overflow-hidden min-h-[70vh]">
-      {/* Meme traitement que le hero Gen Kids : le fond EST la collection,
-          jouee par le moteur qui partira on-chain, plutot qu'une video.
-          Sur mobile la troisieme piece sort du cadre - deux suffisent a
-          poser l'ambiance sans ecraser un petit ecran. */}
-      <div className="absolute inset-0 grid grid-cols-2 sm:grid-cols-3" aria-hidden>
-        <EnginePreview fill bare />
-        <EnginePreview fill bare />
-        <div className="hidden h-full sm:block">
-          <EnginePreview fill bare />
-        </div>
-      </div>
-      <div className="absolute inset-0 bg-black/40" />
-      {/* Ombre concentree derriere le contenu. A 40 % uniformes, une
-          punchline claire passant sous un mot le rend illisible. */}
+    <section className="relative flex min-h-[88vh] w-full flex-col items-center justify-center overflow-hidden px-4 py-16 sm:py-24">
+      {/* La video des OG Hoodlrz, plein cadre.
+          muted est obligatoire pour que autoPlay marche : aucun
+          navigateur ne lance un son sans geste de l'utilisateur, et une
+          video bloquee laisse un rectangle noir a la place du fond.
+          playsInline empeche iOS de la passer en plein ecran tout seul.
+          preload="auto" parce qu'elle est le premier ecran : la charger
+          paresseusement montrerait l'affiche pendant deux secondes. */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="auto"
+        poster="/images/hero-poster.jpg"
+        aria-hidden
+        className="absolute inset-0 h-full w-full object-cover"
+      >
+        <source src="/hero-hoodlrz-video.mp4" type="video/mp4" />
+      </video>
+
+      {/* Deux voiles plutot qu'un seul a 60 %. Un voile uniforme assez
+          dense pour rendre le texte lisible efface la video ; un voile
+          leger partout plus une ombre concentree au centre garde le
+          dessin visible sur les bords et le texte lisible au milieu. */}
+      <div className="absolute inset-0 bg-black/45" aria-hidden />
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(ellipse 70% 70% at 50% 50%, rgba(0,0,0,.8), rgba(0,0,0,0) 78%)" }}
+        style={{
+          background:
+            "radial-gradient(ellipse 65% 65% at 50% 50%, rgba(0,0,0,.85), rgba(0,0,0,0) 80%)",
+        }}
         aria-hidden
       />
 
-      {/* La marque d'abord, en petit : elle est deja partout ailleurs.
-          Ce que le visiteur doit emporter de cette page, c'est la date du
-          drop - donc c'est elle qui prend la place. */}
-      <div className="relative z-10 flex max-w-3xl flex-col items-center gap-3 text-center">
+      <div className="relative z-10 flex w-full max-w-xl flex-col items-center gap-5 text-center">
         <h1 className="font-hoodlrz text-2xl font-bold leading-none tracking-wider text-white sm:text-3xl">
           hOodlrz
         </h1>
@@ -277,37 +292,20 @@ function Hero() {
           Own the identity. Collect the culture.
         </p>
 
-        <div className="mt-6 w-full border border-white/15 bg-black/50 px-6 py-8 backdrop-blur-sm sm:px-10">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/50">
-            New collection
-          </p>
-          <p className="font-hoodlrz mt-2 text-[34px] font-bold leading-none tracking-wider text-white sm:text-[52px]">
-            Hoodlrz Gen Kids
-          </p>
+        <TokenGate />
 
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-            <span className="border border-[#c6f24e]/40 bg-[#c6f24e]/10 px-3 py-1 text-[10px] uppercase tracking-widest text-[#c6f24e]">
-              Live on {KIDS_CHAIN.name}
-            </span>
-            <span className="text-[11px] uppercase tracking-widest text-white/50">
-              {KIDS.maxSupply.toLocaleString("en-GB")} pieces · fully on-chain
-            </span>
-          </div>
-
-          <p className="mt-6 text-sm leading-relaxed text-white/70">
-            Minted {fmtDate(PHASE_ISO.publicStart)}. Every piece is drawn live
-            by the engine stored in the contract — browse them here, trade
-            them on OpenSea.
-          </p>
-
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Button variant="primary" size="lg" href="/kids">
-              Browse Gen Kids
-            </Button>
-            <Button variant="secondary" size="lg" href={KIDS_OPENSEA_URL}>
-              Gen Kids on OpenSea
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[11px] uppercase tracking-widest text-white/45">
+          <Link href="/kids" className="transition-colors hover:text-white">
+            Gen Kids · {KIDS.maxSupply.toLocaleString("en-GB")} on-chain
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/collection/hoodlrz" className="transition-colors hover:text-white">
+            OG Hoodlrz
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/news" className="transition-colors hover:text-white">
+            News
+          </Link>
         </div>
       </div>
     </section>

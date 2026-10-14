@@ -42,6 +42,17 @@ const config: Config = {
         full: "9999px",
       },
       keyframes: {
+        /**
+         * Le bandeau des chaines. Il glisse d'exactement la moitie de sa
+         * largeur : la liste y est doublee, donc a -50 % la seconde copie
+         * occupe la place de la premiere au pixel pres et la boucle ne se
+         * voit pas. Le decalage se fait sur translate3d pour rester sur
+         * le compositeur, sans repeindre a chaque image.
+         */
+        defile: {
+          from: { transform: "translate3d(0, 0, 0)" },
+          to: { transform: "translate3d(-50%, 0, 0)" },
+        },
         "cta-glow": {
           "0%, 100%": {
             boxShadow:
