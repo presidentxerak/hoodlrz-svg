@@ -3,11 +3,10 @@
  *
  * DEUX CHOSES, DANS CET ORDRE
  *
- * 1. Une Content-Security-Policy avec nonce. C'est la defense qui compte
- *    vraiment contre l'injection de script : meme si un message piege
- *    parvient a glisser du HTML dans une page, le navigateur refusera de
- *    l'executer faute du nonce du jour. Un nonce doit etre different a
- *    chaque reponse, donc il se fabrique ici et nulle part ailleurs.
+ * 1. Une Content-Security-Policy. Elle refuse tout script venu d'un
+ *    autre domaine, tout formulaire poste ailleurs, tout plugin, et tout
+ *    encadrement par un tiers. Voir `politique` pour ce qu'elle ne fait
+ *    PAS, et pourquoi.
  *
  * 2. La porte. Les sections sociales demandent une session. La liste des
  *    chemins fermes n'est pas recopiee ici : elle est lue dans le modele
@@ -27,22 +26,37 @@ import { isGated } from "@/lib/app/nav";
 /**
  * La politique.
  *
- * 'strict-dynamic' dit au navigateur de faire confiance aux scripts
- * charges PAR un script deja autorise par son nonce. Sans lui, il
- * faudrait enumerer les morceaux que Next charge a la demande, liste qui
- * change a chaque compilation.
+ * POURQUOI PAS DE NONCE, ALORS QUE C'EST LA MEILLEURE DEFENSE
+ * Un nonce doit etre inscrit sur chaque balise script du HTML. Next ne
+ * peut le faire qu'en rendant la page a la demande. Or la plupart des
+ * pages de ce site sont PREGENEREES a la compilation : leur HTML est
+ * ecrit une fois pour toutes, sans nonce. Le middleware y ajoutait
+ * pourtant une politique exigeant un nonce different a chaque reponse.
  *
- * 'unsafe-inline' reste present pour les styles seulement : Tailwind et
- * les animations posent des attributs style, et un style injecte ne
- * s'execute pas. Pour les scripts, il est absent - c'est tout l'interet.
+ * Resultat observe : le navigateur refusait TOUS les scripts de Next, y
+ * compris son propre amorcage. Le site s'affichait et ne reagissait plus
+ * a rien - pas de barre repliable, pas de connexion wallet, pas de jeu.
+ * Une politique qui casse le site ne protege rien, elle met seulement
+ * hors service.
+ *
+ * Ce qui est garde ici bloque toujours l'essentiel : aucun script venu
+ * d'un autre domaine, aucun formulaire poste ailleurs, aucun plugin,
+ * aucun encadrement par un tiers. Ce qui est perdu, dit franchement :
+ * 'unsafe-inline' laisse passer un script injecte dans la page. La vraie
+ * defense contre ca reste a sa place - on n'insere jamais de HTML venu
+ * d'un membre, React echappe tout ce qu'il affiche.
+ *
+ * Revenir au nonce demanderait de rendre toutes les pages a la demande.
+ * C'est un choix possible, mais il se paie en temps de reponse sur
+ * chaque page publique, et il doit etre decide, pas subi.
  */
-function politique(nonce: string, dev: boolean) {
+function politique(dev: boolean) {
   const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
   return [
     `default-src 'self'`,
     // En developpement, Next recompile a chaud avec eval ; en production
     // il n'en a pas besoin et on le lui refuse.
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' ${dev ? "'unsafe-eval'" : ""}`,
+    `script-src 'self' 'unsafe-inline'${dev ? " 'unsafe-eval'" : ""}`,
     `style-src 'self' 'unsafe-inline'`,
     `img-src 'self' blob: data: https:`,
     `font-src 'self' data:`,
@@ -67,14 +81,8 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const dev = process.env.NODE_ENV !== "production";
 
-  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
-  const csp = politique(nonce, dev);
-
-  // Next lit le nonce dans la CSP de la REQUETE pour en marquer ses
-  // propres balises script ; il faut donc la poser des deux cotes.
+  const csp = politique(dev);
   const enTetes = new Headers(request.headers);
-  enTetes.set("x-nonce", nonce);
-  enTetes.set("content-security-policy", csp);
 
   const suite = () => {
     const r = NextResponse.next({ request: { headers: enTetes } });
@@ -156,6 +164,16 @@ export const config = {
    * du site.
    */
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|sw.js|offline.html|manifest.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|avif|ico|woff|woff2|ttf|mp4|mov|mp3)$).*)",
+    /**
+     * Tout sauf les fichiers servis tels quels, ET le jeu.
+     *
+     * `game/` est exclu pour une raison precise : le jeu est un fichier
+     * HTML autonome qui porte onze scripts en ligne et charge three.js
+     * depuis un CDN. La politique a nonce ci-dessus les refuse tous -
+     * c'est son travail - et le jeu reste un ecran noir. Il recoit donc
+     * sa propre politique, plus permissive et limitee a son chemin,
+     * posee dans next.config.mjs.
+     */
+    "/((?!_next/static|_next/image|favicon.ico|sw.js|offline.html|manifest.webmanifest|game/|.*\\.(?:png|jpg|jpeg|gif|svg|webp|avif|ico|woff|woff2|ttf|mp4|mov|mp3)$).*)",
   ],
 };

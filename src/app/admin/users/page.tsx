@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search } from "lucide-react";
+import { IconSearch } from "@/components/ui/icons";
 
 // TODO: Replace with Supabase query
 const DEMO_USERS = [
@@ -43,7 +43,7 @@ export default function AdminUsers() {
 
         {/* Search */}
         <div className="relative w-full sm:w-72">
-          <Search
+          <IconSearch
             size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"
           />

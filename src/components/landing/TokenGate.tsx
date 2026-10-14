@@ -23,8 +23,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Check, Loader2, ShieldCheck, Wallet } from "lucide-react";
-import { adresseConnectee, demanderConnexion, signer, walletDisponible } from "@/lib/web3/signer";
+import { IconCheck, IconShield, IconSpinner, IconWallet } from "@/components/ui/icons";
+import {
+  adresseConnectee,
+  demanderConnexion,
+  fournisseurCourant,
+  signer,
+  walletDisponible,
+} from "@/lib/web3/signer";
+import { surWallets } from "@/lib/web3/providers";
+import WalletPicker from "./WalletPicker";
 
 type Etape = "repos" | "connexion" | "signature" | "lecture" | "detenteur" | "refuse";
 
@@ -32,11 +40,30 @@ export default function TokenGate() {
   const [etape, setEtape] = useState<Etape>("repos");
   const [erreur, setErreur] = useState<string | null>(null);
   const [avoirs, setAvoirs] = useState<Record<string, number>>({});
-  const [dispo, setDispo] = useState(true);
+  /**
+   * `null` tant qu'on cherche encore.
+   *
+   * Cette nuance est tout le correctif : l'ancienne version decidait
+   * « pas de wallet » au premier rendu, avant meme que les extensions
+   * aient fini de s'injecter, et proposait un lien de telechargement a
+   * des gens qui avaient deja MetaMask.
+   */
+  const [dispo, setDispo] = useState<boolean | null>(null);
+  const [plusieurs, setPlusieurs] = useState(false);
+  const [aChoisir, setAChoisir] = useState(false);
+
+  useEffect(() => {
+    let vivant = true;
+    void walletDisponible().then((v) => vivant && setDispo(v));
+    const stop = surWallets((l) => vivant && setPlusieurs(l.length > 1));
+    return () => {
+      vivant = false;
+      stop();
+    };
+  }, []);
 
   // Un visiteur deja connecte ne doit pas resigner pour rien.
   useEffect(() => {
-    setDispo(walletDisponible());
     fetch("/api/auth/holder")
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
@@ -51,8 +78,17 @@ export default function TokenGate() {
     setErreur(null);
     try {
       setEtape("connexion");
+
+      // Plusieurs wallets installes et aucun choix memorise : on demande
+      // lequel plutot que d'en ouvrir un au hasard.
+      if (!(await fournisseurCourant())) {
+        setAChoisir(true);
+        setEtape("repos");
+        return;
+      }
+
       const adresse = (await adresseConnectee()) ?? (await demanderConnexion());
-      if (!adresse) throw new Error("Aucun wallet connecte.");
+      if (!adresse) throw new Error("La connexion a ete fermee sans choisir de compte.");
 
       setEtape("signature");
       const r1 = await fetch("/api/auth/wallet/nonce", {
@@ -91,7 +127,7 @@ export default function TokenGate() {
   return (
     <div className="w-full border border-white/15 bg-black/60 p-6 backdrop-blur-md sm:p-8">
       <p className="flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-white/50">
-        <ShieldCheck size={12} />
+        <IconShield size={12} />
         Holders only
       </p>
 
@@ -109,7 +145,7 @@ export default function TokenGate() {
       {etape === "detenteur" ? (
         <div className="mt-6">
           <p className="flex items-center justify-center gap-2 text-sm font-medium text-[#c6f24e]">
-            <Check size={16} />
+            <IconCheck size={16} />
             {total > 0
               ? `${total} piece${total > 1 ? "s" : ""} found. You are in.`
               : "Verified. You are in."}
@@ -156,11 +192,11 @@ export default function TokenGate() {
         <div className="mt-6">
           <button
             onClick={verifier}
-            disabled={occupe || !dispo}
+            disabled={occupe || dispo === false}
             className="inline-flex w-full items-center justify-center gap-2 bg-accent-magenta px-6 py-3
                        text-xs font-bold uppercase tracking-widest text-white disabled:opacity-50 sm:w-auto"
           >
-            {occupe ? <Loader2 size={14} className="animate-spin" /> : <Wallet size={14} />}
+            {occupe ? <IconSpinner size={14} /> : <IconWallet size={14} />}
             {etape === "connexion"
               ? "Opening your wallet…"
               : etape === "signature"
@@ -170,10 +206,16 @@ export default function TokenGate() {
                   : "Connect wallet"}
           </button>
 
+          {(aChoisir || plusieurs) && (
+            <WalletPicker onChoix={() => { setAChoisir(false); void verifier(); }} />
+          )}
+
           <p className="mt-4 text-xs leading-relaxed text-white/45">
-            {dispo
-              ? "A signature, not a transaction. No gas, nothing spent, nothing approved."
-              : "No wallet detected in this browser. Open this page in your wallet app, or install one."}
+            {dispo === null
+              ? "Looking for your wallet…"
+              : dispo
+                ? "A signature, not a transaction. No gas, nothing spent, nothing approved."
+                : "No wallet extension answered. Open this page inside your wallet app, or install one."}
           </p>
 
           {erreur && <p className="mt-3 text-xs text-accent-red">{erreur}</p>}

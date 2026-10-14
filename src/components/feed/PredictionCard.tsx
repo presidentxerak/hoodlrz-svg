@@ -16,7 +16,7 @@
  */
 
 import { useState } from "react";
-import { Check, X, Clock } from "lucide-react";
+import { IconCheck, IconClock, IconX } from "@/components/ui/icons";
 
 export interface Prediction {
   id: string;
@@ -112,9 +112,9 @@ export default function PredictionCard({
             ) : (
               <>
                 {prediction.outcome ? (
-                  <Check size={15} className="text-emerald-500" />
+                  <IconCheck size={15} className="text-emerald-500" />
                 ) : (
-                  <X size={15} className="text-accent-red" />
+                  <IconX size={15} className="text-accent-red" />
                 )}
                 <span className="font-medium text-foreground">
                   Resolved {prediction.outcome ? "Yes" : "No"}
@@ -124,7 +124,7 @@ export default function PredictionCard({
           </p>
         ) : ferme ? (
           <p className="flex items-center gap-2 text-sm text-muted">
-            <Clock size={14} />
+            <IconClock size={14} />
             Closed — waiting for resolution.
           </p>
         ) : position ? (

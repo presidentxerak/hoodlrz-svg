@@ -70,6 +70,44 @@ const nextConfig = {
         ],
       },
       {
+        /**
+         * Le jeu hOodlrz CITY.
+         *
+         * C'est un fichier HTML autonome : onze scripts en ligne et
+         * three.js charge depuis un CDN. La politique a nonce du
+         * middleware les refuse tous, et le jeu reste un ecran noir -
+         * c'est ce qui l'avait casse. Il est donc exclu du middleware et
+         * recoit cette politique-ci, plus permissive mais limitee a son
+         * chemin : le reste du site garde la protection stricte.
+         *
+         * Ce qui reste ferme meme ici : object-src, base-uri, et
+         * form-action. Un jeu n'a aucune raison de poster un formulaire
+         * vers un domaine tiers.
+         */
+        source: "/game/:path*",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+              // Le jeu charge sa police chez Google : la feuille vient de
+              // fonts.googleapis.com, les fichiers de fonts.gstatic.com.
+              // Les deux hotes sont necessaires, l'un sans l'autre ne
+              // donne rien.
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "img-src 'self' blob: data:",
+              "font-src 'self' data: https://fonts.gstatic.com",
+              "connect-src 'self'",
+              "frame-ancestors 'self'",
+              "base-uri 'self'",
+              "form-action 'self'",
+              "object-src 'none'",
+            ].join("; "),
+          },
+        ],
+      },
+      {
         // Rien de ce que renvoie l'API ne doit etre garde par un cache
         // partage : ces reponses dependent de qui demande.
         source: "/api/:path*",

@@ -10,7 +10,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Coins } from "lucide-react";
+import { IconCoins } from "@/components/ui/icons";
 import { PageShell, PageHeader, EmptyState } from "@/components/app/Page";
 import PredictionCard, { type Prediction, type MaPosition } from "@/components/feed/PredictionCard";
 
@@ -94,7 +94,7 @@ export default function MarketClient() {
         subtitle="Open questions on crypto, NFTs and meme coins. Take a side with Hdlrz; winners split both pools."
         action={
           <span className="flex items-center gap-1.5 border border-[var(--border)] px-3 py-1.5 text-xs">
-            <Coins size={13} className="text-accent-magenta" />
+            <IconCoins size={13} className="text-accent-magenta" />
             <span className="font-medium text-foreground">{solde.toLocaleString("fr")}</span>
             <span className="text-muted">Hdlrz</span>
           </span>

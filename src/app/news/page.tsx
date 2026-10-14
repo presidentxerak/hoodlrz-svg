@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ExternalLink } from "lucide-react";
+import { IconExternal } from "@/components/ui/icons";
 import { createClient } from "@/lib/supabase/server";
 import { PageShell, PageHeader, EmptyState } from "@/components/app/Page";
 
@@ -108,7 +108,7 @@ export default async function NewsPage() {
                         </time>
                         <span className="flex items-center gap-1 text-[11px] text-muted transition-colors group-hover:text-foreground">
                           Read
-                          <ExternalLink size={11} />
+                          <IconExternal size={11} />
                         </span>
                       </div>
                     </div>

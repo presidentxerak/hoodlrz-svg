@@ -17,7 +17,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, LogOut, Search } from "lucide-react";
+import { IconBell, IconLogOut, IconSearch } from "@/components/ui/icons";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import { createClient } from "@/lib/supabase/client";
 
@@ -75,7 +75,7 @@ export default function TopBar() {
         </Link>
 
         <label className="relative hidden min-w-0 flex-1 items-center sm:flex">
-          <Search size={15} className="pointer-events-none absolute left-3 text-muted" />
+          <IconSearch size={15} className="pointer-events-none absolute left-3 text-muted" />
           <input
             type="search"
             placeholder="Search"
@@ -93,7 +93,7 @@ export default function TopBar() {
               aria-label="Notifications"
               className="p-2 text-muted transition-colors hover:text-foreground"
             >
-              <Bell size={17} />
+              <IconBell size={17} />
             </Link>
           )}
 
@@ -116,7 +116,7 @@ export default function TopBar() {
                 aria-label="Log out"
                 className="p-2 text-muted transition-colors hover:text-foreground"
               >
-                <LogOut size={16} />
+                <IconLogOut size={16} />
               </button>
             </>
           ) : (

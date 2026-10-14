@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Lock, Plus, Send, ShieldCheck } from "lucide-react";
+import { IconLock, IconPlus, IconSend, IconShield } from "@/components/ui/icons";
 import { useE2E, type Message } from "./useE2E";
 
 export default function GroupsClient() {
@@ -52,7 +52,7 @@ export default function GroupsClient() {
     return (
       <div className="flex min-h-[70dvh] items-center justify-center px-4">
         <div className="flex max-w-md flex-col items-center gap-5 text-center">
-          <Lock size={24} className="text-muted" />
+          <IconLock size={24} className="text-muted" />
           <h1 className="font-hoodlrz text-[28px] font-bold tracking-wider">Unlock messages</h1>
           <p className="text-sm leading-relaxed text-muted">
             Your conversations are encrypted with a key derived from your wallet
@@ -92,7 +92,7 @@ export default function GroupsClient() {
             title="New group"
             className="p-1.5 text-muted transition-colors hover:text-foreground"
           >
-            <Plus size={18} />
+            <IconPlus size={18} />
           </button>
         </div>
 
@@ -127,7 +127,7 @@ export default function GroupsClient() {
         </div>
 
         <p className="flex items-center gap-1.5 border-t border-[var(--border)] px-4 py-2.5 text-[11px] text-muted">
-          <ShieldCheck size={12} />
+          <IconShield size={12} />
           End-to-end encrypted
         </p>
       </aside>
@@ -135,7 +135,7 @@ export default function GroupsClient() {
       <section className={`flex-1 flex-col ${ouverte ? "flex" : "hidden lg:flex"}`}>
         {!conv ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-            <Lock size={22} className="text-muted" />
+            <IconLock size={22} className="text-muted" />
             <p className="max-w-[42ch] text-sm leading-relaxed text-muted">
               Pick a conversation. Messages are sealed on your device; the server
               stores ciphertext and never holds a key that opens it.
@@ -208,7 +208,7 @@ export default function GroupsClient() {
                 className="flex h-10 w-10 shrink-0 items-center justify-center bg-accent-magenta
                            text-white disabled:opacity-40"
               >
-                <Send size={16} />
+                <IconSend size={16} />
               </button>
             </form>
           </>

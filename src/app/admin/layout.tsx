@@ -3,27 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  Layers,
-  Users,
-  ShoppingCart,
-  Tag,
-  Shield,
-  Gem,
-  Menu,
-  X,
-} from "lucide-react";
+import { IconCart, IconDashboard, IconGem, IconLayers, IconMenu, IconShield, IconTag, IconUsers, IconX } from "@/components/ui/icons";
 import type { ReactNode } from "react";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-  { label: "Collections", href: "/admin/collections", icon: Layers },
-  { label: "Users", href: "/admin/users", icon: Users },
-  { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
-  { label: "Listings", href: "/admin/listings", icon: Tag },
-  { label: "Whitelist", href: "/admin/whitelist", icon: Shield },
-  { label: "Genesis", href: "/admin/genesis", icon: Gem },
+  { label: "Dashboard", href: "/admin", icon: IconDashboard },
+  { label: "Collections", href: "/admin/collections", icon: IconLayers },
+  { label: "Users", href: "/admin/users", icon: IconUsers },
+  { label: "Orders", href: "/admin/orders", icon: IconCart },
+  { label: "Listings", href: "/admin/listings", icon: IconTag },
+  { label: "Whitelist", href: "/admin/whitelist", icon: IconShield },
+  { label: "Genesis", href: "/admin/genesis", icon: IconGem },
 ] as const;
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -84,7 +74,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             onClick={() => setMobileOpen(!mobileOpen)}
             className="w-8 h-8 flex items-center justify-center text-foreground"
           >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+            {mobileOpen ? <IconX size={18} /> : <IconMenu size={18} />}
           </button>
         </div>
 

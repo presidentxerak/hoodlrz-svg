@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { IconDownload, IconX } from "@/components/ui/icons";
 
 interface InvitePwa extends Event {
   prompt: () => Promise<void>;
@@ -92,11 +92,11 @@ export default function PwaRegister() {
         className="flex shrink-0 items-center gap-1.5 bg-accent-magenta px-3 py-1.5 text-xs font-bold
                    uppercase tracking-widest text-white"
       >
-        <Download size={13} />
+        <IconDownload size={13} />
         Install
       </button>
       <button onClick={refuser} aria-label="Dismiss" className="shrink-0 p-1 text-muted hover:text-foreground">
-        <X size={15} />
+        <IconX size={15} />
       </button>
     </div>
   );

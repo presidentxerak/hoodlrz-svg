@@ -1,18 +1,12 @@
-import {
-  Users,
-  Layers,
-  ShoppingCart,
-  Tag,
-  DollarSign,
-} from "lucide-react";
+import { IconCart, IconDollar, IconLayers, IconTag, IconUsers } from "@/components/ui/icons";
 
 // TODO: Fetch real stats from Supabase
 const STATS = [
-  { label: "Total Users", value: "1,284", icon: Users, change: "+12%" },
-  { label: "Total Collections", value: "6", icon: Layers, change: "+1" },
-  { label: "Total Orders", value: "842", icon: ShoppingCart, change: "+38" },
-  { label: "Active Listings", value: "127", icon: Tag, change: "+5" },
-  { label: "Total Revenue", value: "$48,320", icon: DollarSign, change: "+8.2%" },
+  { label: "Total Users", value: "1,284", icon: IconUsers, change: "+12%" },
+  { label: "Total Collections", value: "6", icon: IconLayers, change: "+1" },
+  { label: "Total Orders", value: "842", icon: IconCart, change: "+38" },
+  { label: "Active Listings", value: "127", icon: IconTag, change: "+5" },
+  { label: "Total Revenue", value: "$48,320", icon: IconDollar, change: "+8.2%" },
 ] as const;
 
 // TODO: Replace with Supabase query

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Gem, Plus, Trash2 } from "lucide-react";
+import { IconGem, IconPlus, IconTrash } from "@/components/ui/icons";
 
 // TODO: Replace with Supabase query
 const INITIAL_ACCESS = [
@@ -68,7 +68,7 @@ export default function AdminGenesis() {
       <div className="border border-accent-red/20 bg-gradient-to-r from-accent-red/5 to-accent-magenta/5 p-6">
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 bg-gradient-to-r from-accent-red to-accent-magenta flex items-center justify-center flex-shrink-0">
-            <Gem size={18} className="text-white" />
+            <IconGem size={18} className="text-white" />
           </div>
           <div>
             <h2 className="text-sm font-bold uppercase tracking-widest text-foreground mb-1">
@@ -114,7 +114,7 @@ export default function AdminGenesis() {
             onClick={handleGrant}
             className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-accent-red to-accent-magenta text-white px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:scale-[1.03] transition-transform"
           >
-            <Plus size={14} />
+            <IconPlus size={14} />
             Grant
           </button>
         </div>
@@ -179,7 +179,7 @@ export default function AdminGenesis() {
                       className="w-8 h-8 flex items-center justify-center text-muted hover:text-accent-red transition-colors"
                       aria-label="Revoke access"
                     >
-                      <Trash2 size={14} />
+                      <IconTrash size={14} />
                     </button>
                   </td>
                 </tr>

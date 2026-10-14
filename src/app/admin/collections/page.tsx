@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { IconPencil, IconPlus, IconTrash } from "@/components/ui/icons";
 
 // TODO: Replace with Supabase query
 const DEMO_COLLECTIONS = [
@@ -54,7 +54,7 @@ export default function AdminCollections() {
           onClick={handleAdd}
           className="inline-flex items-center gap-2 bg-gradient-to-r from-accent-red to-accent-magenta text-white px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:scale-[1.03] transition-transform"
         >
-          <Plus size={14} />
+          <IconPlus size={14} />
           Add Collection
         </button>
       </div>
@@ -124,14 +124,14 @@ export default function AdminCollections() {
                         className="w-8 h-8 flex items-center justify-center text-muted hover:text-foreground transition-colors"
                         aria-label="Edit"
                       >
-                        <Pencil size={14} />
+                        <IconPencil size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(c.id)}
                         className="w-8 h-8 flex items-center justify-center text-muted hover:text-accent-red transition-colors"
                         aria-label="Delete"
                       >
-                        <Trash2 size={14} />
+                        <IconTrash size={14} />
                       </button>
                     </div>
                   </td>

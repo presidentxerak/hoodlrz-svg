@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { IconTrash } from "@/components/ui/icons";
 
 // TODO: Replace with Supabase query
 const DEMO_LISTINGS = [
@@ -85,7 +85,7 @@ export default function AdminListings() {
                       className="w-8 h-8 flex items-center justify-center text-muted hover:text-accent-red transition-colors"
                       aria-label="Remove listing"
                     >
-                      <Trash2 size={14} />
+                      <IconTrash size={14} />
                     </button>
                   </td>
                 </tr>

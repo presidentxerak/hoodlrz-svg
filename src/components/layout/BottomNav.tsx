@@ -15,29 +15,25 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Home,
-  TrendingUp,
-  MessagesSquare,
-  LayoutGrid,
-  User,
-  type LucideIcon,
-} from "lucide-react";
+  IconFeed,
+  IconMarket,
+  IconGroups,
+  IconCollections,
+  IconProfile,
+  type IconProps,
+} from "@/components/ui/icons";
 import { MOBILE_NAV } from "@/lib/app/nav";
 
-const ICONS: Record<string, LucideIcon> = {
-  Home,
-  TrendingUp,
-  MessagesSquare,
-  LayoutGrid,
-  User,
+const ICONS: Record<string, (p: IconProps) => JSX.Element> = {
+  Home: IconFeed,
+  TrendingUp: IconMarket,
+  MessagesSquare: IconGroups,
+  LayoutGrid: IconCollections,
+  User: IconProfile,
 };
 
 export default function BottomNav() {
   const pathname = usePathname() ?? "/";
-
-  // Le jeu hOodlrz CITY occupe tout le viewport mobile : la barre
-  // mangerait le bas de l'iframe et couperait la zone de jeu.
-  if (pathname.startsWith("/city")) return null;
 
   return (
     <nav
@@ -46,7 +42,7 @@ export default function BottomNav() {
                  backdrop-blur-md md:hidden"
     >
       {MOBILE_NAV.map((item) => {
-        const Icon = ICONS[item.icon] ?? Home;
+        const Icon = ICONS[item.icon] ?? IconFeed;
         const actif =
           pathname === item.href || pathname.startsWith(item.href + "/");
 

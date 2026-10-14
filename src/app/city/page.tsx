@@ -11,7 +11,8 @@
 // means the tap is treated as a top-level navigation and reliably opens
 // MetaMask on every browser we tested.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { IconX } from "@/components/ui/icons";
 
 // Production canonical host. The MetaMask deep-link MUST point here
 // (not at the Vercel preview URL `hoodlrz-j1mj-…vercel.app` the user
@@ -28,6 +29,8 @@ const BUILD_ID =
 
 export default function CityPage() {
   const [showMm, setShowMm] = useState(false);
+  const cadre = useRef<HTMLDivElement>(null);
+  const [plein, setPlein] = useState(false);
 
   useEffect(() => {
     // The game is OPEN to everyone now - no wallet needed to enter, so we
@@ -44,6 +47,35 @@ export default function CityPage() {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  /**
+   * Le plein ecran passe par l'API du navigateur, pas par une classe CSS.
+   *
+   * Un conteneur en `position: fixed` qui couvre la fenetre ressemble a du
+   * plein ecran mais n'en est pas : la barre d'URL reste, le navigateur
+   * continue d'intercepter Echap, et surtout le verrouillage du pointeur
+   * - dont un jeu a la premiere personne depend - n'est pas accorde hors
+   * d'un vrai plein ecran sur plusieurs navigateurs.
+   *
+   * L'etat est lu sur l'evenement du navigateur et non pose a la main :
+   * l'utilisateur peut sortir par Echap sans passer par notre bouton.
+   */
+  useEffect(() => {
+    const suivre = () => setPlein(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", suivre);
+    return () => document.removeEventListener("fullscreenchange", suivre);
+  }, []);
+
+  const basculer = async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await cadre.current?.requestFullscreen();
+    } catch {
+      // Refus possible : iframe sans permission, ou navigateur qui exige
+      // un geste direct. On laisse le jeu dans la page plutot que de
+      // bloquer sur une erreur.
+    }
+  };
+
   // ALWAYS deep-link to the production host. If we used
   // window.location.host the user on the preview URL would land back
   // on a SSO-protected preview deployment inside MetaMask.
@@ -52,31 +84,62 @@ export default function CityPage() {
   const bareUrl = `https://${PROD_HOST}/city`;
 
   return (
-    <>
-      {/* Wrapper-based iframe sizing (option 3) - browser computes
-          height from top+bottom, iframe fills 100%/100%. */}
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider sm:text-[40px]">
+            hOodlrz City
+            <span className="ml-3 border border-accent-magenta/60 px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase tracking-widest text-accent-magenta">
+              Beta
+            </span>
+          </h1>
+          <p className="mt-2 text-sm text-muted">
+            Walk the block. Open to everyone, no wallet needed.
+          </p>
+        </div>
+        <button
+          onClick={basculer}
+          className="border border-[var(--border)] px-4 py-2 text-xs font-bold uppercase
+                     tracking-widest text-foreground transition-colors hover:bg-[var(--surface)]"
+        >
+          {plein ? "Exit full screen" : "Full screen"}
+        </button>
+      </header>
+
+      {/*
+        Le jeu vit DANS la page, et non plus en position fixe par-dessus.
+        Hors plein ecran il garde un rapport 16/10 borne en hauteur : sans
+        ce plafond, sur un ecran large la zone de jeu depasse la fenetre et
+        on ne voit plus ni le titre ni le bouton.
+      */}
       <div
-        style={{
-          position: "fixed",
-          top: "3.5rem",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 1,
-        }}
+        ref={cadre}
+        className="relative w-full border border-[var(--border)] bg-black"
+        style={{ aspectRatio: "16 / 10", maxHeight: "calc(100dvh - 12rem)" }}
       >
         <iframe
           src={`/game/hoodlrz-city.html?v=${BUILD_ID}`}
           title="hOodlrz CITY (Beta)"
-          style={{
-            width: "100%",
-            height: "100%",
-            border: 0,
-            display: "block",
-          }}
+          className="absolute inset-0 block h-full w-full border-0"
           allow="fullscreen; gamepad; accelerometer; microphone; clipboard-read; clipboard-write"
         />
+
+        {/* En plein ecran, le bouton de la page n'est plus visible : il
+            faut une sortie a l'interieur du cadre. Echap marche aussi,
+            mais un joueur qui vient de verrouiller son pointeur ne le
+            sait pas forcement. */}
+        {plein && (
+          <button
+            onClick={basculer}
+            aria-label="Exit full screen"
+            className="absolute right-3 top-3 z-10 border border-white/30 bg-black/60 p-2 text-white
+                       backdrop-blur-sm transition-colors hover:bg-black/80"
+          >
+            <IconX size={16} />
+          </button>
+        )}
       </div>
+
       {showMm && (
         <MmPrompt
           universalLink={universalLink}
@@ -85,7 +148,7 @@ export default function CityPage() {
           onClose={() => setShowMm(false)}
         />
       )}
-    </>
+    </div>
   );
 }
 

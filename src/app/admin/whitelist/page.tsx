@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { IconPlus, IconTrash } from "@/components/ui/icons";
 
 // TODO: Replace with Supabase query
 const INITIAL_WHITELIST = [
@@ -82,7 +82,7 @@ export default function AdminWhitelist() {
             onClick={handleAdd}
             className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-accent-red to-accent-magenta text-white px-5 py-2.5 text-xs font-bold uppercase tracking-widest hover:scale-[1.03] transition-transform"
           >
-            <Plus size={14} />
+            <IconPlus size={14} />
             Add
           </button>
         </div>
@@ -142,7 +142,7 @@ export default function AdminWhitelist() {
                       className="w-8 h-8 flex items-center justify-center text-muted hover:text-accent-red transition-colors"
                       aria-label="Remove from whitelist"
                     >
-                      <Trash2 size={14} />
+                      <IconTrash size={14} />
                     </button>
                   </td>
                 </tr>

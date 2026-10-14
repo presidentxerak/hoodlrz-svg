@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { Coins, Gift, Send } from "lucide-react";
+import { IconCoins, IconGift, IconSend } from "@/components/ui/icons";
 import { PageShell, PageHeader, EmptyState } from "@/components/app/Page";
 import PredictionCard, { type Prediction, type MaPosition } from "./PredictionCard";
 
@@ -145,7 +145,7 @@ export default function FeedClient() {
         action={
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 border border-[var(--border)] px-3 py-1.5 text-xs">
-              <Coins size={13} className="text-accent-magenta" />
+              <IconCoins size={13} className="text-accent-magenta" />
               <span className="font-medium text-foreground">{solde.toLocaleString("fr")}</span>
               <span className="text-muted">Hdlrz</span>
             </span>
@@ -156,7 +156,7 @@ export default function FeedClient() {
                 className="flex items-center gap-1.5 bg-accent-magenta px-3 py-1.5 text-xs font-bold
                            uppercase tracking-widest text-white"
               >
-                <Gift size={13} />
+                <IconGift size={13} />
                 +100
               </button>
             )}
@@ -236,7 +236,7 @@ export default function FeedClient() {
             className="flex items-center gap-1.5 bg-accent-magenta px-4 py-2 text-xs font-bold
                        uppercase tracking-widest text-white disabled:opacity-40"
           >
-            <Send size={13} />
+            <IconSend size={13} />
             Post
           </button>
         </div>

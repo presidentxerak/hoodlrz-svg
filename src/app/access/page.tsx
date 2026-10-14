@@ -4,66 +4,22 @@ import { useState, useEffect, type FormEvent } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
+import { surWallets, type WalletDetecte } from "@/lib/web3/providers";
+import { choisirWallet } from "@/lib/web3/signer";
 
 type AuthTab = "wallet" | "email";
 type EmailMode = "signin" | "signup";
 
-// EVM wallet detection - supports multiple coexisting wallets
-function getAvailableWallets(): { name: string; icon: string; provider: unknown }[] {
-  if (typeof window === "undefined") return [];
-
-  const wallets: { name: string; icon: string; provider: unknown }[] = [];
-  const seen = new Set<string>();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const win = window as any;
-  const eth = win.ethereum;
-
-  // Some wallets register in window.ethereum.providers (EIP-5749 style)
-  const providers: unknown[] = eth?.providers || (eth ? [eth] : []);
-
-  for (const p of providers) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const prov = p as any;
-    if (prov.isRabby && !seen.has("rabby")) {
-      wallets.push({ name: "Rabby", icon: "🐰", provider: prov });
-      seen.add("rabby");
-    }
-    if (prov.isMetaMask && !prov.isRabby && !seen.has("metamask")) {
-      wallets.push({ name: "MetaMask", icon: "🦊", provider: prov });
-      seen.add("metamask");
-    }
-    if (prov.isRainbow && !seen.has("rainbow")) {
-      wallets.push({ name: "Rainbow", icon: "🌈", provider: prov });
-      seen.add("rainbow");
-    }
-    if (prov.isCoinbaseWallet && !seen.has("coinbase")) {
-      wallets.push({ name: "Coinbase Wallet", icon: "🔵", provider: prov });
-      seen.add("coinbase");
-    }
-    if (prov.isBraveWallet && !seen.has("brave")) {
-      wallets.push({ name: "Brave Wallet", icon: "🦁", provider: prov });
-      seen.add("brave");
-    }
-    if (prov.isZerion && !seen.has("zerion")) {
-      wallets.push({ name: "Zerion", icon: "⚡", provider: prov });
-      seen.add("zerion");
-    }
-  }
-
-  // Phantom injects on window.phantom.ethereum separately
-  if (win.phantom?.ethereum && !seen.has("phantom")) {
-    wallets.push({ name: "Phantom", icon: "👻", provider: win.phantom.ethereum });
-    seen.add("phantom");
-  }
-
-  // Fallback: if no known wallet detected but ethereum exists
-  if (wallets.length === 0 && eth) {
-    wallets.push({ name: "Browser Wallet", icon: "💎", provider: eth });
-  }
-
-  return wallets;
-}
+/**
+ * La detection des wallets vit dans lib/web3/providers.
+ *
+ * Elle etait faite ici, en lisant `window.ethereum` pendant le rendu.
+ * C'etait la cause du bug : une extension injecte son fournisseur quand
+ * elle a fini de se charger, souvent APRES le premier rendu. La lecture
+ * rendait donc une liste vide, et la page affichait « aucun wallet
+ * detecte » avec des liens de telechargement a des gens qui avaient deja
+ * l'extension installee.
+ */
 
 export default function AccessPage() {
   const [tab, setTab] = useState<AuthTab>("wallet");
@@ -124,6 +80,21 @@ export default function AccessPage() {
     const eth = (window as any).ethereum;
     setInMetaMaskApp(/MetaMaskMobile/i.test(ua) || (mobile && Boolean(eth?.isMetaMask)));
   }, []);
+  /**
+   * Les wallets annonces. `cherche` passe a true quand la detection a eu
+   * le temps de tourner : c'est lui, et non la longueur de la liste, qui
+   * autorise a dire « aucun wallet ». Sans cette distinction on accuse
+   * l'utilisateur de ne pas avoir de wallet pendant les 300 ms ou son
+   * extension se charge.
+   */
+  const [wallets, setWallets] = useState<WalletDetecte[]>([]);
+  const [cherche, setCherche] = useState(false);
+  useEffect(() => {
+    const stop = surWallets(setWallets);
+    const t = setTimeout(() => setCherche(true), 1600);
+    return () => { stop(); clearTimeout(t); };
+  }, []);
+
   const walletLoading = walletStep !== "idle" && walletStep !== "done";
   const stepLabel: Record<ConnectStep, string> = {
     idle: "Connect",
@@ -304,7 +275,6 @@ export default function AccessPage() {
     }
   }
 
-  const wallets = getAvailableWallets();
 
   /**
    * L'ecran que voit un wallet sans PFP.
@@ -432,8 +402,8 @@ export default function AccessPage() {
               <div className="w-full flex flex-col gap-2">
                 {wallets.map((w) => (
                   <button
-                    key={w.name}
-                    onClick={() => connectWallet(w.provider)}
+                    key={w.id}
+                    onClick={() => { choisirWallet(w); connectWallet(w.fournisseur); }}
                     disabled={walletLoading}
                     className={[
                       "w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm",
@@ -443,8 +413,11 @@ export default function AccessPage() {
                       walletLoading ? "opacity-60 pointer-events-none" : "",
                     ].join(" ")}
                   >
-                    <span className="text-base">{w.icon}</span>
-                    {walletLoading ? stepLabel[walletStep] : `Connect ${w.name}`}
+                    {w.icone && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={w.icone} alt="" className="h-5 w-5" />
+                    )}
+                    {walletLoading ? stepLabel[walletStep] : `Connect ${w.nom}`}
                   </button>
                 ))}
               </div>
@@ -482,7 +455,7 @@ export default function AccessPage() {
               </a>
             )}
 
-            {wallets.length === 0 && (
+            {cherche && wallets.length === 0 && (
               <div className="w-full flex flex-col gap-3">
                 <p className="text-xs text-center text-muted">
                   {isMobile
@@ -508,6 +481,10 @@ export default function AccessPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {!cherche && wallets.length === 0 && (
+              <p className="text-xs text-center text-muted">Looking for your wallet…</p>
             )}
 
             {walletError && (
