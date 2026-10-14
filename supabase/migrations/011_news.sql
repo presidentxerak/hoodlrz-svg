@@ -1,44 +1,49 @@
--- Les articles hebdomadaires.
+-- La veille hebdomadaire : des liens, pas des articles.
 --
--- Un travail programme collecte des sources publiques une fois par
--- semaine, les reecrit, et publie. L'illustration est calculee a partir
--- du titre et stockee avec l'article : une image generee a l'affichage
--- changerait a chaque visite et ne pourrait pas etre mise en cache.
+-- CE QUI EST STOCKE, ET CE QUI NE L'EST PAS
+-- Le titre, le resume que le flux publie lui-meme, l'editeur et l'URL.
+-- Rien de plus. Pas de corps d'article : nous n'ecrivons pas, nous
+-- selectionnons. Le lecteur clique et part lire chez l'editeur, qui
+-- garde sa visite, sa publicite et son attribution.
 --
--- LES SOURCES SONT CONSERVEES ET AFFICHEES. Un article reecrit a partir
--- du travail d'autrui sans dire d'ou il vient est un plagiat, quelle que
--- soit la machine qui l'a reecrit. La colonne `sources` n'est donc pas
--- optionnelle au sens editorial, meme si la base l'accepte vide.
+-- C'est aussi ce qui rend la section defendable. Republier un texte
+-- reecrit a partir du travail d'autrui est un plagiat, quelle que soit
+-- la machine qui reecrit ; relayer un titre et un resume que l'editeur
+-- publie POUR etre repris ne l'est pas.
+--
+-- L'ILLUSTRATION N'EST PAS STOCKEE. Elle est calculee a partir du titre,
+-- de maniere deterministe : le meme lien redonne la meme image. La
+-- garder en base ajouterait 26 Ko par ligne pour un resultat qu'on sait
+-- reproduire en quelques millisecondes.
 
-create table if not exists public.news_articles (
-  id          uuid primary key default uuid_generate_v4(),
-  slug        text not null unique,
-  title       text not null check (char_length(title) between 8 and 200),
-  summary     text not null check (char_length(summary) between 20 and 400),
-  body        text not null,
-  category    text not null default 'crypto'
-                check (category in ('crypto', 'nft', 'memecoin')),
-  -- [{ title, url, publisher }]. Affichees au bas de l'article.
-  sources     jsonb not null default '[]'::jsonb,
-  -- SVG genere a partir du titre, deterministe.
-  illustration text not null,
-  accent      text not null default '#ff36c8',
-  -- Semaine ISO de publication, « 2026-W42 ». Unique avec la categorie :
-  -- deux executions du cron la meme semaine ne doivent pas publier deux
-  -- fois le meme sujet.
-  week        text not null,
-  published_at timestamptz not null default now()
+create table if not exists public.news_links (
+  id         uuid primary key default uuid_generate_v4(),
+  -- Unique : le meme article revient dans plusieurs flux, et revient
+  -- d'une semaine a l'autre. Sans cette contrainte, la page se remplit
+  -- de doublons.
+  url        text not null unique,
+  title      text not null check (char_length(title) between 8 and 300),
+  summary    text not null default '',
+  publisher  text not null,
+  category   text not null default 'crypto'
+               check (category in ('crypto', 'nft', 'memecoin')),
+  accent     text not null default '#ff36c8',
+  -- La date de l'editeur, pas celle de la collecte : c'est elle qui
+  -- classe un lien comme recent ou non.
+  published_at timestamptz not null,
+  collected_at timestamptz not null default now(),
+  week       text not null
 );
 
-create unique index if not exists news_week_category_idx
-  on public.news_articles (week, category);
+create index if not exists news_links_recent_idx
+  on public.news_links (published_at desc);
 
-create index if not exists news_published_idx
-  on public.news_articles (published_at desc);
+create index if not exists news_links_category_idx
+  on public.news_links (category, published_at desc);
 
 -- Le journal des executions : sans lui, un cron qui echoue en silence
--- passe inapercu jusqu'a ce que quelqu'un remarque qu'il n'y a plus
--- d'article depuis un mois.
+-- passe inapercu jusqu'a ce que quelqu'un remarque qu'il n'y a plus rien
+-- de neuf depuis un mois.
 create table if not exists public.news_runs (
   id         bigserial primary key,
   week       text not null,
@@ -47,14 +52,14 @@ create table if not exists public.news_runs (
   created_at timestamptz not null default now()
 );
 
-alter table public.news_articles enable row level security;
-alter table public.news_runs     enable row level security;
+alter table public.news_links enable row level security;
+alter table public.news_runs  enable row level security;
 
--- Les articles sont lisibles par tout le monde, connecte ou non : c'est
--- la seule section du reseau qui a vocation a etre partagee au-dehors et
--- a faire venir des gens.
-drop policy if exists "les articles sont publics" on public.news_articles;
-create policy "les articles sont publics" on public.news_articles
+-- Les liens sont lisibles par tout le monde, connecte ou non : c'est la
+-- seule section du reseau qui a vocation a etre partagee au-dehors et a
+-- faire venir des gens jusqu'a la porte.
+drop policy if exists "les liens sont publics" on public.news_links;
+create policy "les liens sont publics" on public.news_links
   for select using (true);
 
 drop policy if exists "les executions sont pour les admins" on public.news_runs;

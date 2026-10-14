@@ -37,8 +37,7 @@ service ne doit jamais porter ce préfixe.
 | `ALCHEMY_API_KEY` | RPC des deux chaînes, et snapshots de holders | Repli sur les RPC publics, limités en débit |
 | `ETH_MAINNET_RPC` | Force un fournisseur Ethereum | Alchemy, puis un endpoint public |
 | `RH_MAINNET_RPC` | Force un fournisseur Robinhood Chain | Alchemy, puis l'endpoint public |
-| `CRON_SECRET` | Authentifie le travail hebdomadaire des News | La route refuse tout, y compris le programmateur |
-| `ANTHROPIC_API_KEY` | Réécriture des articles | Aucun article n'est publié, l'échec est journalisé |
+| `CRON_SECRET` | Authentifie la veille hebdomadaire | La route refuse tout, y compris le programmateur |
 
 ### Déjà en place
 
@@ -68,7 +67,7 @@ est celui des numéros.
 | **`008_holder_gate.sql`** | Adresse du wallet, verdict de détention, avoirs, unicité du pseudonyme |
 | **`009_messaging.sql`** | Clés publiques, conversations, membres, messages chiffrés, annuaire |
 | **`010_hdlrz_predictions.sql`** | Solde Hdlrz, journal, feed, marchés binaires, mise et résolution |
-| **`011_news.sql`** | Articles hebdomadaires et journal des exécutions |
+| **`011_news.sql`** | Liens de la veille hebdomadaire et journal des exécutions |
 
 ### Les appliquer
 
@@ -110,11 +109,16 @@ URL qui ressemble à Supabase, parce qu'il détruit la base qu'il crée.
 | **Supabase** | Base, authentification, stockage des images Gen Kids | Tout |
 | **Ethereum** (via Alchemy) | Lecture de détention OG Hoodlrz | La porte ne sait pas, elle ne dit pas « non » |
 | **Robinhood Chain** (via Alchemy) | Lecture de détention Gen Kids, contrats de la collection | Idem |
-| **Vercel Cron** | Déclenche les News le lundi 7 h UTC, et City toutes les 30 min | Pas de nouvel article |
-| **API Anthropic** | Réécriture des articles | Aucun article publié, échec journalisé |
-| **Flux RSS** (CoinDesk, Decrypt, Cointelegraph) | Matière première des News | Un éditeur muet manque à l'appel, les autres passent |
+| **Vercel Cron** | Déclenche la veille le lundi 7 h UTC, et City toutes les 30 min | Aucun lien nouveau |
+| **Flux RSS** (CoinDesk, Decrypt, Cointelegraph) | La veille : titres, résumés et liens | Un éditeur muet manque à l'appel, les autres passent |
 | **Stripe** | Paiement des vinyles | Boutique vinyle seulement |
 | **OpenSea** | Marché secondaire, deux chaînes | Rien côté app : la propriété se lit sur la chaîne |
+
+La section News **n'écrit rien**. Elle relaie un titre, le résumé que
+l'éditeur publie lui-même, et un lien vers chez lui, ouvert dans un
+nouvel onglet. Le classement entre crypto, NFT et meme coin se fait par
+mots-clés, sans appel de modèle : trier des titres ne justifie pas une
+dépendance extérieure qui tombe un lundi matin.
 
 ### Ce qui ne dépend d'aucun service
 
@@ -127,8 +131,8 @@ tiers ne peut lire une conversation, nous compris.
 ## 4. Après la mise en ligne
 
 1. Passer les migrations (section 2).
-2. Poser `CRON_SECRET`, `ANTHROPIC_API_KEY`, `ETH_MAINNET_RPC`.
-3. Déclencher les News une fois à la main pour ne pas attendre lundi :
+2. Poser `CRON_SECRET` et `ETH_MAINNET_RPC`.
+3. Déclencher la veille une fois à la main pour ne pas attendre lundi :
    ```bash
    curl -X POST https://www.hoodlrz.com/api/cron/news \
      -H "Authorization: Bearer $CRON_SECRET"

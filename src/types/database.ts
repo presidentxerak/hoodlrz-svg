@@ -838,49 +838,49 @@ export interface Database {
         Relationships: [];
       };
 
-      /* ── News hebdomadaires (migration 011) ───────────────────────── */
-      news_articles: {
+      /* ── Veille hebdomadaire (migration 011) ──────────────────────
+       * Des liens, pas des articles : titre, resume publie par
+       * l'editeur, et URL vers chez lui. Aucun corps d'article, et
+       * aucune illustration stockee - elle est calculee a la demande a
+       * partir du titre, de maniere deterministe. */
+      news_links: {
         Row: {
           id: string;
-          slug: string;
+          /** Unique : le meme article revient dans plusieurs flux. */
+          url: string;
           title: string;
           summary: string;
-          body: string;
+          publisher: string;
           category: "crypto" | "nft" | "memecoin";
-          /** [{ title, url, publisher }], affichees au bas de l'article. */
-          sources: Json;
-          /** SVG genere a partir du titre, deterministe. */
-          illustration: string;
           accent: string;
-          /** Semaine ISO, « 2026-W42 ». Unique avec la categorie. */
-          week: string;
+          /** La date de l'editeur, pas celle de la collecte. */
           published_at: string;
+          collected_at: string;
+          week: string;
         };
         Insert: {
           id?: string;
-          slug: string;
+          url: string;
           title: string;
-          summary: string;
-          body: string;
+          summary?: string;
+          publisher: string;
           category?: "crypto" | "nft" | "memecoin";
-          sources?: Json;
-          illustration: string;
           accent?: string;
+          published_at: string;
+          collected_at?: string;
           week: string;
-          published_at?: string;
         };
         Update: {
           id?: string;
-          slug?: string;
+          url?: string;
           title?: string;
           summary?: string;
-          body?: string;
+          publisher?: string;
           category?: "crypto" | "nft" | "memecoin";
-          sources?: Json;
-          illustration?: string;
           accent?: string;
-          week?: string;
           published_at?: string;
+          collected_at?: string;
+          week?: string;
         };
         Relationships: [];
       };
