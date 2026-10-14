@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from "react";
 import { IconCoins } from "@/components/ui/icons";
 import { PageShell, PageHeader, EmptyState } from "@/components/app/Page";
 import PredictionCard, { type Prediction, type MaPosition } from "@/components/feed/PredictionCard";
+import CoursPanel from "./Cours";
 
 const CATEGORIES = [
   { cle: "", nom: "All" },
@@ -100,6 +101,12 @@ export default function MarketClient() {
           </span>
         }
       />
+
+      {/* Les cours d'abord : on vient au Market pour voir ou en sont les
+          prix, les marches de prediction se lisent ensuite. */}
+      <CoursPanel />
+
+      <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-muted">Predictions</h2>
 
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((c) => (
