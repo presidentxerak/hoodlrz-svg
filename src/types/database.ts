@@ -837,6 +837,78 @@ export interface Database {
         };
         Relationships: [];
       };
+
+      /* ── News hebdomadaires (migration 011) ───────────────────────── */
+      news_articles: {
+        Row: {
+          id: string;
+          slug: string;
+          title: string;
+          summary: string;
+          body: string;
+          category: "crypto" | "nft" | "memecoin";
+          /** [{ title, url, publisher }], affichees au bas de l'article. */
+          sources: Json;
+          /** SVG genere a partir du titre, deterministe. */
+          illustration: string;
+          accent: string;
+          /** Semaine ISO, « 2026-W42 ». Unique avec la categorie. */
+          week: string;
+          published_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          title: string;
+          summary: string;
+          body: string;
+          category?: "crypto" | "nft" | "memecoin";
+          sources?: Json;
+          illustration: string;
+          accent?: string;
+          week: string;
+          published_at?: string;
+        };
+        Update: {
+          id?: string;
+          slug?: string;
+          title?: string;
+          summary?: string;
+          body?: string;
+          category?: "crypto" | "nft" | "memecoin";
+          sources?: Json;
+          illustration?: string;
+          accent?: string;
+          week?: string;
+          published_at?: string;
+        };
+        Relationships: [];
+      };
+
+      news_runs: {
+        Row: {
+          id: number;
+          week: string;
+          ok: boolean;
+          detail: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          week: string;
+          ok: boolean;
+          detail?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          week?: string;
+          ok?: boolean;
+          detail?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       /** Pseudonyme et cle publique, rien d'autre. Jamais d'adresse de

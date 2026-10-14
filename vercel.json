@@ -4,6 +4,10 @@
     {
       "path": "/api/city/refresh",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/news",
+      "schedule": "0 7 * * 1"
     }
   ],
   "headers": [
