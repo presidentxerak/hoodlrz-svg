@@ -81,9 +81,35 @@ npm run db:migrate -- --baseline 007   # aligne le suivi, n'exécute rien
 npm run db:migrate                     # applique 008 à 011
 ```
 
-`--etat` dit ce qui manque sans rien écrire. `--print` sort le SQL
-restant, à coller dans l'éditeur SQL de Supabase si l'accès direct au
-port 5432 est bloqué.
+`--etat` dit ce qui manque sans rien écrire.
+
+### Sans terminal, ou si le port 5432 est bloqué
+
+`--print` sort le SQL **sans se connecter à la base** : c'est tout son
+intérêt, on s'en sert justement quand on ne peut pas joindre Postgres.
+
+```bash
+npm run db:migrate -- --print --depuis 008 > migrations.sql
+```
+
+Ouvrir ensuite Supabase, **SQL Editor → New query**, et exécuter chaque
+migration **dans l'ordre des numéros**, une par une. Les fichiers sont
+aussi lisibles directement dans
+[`supabase/migrations/`](../supabase/migrations).
+
+### Où trouver SUPABASE_DB_URL
+
+Tableau de bord Supabase → **Settings → Database → Connection string →
+URI**. Remplacer `[YOUR-PASSWORD]` par le mot de passe de la base. Si le
+port 5432 est bloqué par le réseau, prendre la variante **Session
+pooler** sur la même page.
+
+Ce n'est NI la clé `anon` NI la clé `service_role` : celles-ci parlent à
+l'API REST, qui ne sait pas créer une table.
+
+La variable posée sur Vercel ne sert qu'au site déployé. `db:migrate`
+tourne sur le poste de travail : il la lui faut dans `.env.local`, à la
+racine du dépôt.
 
 Chaque migration passe dans sa propre transaction : un échec sur la
 quatrième n'annule pas les trois précédentes.

@@ -24,7 +24,8 @@
  * Usage :
  *   npm run db:migrate                     applique ce qui manque
  *   npm run db:migrate -- --etat           dit ou on en est, n'ecrit rien
- *   npm run db:migrate -- --print          affiche le SQL restant, pour l'editeur Supabase
+ *   npm run db:migrate -- --print          affiche le SQL, sans connexion
+ *   npm run db:migrate -- --print --depuis 008 > migrations.sql
  *   npm run db:migrate -- --baseline 007   marque 001 a 007 comme deja passees
  */
 
@@ -76,6 +77,43 @@ const toutes = migrations();
 if (!toutes.length) {
   console.error(`\n  Aucun fichier .sql dans ${DOSSIER}.\n`);
   process.exit(2);
+}
+
+/**
+ * --print n'a PAS besoin de la base.
+ *
+ * C'est tout son interet : on s'en sert quand on ne peut pas joindre
+ * Postgres - port 5432 ferme par le reseau, pas de chaine de connexion
+ * sous la main - et qu'on veut coller le SQL dans l'editeur de Supabase.
+ * Exiger une connexion pour imprimer un fichier qui est deja sur le
+ * disque serait absurde.
+ *
+ * --depuis NNN limite aux migrations a partir de ce numero. Sans lui, on
+ * imprimerait aussi les sept premieres, deja passees a la main.
+ */
+if (has('--print')) {
+  const seuil = Number(val('--depuis') ?? 0);
+  const choisies = toutes.filter((m) => Number(m.nom.slice(0, 3)) >= seuil);
+
+  if (!choisies.length) {
+    console.error(`\n  Aucune migration a partir de ${seuil}.\n`);
+    process.exit(2);
+  }
+
+  // Tout part sur la sortie standard, y compris l'en-tete : la sortie
+  // est faite pour etre redirigee vers un fichier ou collee telle quelle,
+  // et un commentaire SQL ne gene pas.
+  console.log(`-- Hoodlrz — ${choisies.length} migration(s)`);
+  console.log(`-- A coller dans Supabase : SQL Editor > New query.`);
+  console.log(`-- Les executer DANS CET ORDRE, une par une.\n`);
+  for (const m of choisies) {
+    console.log(`-- ${'='.repeat(66)}`);
+    console.log(`-- ${m.nom}`);
+    console.log(`-- ${'='.repeat(66)}`);
+    console.log(m.sql.trimEnd());
+    console.log('');
+  }
+  process.exit(0);
 }
 
 const chaine = url();
@@ -202,12 +240,6 @@ for (const m of restantes) console.log(`    ${m.nom}`);
 console.log('');
 
 if (has('--etat')) {
-  await client.end();
-  process.exit(0);
-}
-
-if (has('--print')) {
-  console.log(restantes.map((m) => `-- ${'='.repeat(66)}\n-- ${m.nom}\n-- ${'='.repeat(66)}\n${m.sql}`).join('\n'));
   await client.end();
   process.exit(0);
 }
