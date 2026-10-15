@@ -189,6 +189,17 @@ export default function AccessPage() {
   const reverifier = useCallback(async () => {
     setErreur("");
     const r = await fetch("/api/auth/holder", { method: "POST" });
+
+    // 401 ne veut pas dire « ce wallet ne detient rien » : il veut dire
+    // « vous n'etes pas connecte ». Les confondre affichait un refus de
+    // detention a quelqu'un dont la session n'avait simplement pas ete
+    // ouverte - exactement ce qui se passait.
+    if (r.status === 401) {
+      setRefuse(false);
+      setErreur("Votre session a expire. Reconnectez votre wallet.");
+      return;
+    }
+
     const j = await r.json().catch(() => ({ holder: false }));
     if (Array.isArray(j.details)) setDetails(j.details);
     if (j.holder) {

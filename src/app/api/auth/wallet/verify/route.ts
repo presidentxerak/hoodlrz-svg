@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { attacherCookies, sessionOuverte, type CookieAPoser } from "@/lib/security/session";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerClient } from "@supabase/ssr";
@@ -210,24 +211,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 5. Create session ──
+    /* ── 5. La session ──────────────────────────────────────────────
+     *
+     * LE BUG QUI A TENU DES JOURS, ET QUI ETAIT ICI.
+     *
+     * Les cookies etaient poses par `cookies().set(...)`, entoure d'un
+     * try/catch vide. Quand cette ecriture echoue - et elle echoue dans
+     * un gestionnaire de route - l'erreur etait avalee, la route
+     * repondait quand meme « success: true », et AUCUN cookie de session
+     * ne partait. Le navigateur restait anonyme.
+     *
+     * D'ou le symptome, inexplicable autrement : l'application annonce
+     * « 11 pieces trouvees, vous etes dedans », puis redemande la
+     * connexion a la page suivante. La verification avait bien eu lieu,
+     * le resultat etait juste, mais rien ne le gardait. Et dans la
+     * console, /api/auth/holder repondait 401 en boucle.
+     *
+     * Les cookies sont donc collectes puis poses sur la REPONSE, ce
+     * qu'un gestionnaire de route peut toujours faire. Et si Supabase
+     * n'en produit aucun, on le dit au lieu de pretendre que tout va
+     * bien.
+     */
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const cookieStore = cookies();
+    const lus = cookies();
+    const aPoser: CookieAPoser[] = [];
 
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // May fail in certain contexts
-          }
+        getAll: () => lus.getAll(),
+        setAll: (liste) => {
+          // On collecte, on n'ecrit pas encore : l'ecriture se fait sur
+          // la reponse, juste en dessous.
+          liste.forEach((c) => aPoser.push(c as CookieAPoser));
         },
       },
     });
@@ -242,16 +258,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create session." }, { status: 500 });
     }
 
+    if (!sessionOuverte(aPoser)) {
+      // Sans cookie, la session n'existe pas pour la requete suivante.
+      // Le dire franchement vaut mieux qu'un succes qui n'en est pas un.
+      console.error("[auth/wallet/verify] Aucun cookie de session produit.");
+      return NextResponse.json(
+        { error: "La session n'a pas pu etre ouverte. Reessayez." },
+        { status: 500 },
+      );
+    }
+
     // La session est creee meme pour un non-detenteur : il faut pouvoir
-    // lui dire ce qui lui manque, et lui laisser relancer la verification
-    // apres un achat sans recommencer la signature.
-    return NextResponse.json({
+    // lui dire ce qui lui manque, et lui laisser relancer la
+    // verification apres un achat sans recommencer la signature.
+    const reponse = NextResponse.json({
       success: true,
       address: addrLower,
-      // Schema incomplet : la session est bien ouverte, mais le statut de
-      // detenteur n'a pas pu etre enregistre. L'interface le dit plutot
-      // que de renvoyer l'utilisateur vers une porte qui refusera sans
-      // explication.
+      // Schema incomplet : la session est bien ouverte, mais le statut
+      // de detenteur n'a pas pu etre enregistre.
       holder: schemaOk ? verdict.detenteur : false,
       holdings: verdict.pieces,
       partial: verdict.partiel,
@@ -262,6 +286,8 @@ export async function POST(request: NextRequest) {
       details: verdict.details,
       schema: schemaOk ? "ok" : "incomplet",
     });
+
+    return attacherCookies(reponse, aPoser);
   } catch (err) {
     console.error("[auth/wallet/verify] Error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

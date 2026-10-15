@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { attacherCookies, sessionOuverte, type CookieAPoser } from "@/lib/security/session";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createServerClient } from "@supabase/ssr";
@@ -35,22 +36,18 @@ export async function POST(request: NextRequest) {
     // Create session
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    const cookieStore = cookies();
+    // Les cookies sont collectes puis poses sur la REPONSE, et non par
+    // cookies().set() entoure d'un try/catch vide. Cette ecriture-la
+    // echoue dans un gestionnaire de route, l'erreur etait avalee, et la
+    // route repondait « success » sans qu'aucune session ne soit ouverte.
+    // Meme defaut que sur la connexion par wallet, meme correctif.
+    const lus = cookies();
+    const aPoser: CookieAPoser[] = [];
 
     const supabase = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // May fail in certain contexts
-          }
-        },
+        getAll: () => lus.getAll(),
+        setAll: (liste) => liste.forEach((c) => aPoser.push(c as CookieAPoser)),
       },
     });
 
@@ -64,7 +61,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Sign in failed. Please try again." }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    if (!sessionOuverte(aPoser)) {
+      console.error("[auth/signin] Aucun cookie de session produit.");
+      return NextResponse.json(
+        { error: "La session n'a pas pu etre ouverte. Reessayez." },
+        { status: 500 },
+      );
+    }
+
+    const reponse = NextResponse.json({ success: true });
+    return attacherCookies(reponse, aPoser);
   } catch (err) {
     console.error("[auth/signin] Error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

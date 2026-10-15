@@ -22,6 +22,11 @@
 
 import { NextResponse } from "next/server";
 import { redirigerAvecCookies } from "../../src/lib/security/redirect";
+import {
+  attacherCookies,
+  sessionOuverte,
+  type CookieAPoser,
+} from "../../src/lib/security/session";
 
 let echecs = 0;
 function verifier(nom: string, condition: boolean) {
@@ -73,9 +78,35 @@ verifier(
   nue.cookies.getAll().length === 0,
 );
 
+/* ── Ouvrir une session depuis un gestionnaire de route ──────────────
+ * Le bug : les cookies etaient poses par cookies().set(), entoure d'un
+ * try/catch vide. Quand cette ecriture echouait, la route repondait
+ * « success » sans qu'aucun cookie ne parte. Le navigateur restait
+ * anonyme, et /api/auth/holder rendait 401 en boucle. */
+{
+  const aPoser: CookieAPoser[] = [
+    { name: "sb-access-token", value: "jeton", options: { path: "/", httpOnly: true } },
+    { name: "sb-refresh-token", value: "refresh", options: { path: "/", httpOnly: true } },
+  ];
+
+  verifier("deux cookies produits valent une session ouverte", sessionOuverte(aPoser) === true);
+  verifier("aucun cookie ne vaut PAS une session", sessionOuverte([]) === false);
+
+  const r = attacherCookies(NextResponse.json({ success: true }), aPoser);
+  verifier("la reponse porte les deux cookies", r.cookies.getAll().length === 2);
+  verifier(
+    "le jeton d'acces y est, avec sa valeur",
+    r.cookies.get("sb-access-token")?.value === "jeton",
+  );
+  verifier(
+    "les attributs de securite sont conserves",
+    r.cookies.getAll().every((c) => c.httpOnly === true && c.path === "/"),
+  );
+}
+
 console.log(
   echecs === 0
-    ? "\nTout passe. Une redirection du middleware n'efface plus la session.\n"
+    ? "\nTout passe. La session s'ouvre et survit aux redirections.\n"
     : `\n${echecs} verification(s) en echec.\n`,
 );
 process.exit(echecs === 0 ? 0 : 1);
