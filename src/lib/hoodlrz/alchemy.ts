@@ -117,3 +117,62 @@ export async function fetchNFTMetadata(
     return null;
   }
 }
+
+/**
+ * Combien de pieces d'un contrat ce wallet detient-il ?
+ *
+ * POURQUOI CETTE FONCTION EST ICI ET PAS DANS LA PORTE
+ * La porte avait sa propre lecture, avec ses propres noms de variables
+ * d'environnement : ALCHEMY_API_KEY et NEXT_PUBLIC_HOODLRZ_STREET_ADDRESS.
+ * Le reste du site lit ALCHEMY_KEY et HOODLRZ_CONTRACT. Deux
+ * configurations pour une seule chose : le site affichait les pieces
+ * d'un membre dans sa collection, et la porte en comptait zero pour le
+ * meme wallet.
+ *
+ * Tout ce qui interroge Alchemy passe donc desormais par ce module, qui
+ * connait les deux noms.
+ *
+ * ELLE DISTINGUE « ZERO » DE « JE N'AI PAS PU LIRE ». `fetchNFTsForOwner`
+ * rend un tableau vide dans les deux cas, ce qui rend un refus
+ * indiscernable d'une panne. Ici l'erreur remonte.
+ */
+export async function compterNFTs(
+  wallet: string,
+  contrat: string = CONTRACT,
+): Promise<{ nombre?: number; erreur?: string; via: string }> {
+  const via = `${NETWORK}.g.alchemy.com`;
+  const key = getKey();
+  if (!key) {
+    return { erreur: "Aucune cle Alchemy (ALCHEMY_KEY ou ALCHEMY_API_KEY).", via };
+  }
+
+  try {
+    // getNFTsForOwner plutot que balanceOf : c'est l'appel que le reste
+    // du site utilise deja avec succes sur ce contrat, et il traverse
+    // les memes reglages de compte Alchemy.
+    const u = new URL(`https://${NETWORK}.g.alchemy.com/nft/v3/${key}/getNFTsForOwner`);
+    u.searchParams.set("owner", wallet);
+    u.searchParams.append("contractAddresses[]", contrat);
+    u.searchParams.set("withMetadata", "false");
+    u.searchParams.set("pageSize", "100");
+
+    const res = await fetch(u, { signal: AbortSignal.timeout(12_000), cache: "no-store" });
+    if (!res.ok) {
+      const texte = (await res.text()).slice(0, 140).replace(/\s+/g, " ");
+      return { erreur: `Alchemy HTTP ${res.status} — ${texte}`, via };
+    }
+    const data = (await res.json()) as { totalCount?: number; ownedNfts?: unknown[] };
+    // totalCount compte au-dela de la page ; ownedNfts sert de repli si
+    // le champ manque.
+    const nombre = typeof data.totalCount === "number"
+      ? data.totalCount
+      : (data.ownedNfts?.length ?? 0);
+    return { nombre, via };
+  } catch (e) {
+    return { erreur: String((e as Error)?.message ?? e).slice(0, 140), via };
+  }
+}
+
+/** Le contrat OG Hoodlrz reellement utilise, pour l'affichage du
+ *  diagnostic. */
+export const CONTRAT_OG = CONTRACT;

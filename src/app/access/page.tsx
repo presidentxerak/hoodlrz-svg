@@ -1,724 +1,392 @@
 "use client";
 
-import { useState, useEffect, type FormEvent } from "react";
-import Button from "@/components/ui/Button";
-import Input from "@/components/ui/Input";
+/**
+ * La page de connexion. Une seule, et une seule facon d'entrer.
+ *
+ * CE QU'ELLE A REMPLACE
+ * Un ecran a deux onglets d'egale importance, Wallet et Email, plus un
+ * bloc du hero qui refaisait le meme parcours en parallele. Trois
+ * surfaces pour une seule chose, dont une - le courriel - qui ne pouvait
+ * PAS fonctionner : le statut de detenteur n'est inscrit que par la
+ * verification de signature, donc un compte cree par courriel se faisait
+ * refuser a la porte quoi qu'il arrive. D'ou l'impression d'avoir
+ * plusieurs fenetres de connexion dont aucune ne marche. Elle etait
+ * juste.
+ *
+ * Il reste quatre etats, dans l'ordre ou on les rencontre :
+ *   recherche  - on cherche un wallet dans le navigateur
+ *   pret       - un ou plusieurs wallets trouves, on propose de signer
+ *   refuse     - signature valide, mais aucune piece detenue
+ *   schema     - la base n'a pas encore les colonnes du reseau prive
+ *
+ * Chaque etat occupe tout l'ecran. Rien n'est affiche « au cas ou ».
+ */
+
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { surWallets, type WalletDetecte } from "@/lib/web3/providers";
 import { choisirWallet } from "@/lib/web3/signer";
-import HoodlrzScene from "@/components/landing/HoodlrzScene";
+import { IconCheck, IconShield, IconSpinner, IconWallet } from "@/components/ui/icons";
 
-type AuthTab = "wallet" | "email";
-type EmailMode = "signin" | "signup";
+interface Detail {
+  nom: string;
+  contrat: string;
+  chainId: number;
+  via: string;
+  solde?: number;
+  erreur?: string;
+}
 
-/**
- * La detection des wallets vit dans lib/web3/providers.
- *
- * Elle etait faite ici, en lisant `window.ethereum` pendant le rendu.
- * C'etait la cause du bug : une extension injecte son fournisseur quand
- * elle a fini de se charger, souvent APRES le premier rendu. La lecture
- * rendait donc une liste vide, et la page affichait « aucun wallet
- * detecte » avec des liens de telechargement a des gens qui avaient deja
- * l'extension installee.
- */
+type Etape = "repos" | "connexion" | "signature" | "verification" | "entre";
+
+const TELECHARGEMENTS = [
+  { nom: "MetaMask", url: "https://metamask.io/download/" },
+  { nom: "Rabby", url: "https://rabby.io/" },
+  { nom: "Phantom", url: "https://phantom.app/download" },
+  { nom: "Rainbow", url: "https://rainbow.me/download" },
+];
 
 export default function AccessPage() {
-  const [tab, setTab] = useState<AuthTab>("wallet");
-  const [emailMode, setEmailMode] = useState<EmailMode>("signin");
-
-  /**
-   * La porte des detenteurs.
-   *
-   * Un membre connecte mais sans PFP est renvoye ici par le middleware
-   * avec ?gate=holder. Il ne faut surtout pas le relancer aussitot vers
-   * une section fermee : il repartirait vers /access, et ainsi de suite.
-   * La destination est donc decidee apres avoir demande son statut.
-   */
-  const [barre, setBarre] = useState(false);
-  /** La base n'a pas encore les colonnes du reseau prive. Distinct de
-   *  « pas de PFP » : ce n'est pas la faute du visiteur, et la reponse
-   *  n'est pas « achete une piece ». */
-  const [schemaKo, setSchemaKo] = useState(false);
-  /** Ce que chaque contrat a repondu. Affiche sous le refus : sans ce
-   *  detail, « vous ne detenez rien » est indiscernable d'un mauvais
-   *  contrat ou d'un RPC muet, et on cherche a l'aveugle. */
-  const [details, setDetails] = useState<
-    { nom: string; contrat: string; chainId: number; via: string; solde?: number; erreur?: string }[]
-  >([]);
-
-  useEffect(() => {
-    const p = new URLSearchParams(window.location.search);
-    if (p.get("gate") === "schema") setSchemaKo(true);
-  }, []);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session?.user) return;
-      try {
-        const r = await fetch("/api/auth/holder");
-        const j = await r.json();
-        if (j.schema === "incomplet") {
-          setSchemaKo(true);
-          return;
-        }
-        if (j.holder) {
-          const vers = new URLSearchParams(window.location.search).get("redirect");
-          window.location.href = vers && vers.startsWith("/") ? vers : "/feed";
-        } else {
-          if (Array.isArray(j.details)) setDetails(j.details);
-          setBarre(true);
-        }
-      } catch {
-        // Statut illisible : on laisse la page ouverte plutot que de
-        // renvoyer vers une porte qui refusera.
-        setBarre(true);
-      }
-    });
-  }, []);
-
-  // Email state
-  const [email, setEmail] = useState("");
-  const [pseudo, setPseudo] = useState("");
-  const [error, setError] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  // Wallet state
-  type ConnectStep = "idle" | "connecting" | "signing" | "verifying" | "done";
-  const [walletStep, setWalletStep] = useState<ConnectStep>("idle");
-  const [walletError, setWalletError] = useState("");
-  const [isMobile, setIsMobile] = useState(false);
-  const [inMetaMaskApp, setInMetaMaskApp] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const ua = navigator.userAgent;
-    const mobile = /iPhone|iPad|iPod|Android/i.test(ua);
-    setIsMobile(mobile);
-    // True when running inside MetaMask's in-app browser. Either the UA
-    // says so explicitly or we're on mobile AND MetaMask injected itself.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eth = (window as any).ethereum;
-    setInMetaMaskApp(/MetaMaskMobile/i.test(ua) || (mobile && Boolean(eth?.isMetaMask)));
-  }, []);
-  /**
-   * Les wallets annonces. `cherche` passe a true quand la detection a eu
-   * le temps de tourner : c'est lui, et non la longueur de la liste, qui
-   * autorise a dire « aucun wallet ». Sans cette distinction on accuse
-   * l'utilisateur de ne pas avoir de wallet pendant les 300 ms ou son
-   * extension se charge.
-   */
   const [wallets, setWallets] = useState<WalletDetecte[]>([]);
+  /** Vrai quand la detection a eu le temps de tourner. C'est lui, et non
+   *  la longueur de la liste, qui autorise a dire « aucun wallet » : une
+   *  extension met parfois 300 ms a s'injecter, et accuser l'utilisateur
+   *  pendant ce temps-la etait le premier bug de cette page. */
   const [cherche, setCherche] = useState(false);
+
+  const [etape, setEtape] = useState<Etape>("repos");
+  const [erreur, setErreur] = useState("");
+  const [refuse, setRefuse] = useState(false);
+  const [schemaKo, setSchemaKo] = useState(false);
+  const [details, setDetails] = useState<Detail[]>([]);
+  const [pieces, setPieces] = useState(0);
+
+  const occupe = etape !== "repos" && etape !== "entre";
+
+  /* ── Detection des wallets ───────────────────────────────────────── */
   useEffect(() => {
     const stop = surWallets(setWallets);
     const t = setTimeout(() => setCherche(true), 1600);
-    return () => { stop(); clearTimeout(t); };
+    return () => {
+      stop();
+      clearTimeout(t);
+    };
   }, []);
 
-  const walletLoading = walletStep !== "idle" && walletStep !== "done";
-  const stepLabel: Record<ConnectStep, string> = {
-    idle: "Connect",
-    connecting: "Approve in your wallet…",
-    signing: "Sign the message…",
-    verifying: "Verifying…",
-    done: "Connected ✓",
-  };
+  /* ── Deja connecte ? ─────────────────────────────────────────────── */
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("gate") === "schema") setSchemaKo(true);
 
-  async function handleEmailSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    if (!email || !email.includes("@")) {
-      setError("Enter a valid email address.");
-      return;
-    }
-
-    if (emailMode === "signup" && (!pseudo || pseudo.trim().length < 2)) {
-      setError("Choose a pseudo (at least 2 characters).");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      if (emailMode === "signin") {
-        // Sign in: existing user - connect directly and go to My Collection
-        const res = await fetch("/api/auth/signin", {
-          method: "POST",
-          body: JSON.stringify({ email }),
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setError(data.error || "Something went wrong. Please try again.");
-          setLoading(false);
-          return;
+    createClient()
+      .auth.getSession()
+      .then(async ({ data }) => {
+        if (!data.session?.user) return;
+        try {
+          const r = await fetch("/api/auth/holder");
+          const j = await r.json();
+          if (j.schema === "incomplet") {
+            setSchemaKo(true);
+            return;
+          }
+          if (Array.isArray(j.details)) setDetails(j.details);
+          if (j.holder) {
+            entrer();
+            return;
+          }
+          setRefuse(true);
+        } catch {
+          // Statut illisible : on laisse la page de connexion ouverte
+          // plutot que d'envoyer vers une porte qui refusera.
         }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-        setLoading(false);
-        window.location.href = "/profile";
-      } else {
-        // Sign up: send magic link to confirm email
-        const res = await fetch("/api/auth/signup", {
-          method: "POST",
-          body: JSON.stringify({ email, pseudonym: pseudo.trim() }),
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setError(data.error || "Something went wrong. Please try again.");
-          setLoading(false);
-          return;
-        }
-
-        setLoading(false);
-        setSubmitted(true);
-      }
-    } catch {
-      setError("Network error. Please try again.");
-      setLoading(false);
-    }
+  function entrer() {
+    const vers = new URLSearchParams(window.location.search).get("redirect");
+    window.location.href = vers && vers.startsWith("/") ? vers : "/feed";
   }
 
-  async function connectWallet(provider: unknown) {
-    setWalletError("");
-    setWalletStep("connecting");
+  /* ── Le parcours, en une fonction ────────────────────────────────── */
+  const connecter = useCallback(async (w: WalletDetecte) => {
+    setErreur("");
+    choisirWallet(w);
+    const eth = w.fournisseur;
 
     try {
-      const eth = provider as {
-        request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      };
-
-      // 1. Silent probe first - if the wallet has already approved this
-      //    origin we skip the popup. MetaMask mobile in particular reuses
-      //    the approval and an extra prompt at this point confuses users.
-      let accounts: string[] = [];
+      setEtape("connexion");
+      // Sondage silencieux d'abord : si le site est deja autorise, on
+      // evite une fenetre de plus. C'est la premiere des « plusieurs
+      // fenetres » que l'on supprime.
+      let comptes: string[] = [];
       try {
-        accounts = (await eth.request({ method: "eth_accounts" })) as string[];
+        comptes = (await eth.request({ method: "eth_accounts" })) as string[];
       } catch {
-        /* ignore - fall through to eth_requestAccounts */
+        /* on demandera */
       }
-      // 2. Real connect prompt
-      if (!accounts || accounts.length === 0) {
-        accounts = (await eth.request({ method: "eth_requestAccounts" })) as string[];
+      if (!comptes?.length) {
+        comptes = (await eth.request({ method: "eth_requestAccounts" })) as string[];
       }
-      // 3. Mobile retry - some MetaMask Mobile builds return [] even after
-      //    the user approves on the first call. Wait briefly + retry once.
-      if (!accounts || accounts.length === 0) {
-        await new Promise((r) => setTimeout(r, 600));
-        try {
-          accounts = (await eth.request({ method: "eth_accounts" })) as string[];
-        } catch {
-          /* still empty */
-        }
-      }
-      if (!accounts || accounts.length === 0) {
-        setWalletError("No account selected. Unlock your wallet and try again.");
-        setWalletStep("idle");
+      const adresse = comptes?.[0];
+      if (!adresse) {
+        setErreur("No account selected. Unlock your wallet and try again.");
+        setEtape("repos");
         return;
       }
-      const address = accounts[0];
 
-      // Get nonce from server
-      const nonceRes = await fetch("/api/auth/wallet/nonce", {
+      const r1 = await fetch("/api/auth/wallet/nonce", {
         method: "POST",
-        body: JSON.stringify({ address }),
-        headers: { "Content-Type": "application/json" },
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: adresse }),
       });
-      if (!nonceRes.ok) {
-        const data = await nonceRes.json().catch(() => ({}));
-        setWalletError(data.error || "Failed to get nonce.");
-        setWalletStep("idle");
-        return;
+      if (!r1.ok) {
+        // Le message du serveur, et non un « impossible » qui n'apprend
+        // rien : c'est lui qui dit si le probleme vient de la base, de
+        // la limite de debit, ou d'une adresse mal formee.
+        const d = await r1.json().catch(() => ({}));
+        throw new Error(d.error ?? `The server refused the request (HTTP ${r1.status}).`);
       }
-      const { nonce, message } = await nonceRes.json();
+      const { nonce, message } = await r1.json();
 
-      // Sign message
-      setWalletStep("signing");
-      const signature = await eth.request({
-        method: "personal_sign",
-        params: [message, address],
-      });
+      setEtape("signature");
+      const signature = await eth.request({ method: "personal_sign", params: [message, adresse] });
 
-      // Verify signature on server
-      setWalletStep("verifying");
-      const verifyRes = await fetch("/api/auth/wallet/verify", {
+      setEtape("verification");
+      const r2 = await fetch("/api/auth/wallet/verify", {
         method: "POST",
-        body: JSON.stringify({ address, signature, nonce }),
-        headers: { "Content-Type": "application/json" },
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: adresse, signature, nonce }),
       });
+      const j = await r2.json();
+      if (!r2.ok) throw new Error(j.error ?? "Verification refused.");
 
-      if (!verifyRes.ok) {
-        const data = await verifyRes.json().catch(() => ({}));
-        setWalletError(data.error || "Verification failed.");
-        setWalletStep("idle");
-        return;
-      }
-
-      // La signature prouve le wallet ; elle ne prouve pas la detention.
-      // Le serveur a lu la chaine et nous dit laquelle des deux portes
-      // s'ouvre : le reseau, ou l'explication de ce qui manque.
-      const verdict = await verifyRes.json().catch(() => ({ holder: false }));
-      if (Array.isArray(verdict.details)) setDetails(verdict.details);
-      if (verdict.schema === "incomplet") {
-        setWalletStep("idle");
+      if (Array.isArray(j.details)) setDetails(j.details);
+      if (j.schema === "incomplet") {
         setSchemaKo(true);
+        setEtape("repos");
         return;
       }
-      if (!verdict.holder) {
-        setWalletStep("idle");
-        setBarre(true);
+      if (j.holder) {
+        setPieces(
+          Object.values((j.holdings ?? {}) as Record<string, number>).reduce((n, v) => n + v, 0),
+        );
+        setEtape("entre");
+        setTimeout(entrer, 900);
         return;
       }
-
-      // Success. We swap to the "done" state and then redirect. If the
-      // navigation is blocked by the in-app WebView (rare but happens on
-      // some MetaMask Mobile versions), the user can tap the visible
-      // "Continue" button as a manual fallback.
-      setWalletStep("done");
-      setTimeout(() => {
-        try {
-          const vers = new URLSearchParams(window.location.search).get("redirect");
-          window.location.href = vers && vers.startsWith("/") ? vers : "/feed";
-        } catch {
-          /* fallback button is shown */
-        }
-      }, 250);
-    } catch (err) {
-      const e = err as { code?: number; message?: string };
-      const code = e?.code;
-      const msg = e?.message || "Wallet connection failed.";
-      if (code === 4001 || /reject|denied|cancel/i.test(msg)) {
-        setWalletError("Connection cancelled in your wallet.");
-      } else if (code === -32002 || /already pending/i.test(msg)) {
-        setWalletError("A wallet popup is already open — check your wallet app.");
-      } else {
-        setWalletError(msg);
-      }
-      setWalletStep("idle");
+      setRefuse(true);
+      setEtape("repos");
+    } catch (e) {
+      const m = String((e as Error)?.message ?? e);
+      setErreur(
+        /reject|denied|cancel|4001/i.test(m) ? "Signature rejected in the wallet." : m,
+      );
+      setEtape("repos");
     }
-  }
+  }, []);
 
+  const reverifier = useCallback(async () => {
+    setErreur("");
+    const r = await fetch("/api/auth/holder", { method: "POST" });
+    const j = await r.json().catch(() => ({ holder: false }));
+    if (Array.isArray(j.details)) setDetails(j.details);
+    if (j.holder) {
+      entrer();
+      return;
+    }
+    setErreur(
+      j.reliable === false
+        ? "A chain did not answer. Status unchanged, try again in a moment."
+        : "Still no Hoodlrz piece on this wallet.",
+    );
+  }, []);
 
-  /**
-   * L'ecran que voit un wallet sans PFP.
-   *
-   * Il remplace la page entiere plutot que de s'y ajouter : laisser les
-   * onglets de connexion sous le refus inviterait a resigner en boucle,
-   * alors que la seule action utile est d'acquerir une piece - ou de
-   * relancer la lecture si l'achat vient d'etre fait.
-   */
+  /* ── Rendu ───────────────────────────────────────────────────────── */
+  const Cadre = ({ children }: { children: React.ReactNode }) => (
+    <div className="flex min-h-dvh items-center justify-center px-5 py-12">
+      <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">{children}</div>
+    </div>
+  );
+
   if (schemaKo) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center px-4">
-        <div className="flex w-full max-w-lg flex-col items-center gap-5 text-center">
-          <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider sm:text-[40px]">
-            Almost there
-          </h1>
-          <p className="text-sm leading-relaxed text-muted">
-            Your wallet is connected and verified. The database has not been
-            migrated yet, so the network cannot read who holds what.
-          </p>
-          <pre className="w-full overflow-x-auto border border-[var(--border)] bg-[var(--surface)] p-4 text-left text-xs text-foreground">
+      <Cadre>
+        <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider sm:text-[40px]">
+          Almost there
+        </h1>
+        <p className="text-sm leading-relaxed text-muted">
+          Your wallet is verified. The database has not been migrated yet, so the network
+          cannot read who holds what.
+        </p>
+        <pre className="w-full overflow-x-auto border border-[var(--border)] bg-[var(--surface)] p-4 text-left text-xs">
 {`npm run db:migrate -- --baseline 007
 npm run db:migrate`}
-          </pre>
-          <p className="max-w-[46ch] text-xs leading-relaxed text-muted">
-            Nothing is lost: accounts created in the meantime are kept, and
-            their holder status is read on the next sign-in.
-          </p>
-        </div>
-      </div>
+        </pre>
+      </Cadre>
     );
   }
 
-  if (barre) {
+  if (etape === "entre") {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center px-4">
-        <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-          <h1 className="font-hoodlrz text-[32px] font-bold leading-none tracking-wider sm:text-[44px]">
-            Holders only
-          </h1>
-          <p className="text-sm leading-relaxed text-muted">
-            The network opens to wallets that hold a Hoodlrz PFP. Your wallet is
-            connected and verified; it just does not hold one yet.
-          </p>
+      <Cadre>
+        <IconCheck size={28} className="text-[#c6f24e]" />
+        <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider sm:text-[40px]">
+          You are in
+        </h1>
+        <p className="text-sm text-muted">
+          {pieces > 0 ? `${pieces} piece${pieces > 1 ? "s" : ""} on this wallet.` : "Verified."}
+        </p>
+        <a href="/feed" className="bg-accent-magenta px-6 py-3 text-xs font-bold uppercase tracking-widest text-white">
+          Enter
+        </a>
+      </Cadre>
+    );
+  }
 
-          <div className="flex w-full flex-col gap-2 sm:flex-row">
-            <a
-              href="/kids"
-              className="flex-1 border border-[var(--border)] px-4 py-2.5 text-xs font-bold uppercase
-                         tracking-widest text-foreground transition-colors hover:bg-[var(--surface)]"
-            >
-              Gen Kids
-            </a>
-            <a
-              href="/collection/hoodlrz"
-              className="flex-1 border border-[var(--border)] px-4 py-2.5 text-xs font-bold uppercase
-                         tracking-widest text-foreground transition-colors hover:bg-[var(--surface)]"
-            >
-              OG Hoodlrz
-            </a>
-          </div>
+  if (refuse) {
+    return (
+      <Cadre>
+        <h1 className="font-hoodlrz text-[30px] font-bold leading-none tracking-wider sm:text-[40px]">
+          Holders only
+        </h1>
+        <p className="text-sm leading-relaxed text-muted">
+          Your wallet is connected and verified. No Hoodlrz piece was found on it.
+        </p>
 
-          <button
-            onClick={async () => {
-              setWalletError("");
-              const r = await fetch("/api/auth/holder", { method: "POST" });
-              const j = await r.json().catch(() => ({ holder: false }));
-              if (Array.isArray(j.details)) setDetails(j.details);
-              if (j.holder) {
-                window.location.href = "/feed";
-                return;
-              }
-              // Une chaine muette n'est pas un refus : le dire evite
-              // d'envoyer acheter une piece a quelqu'un qui en a deja.
-              setWalletError(
-                j.reliable === false
-                  ? "Une des chaines n'a pas repondu. Reessayez dans un instant."
-                  : "Still no Hoodlrz PFP on this wallet.",
-              );
-            }}
-            className="bg-accent-magenta px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white"
+        <div className="flex w-full flex-col gap-2 sm:flex-row">
+          <a
+            href="/kids"
+            className="flex-1 border border-[var(--border)] px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-[var(--surface)]"
           >
-            I just bought one — check again
-          </button>
-
-          {walletError && <p className="text-xs text-accent-red">{walletError}</p>}
-
-          {/*
-            CE QUI A ETE LU, CONTRAT PAR CONTRAT.
-
-            Un refus sans justification est intenable : le membre voit ses
-            pieces dans son wallet et le site dit non, sans qu'on puisse
-            savoir si c'est le mauvais contrat, la mauvaise chaine ou un
-            RPC muet. Le detail est donc affiche. Il ne revele rien de
-            prive : des adresses de contrat publiques et un nom d'hote.
-          */}
-          {details.length > 0 && (
-            <details className="w-full text-left">
-              <summary className="cursor-pointer text-xs uppercase tracking-widest text-muted">
-                What was checked
-              </summary>
-              <ul className="mt-3 flex flex-col gap-2">
-                {details.map((d) => (
-                  <li
-                    key={d.nom + d.contrat}
-                    className="border border-[var(--border)] bg-[var(--surface)] p-3 text-[11px] leading-relaxed"
-                  >
-                    <span className="font-medium text-foreground">{d.nom}</span>
-                    <span className="text-muted"> · chain {d.chainId} · {d.via}</span>
-                    <span className="mt-1 block break-all font-mono text-muted">{d.contrat}</span>
-                    {d.erreur ? (
-                      <span className="mt-1 block text-accent-red">{d.erreur}</span>
-                    ) : (
-                      <span className="mt-1 block text-foreground">
-                        balance {d.solde ?? 0}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
-
-          <p className="max-w-[40ch] text-xs leading-relaxed text-muted">
-            Ownership is read from the chain, never from a list. Buy on any
-            marketplace and the door opens on the next check.
-          </p>
+            Gen Kids
+          </a>
+          <a
+            href="/collection/hoodlrz"
+            className="flex-1 border border-[var(--border)] px-4 py-2.5 text-xs font-bold uppercase tracking-widest transition-colors hover:bg-[var(--surface)]"
+          >
+            OG Hoodlrz
+          </a>
         </div>
-      </div>
+
+        <button
+          onClick={reverifier}
+          className="bg-accent-magenta px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-white"
+        >
+          Check again
+        </button>
+
+        {erreur && <p className="text-xs text-accent-red">{erreur}</p>}
+
+        {/*
+          CE QUI A ETE LU, CONTRAT PAR CONTRAT.
+          Un refus sans justification est intenable : le membre voit ses
+          pieces dans son wallet et le site dit non. Le detail montre
+          laquelle des trois causes est la bonne - mauvaise adresse,
+          mauvaise chaine, ou fournisseur muet. Rien de prive n'en sort :
+          des adresses publiques et un nom d'hote.
+        */}
+        {details.length > 0 && (
+          <details className="w-full text-left">
+            <summary className="cursor-pointer text-xs uppercase tracking-widest text-muted">
+              What was checked
+            </summary>
+            <ul className="mt-3 flex flex-col gap-2">
+              {details.map((d) => (
+                <li
+                  key={d.nom + d.contrat}
+                  className="border border-[var(--border)] bg-[var(--surface)] p-3 text-[11px] leading-relaxed"
+                >
+                  <span className="font-medium text-foreground">{d.nom}</span>
+                  <span className="text-muted">
+                    {" "}
+                    · chain {d.chainId} · {d.via}
+                  </span>
+                  <span className="mt-1 block break-all font-mono text-muted">{d.contrat}</span>
+                  {d.erreur ? (
+                    <span className="mt-1 block text-accent-red">{d.erreur}</span>
+                  ) : (
+                    <span className="mt-1 block text-foreground">balance {d.solde ?? 0}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </Cadre>
     );
   }
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-2">
-      {/*
-        Le volet d'illustrations.
-        Masque sous 1024 px : sur un telephone, la place sert au
-        formulaire, et une image decorative qui pousse les champs sous la
-        ligne de flottaison coute des connexions.
-      */}
-      <aside className="relative hidden overflow-hidden bg-black lg:block" aria-hidden>
-        <HoodlrzScene className="absolute inset-0 h-full w-full" />
-        {/* Un voile qui fonce vers la droite : le dessin reste lisible au
-            bord gauche et s'efface la ou commence le formulaire. */}
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.75))" }}
-        />
-        {/* Un second voile, vertical celui-la, uniquement derriere le
-            texte. Sans lui, la legende se lit par-dessus un personnage et
-            les deux deviennent illisibles - ce qui etait le cas. */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-1/3"
-          style={{ background: "linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.92) 60%)" }}
-        />
-        <div className="absolute bottom-0 left-0 right-0 p-8">
-          <p className="font-hoodlrz text-3xl font-bold tracking-wider text-white">hOodlrz</p>
-          <p className="mt-2 max-w-[34ch] text-sm leading-relaxed text-white/60">
-            A private network for holders. Encrypted groups, a feed, Yes / No
-            markets and a weekly read.
-          </p>
-        </div>
-      </aside>
+    <Cadre>
+      <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-accent-magenta">
+        <IconShield size={12} />
+        Holders only
+      </p>
+      <h1 className="font-hoodlrz text-[32px] font-bold leading-none tracking-wider sm:text-[44px]">
+        Sign in
+      </h1>
+      <p className="max-w-[40ch] text-sm leading-relaxed text-muted">
+        A signature proves the wallet is yours. No gas, no transaction, nothing approved.
+      </p>
 
-      <div className="flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm flex flex-col items-center gap-8">
-        {/* Title */}
-        <div className="flex flex-col items-center gap-2">
-          <h1 className="font-hoodlrz text-[36px] font-bold leading-none tracking-wider text-foreground sm:text-[48px]">
-            Access
-          </h1>
-          <p className="text-center text-sm leading-relaxed text-muted">
-            The network opens to wallets that hold a Hoodlrz PFP.
-          </p>
-        </div>
-
-        {/*
-          UNE SEULE ENTREE MISE EN AVANT : le wallet.
-
-          Il y avait deux onglets d'egale importance, Wallet et Email.
-          L'entree par courriel est pourtant un cul-de-sac pour le
-          reseau : le statut de detenteur n'est inscrit que par la
-          verification de signature, donc un compte sans wallet ne peut
-          JAMAIS passer la porte. Lui donner la moitie de l'ecran
-          revenait a proposer une deuxieme connexion qui ne mene nulle
-          part - d'ou l'impression d'avoir plusieurs fenetres de
-          connexion dont aucune ne marche.
-
-          Le courriel reste accessible, en bas et nomme pour ce qu'il
-          sert vraiment : les commandes de vinyles.
-        */}
-
-        {/* ═══ Wallet Tab ═══ */}
-        {tab === "wallet" && (
-          <div className="w-full flex flex-col items-center gap-4 animate-fade-in">
-            <p className="text-xs text-center text-muted leading-relaxed">
-              {inMetaMaskApp
-                ? "You're inside MetaMask. Tap Connect, approve, then sign — that's it."
-                : "Sign a message to prove ownership of your wallet. No gas fees, no transaction — just a signature."}
-            </p>
-
-            {wallets.length > 0 && (
-              <div className="w-full flex flex-col gap-2">
-                {wallets.map((w) => (
-                  <button
-                    key={w.id}
-                    onClick={() => { choisirWallet(w); connectWallet(w.fournisseur); }}
-                    disabled={walletLoading}
-                    className={[
-                      "w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm",
-                      "font-bold uppercase tracking-widest text-white",
-                      "bg-[#627eea] hover:bg-[#4c6ce0] active:scale-[0.98]",
-                      "transition-all duration-150",
-                      walletLoading ? "opacity-60 pointer-events-none" : "",
-                    ].join(" ")}
-                  >
-                    {w.icone && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={w.icone} alt="" className="h-5 w-5" />
-                    )}
-                    {walletLoading ? stepLabel[walletStep] : `Connect ${w.nom}`}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Visible status track so the user knows WHICH MetaMask popup
-                they're waiting on - on mobile they have to swipe between
-                MetaMask and Safari so this matters a lot. */}
-            {walletLoading && (
-              <div className="w-full text-[11px] uppercase tracking-widest text-muted text-center">
-                {stepLabel[walletStep]}
-              </div>
-            )}
-
-            {/* Success state with a manual fallback link in case the
-                in-app WebView blocks window.location.href. */}
-            {walletStep === "done" && (
-              <a
-                href="/profile"
-                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-bold uppercase tracking-widest border border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 transition-colors"
-              >
-                Continue to My Collection →
-              </a>
-            )}
-
-            {/* Mobile deep link - only when we're NOT already inside the
-                MetaMask in-app browser. Showing it there confuses users
-                because tapping it just bounces them back to the same page. */}
-            {isMobile && !inMetaMaskApp && (
-              <a
-                href={`https://metamask.app.link/dapp/${typeof window !== "undefined" ? window.location.host : "hoodlrz.com"}/access`}
-                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-xs font-bold uppercase tracking-widest border border-[#ff2db5] text-[#ff2db5] hover:bg-[#ff2db5]/10 transition-colors"
-              >
-                Open in MetaMask app
-              </a>
-            )}
-
-            {cherche && wallets.length === 0 && (
-              <div className="w-full flex flex-col gap-3">
-                <p className="text-xs text-center text-muted">
-                  {isMobile
-                    ? "No wallet detected. Tap the button above to open this page inside MetaMask, or install a wallet:"
-                    : "No wallet detected. Install one to continue:"}
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { name: "MetaMask", url: "https://metamask.io/download/" },
-                    { name: "Phantom", url: "https://phantom.app/download" },
-                    { name: "Rainbow", url: "https://rainbow.me/download" },
-                    { name: "Rabby", url: "https://rabby.io/" },
-                  ].map((w) => (
-                    <a
-                      key={w.name}
-                      href={w.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-bold uppercase tracking-widest border border-[var(--border)] text-muted hover:text-foreground hover:border-[#627eea] transition-colors"
-                    >
-                      {w.name}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {!cherche && wallets.length === 0 && (
-              <p className="text-xs text-center text-muted">Looking for your wallet…</p>
-            )}
-
-            {walletError && (
-              <p className="text-xs text-red-500 text-center">{walletError}</p>
-            )}
-          </div>
-        )}
-
-        {tab === "wallet" && (
-          <button
-            onClick={() => setTab("email")}
-            className="text-xs text-muted underline underline-offset-4 transition-colors hover:text-foreground"
-          >
-            Vinyl shop account — sign in with email
-          </button>
-        )}
-
-        {tab === "email" && (
-          <button
-            onClick={() => setTab("wallet")}
-            className="text-xs text-muted underline underline-offset-4 transition-colors hover:text-foreground"
-          >
-            ← Back to wallet
-          </button>
-        )}
-
-        {/* ═══ Email Tab ═══ */}
-        {tab === "email" && !submitted && (
-          <div className="w-full flex flex-col gap-5 animate-fade-in">
-            {/* Sign In / Sign Up toggle */}
-            <div className="flex border border-[var(--border)]">
-              <button
-                onClick={() => { setEmailMode("signin"); setError(""); }}
-                className={[
-                  "flex-1 py-2 text-xs font-bold uppercase tracking-widest transition-colors",
-                  emailMode === "signin"
-                    ? "bg-accent-red/10 text-accent-red"
-                    : "text-muted hover:text-foreground",
-                ].join(" ")}
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => { setEmailMode("signup"); setError(""); }}
-                className={[
-                  "flex-1 py-2 text-xs font-bold uppercase tracking-widest transition-colors",
-                  emailMode === "signup"
-                    ? "bg-accent-red/10 text-accent-red"
-                    : "text-muted hover:text-foreground",
-                ].join(" ")}
-              >
-                Sign Up
-              </button>
-            </div>
-
-            <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
-              {emailMode === "signup" && (
-                <Input
-                  label="Pseudo"
-                  name="pseudo"
-                  type="text"
-                  placeholder="Your collector name"
-                  value={pseudo}
-                  onChange={(e) => setPseudo(e.target.value)}
-                />
-              )}
-
-              <Input
-                label="Email"
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                error={error}
-              />
-
-              <Button variant="primary" size="lg" disabled={loading}>
-                {loading
-                  ? emailMode === "signin" ? "Connecting..." : "Sending..."
-                  : emailMode === "signin"
-                    ? "My Collection"
-                    : "Send Magic Link"}
-              </Button>
-            </form>
-
-            <p className="text-[10px] text-center text-muted">
-              {emailMode === "signin"
-                ? "Access your collection directly. No password needed."
-                : "We'll send a confirmation link to your inbox to verify your email."}
-            </p>
-          </div>
-        )}
-
-        {/* Email success state */}
-        {tab === "email" && submitted && (
-          <div className="flex flex-col items-center gap-4 animate-fade-in">
-            <div className="flex h-16 w-16 items-center justify-center border border-emerald-500/40 bg-emerald-500/10">
-              <svg
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-emerald-500"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <p className="text-center text-sm leading-relaxed text-muted">
-              Check your inbox. We sent a magic link to{" "}
-              <span className="font-semibold text-foreground">{email}</span>.
-            </p>
+      {/* Un bouton par wallet installe. Avec un seul, il n'y a pas de
+          choix a faire : le bouton porte directement son nom. */}
+      {wallets.length > 0 ? (
+        <div className="flex w-full flex-col gap-2">
+          {wallets.map((w) => (
             <button
-              onClick={() => {
-                setSubmitted(false);
-                setEmail("");
-              }}
-              className="text-xs uppercase tracking-widest text-muted hover:text-foreground transition-colors"
+              key={w.id}
+              onClick={() => connecter(w)}
+              disabled={occupe}
+              className="flex items-center justify-center gap-2.5 bg-accent-magenta px-6 py-3.5 text-xs
+                         font-bold uppercase tracking-widest text-white disabled:opacity-50"
             >
-              Try a different email
+              {occupe ? (
+                <IconSpinner size={15} />
+              ) : w.icone ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={w.icone} alt="" className="h-5 w-5" />
+              ) : (
+                <IconWallet size={15} />
+              )}
+              {etape === "connexion"
+                ? "Opening your wallet…"
+                : etape === "signature"
+                  ? "Waiting for signature…"
+                  : etape === "verification"
+                    ? "Reading the chain…"
+                    : `Continue with ${w.nom}`}
             </button>
+          ))}
+        </div>
+      ) : cherche ? (
+        <div className="flex w-full flex-col gap-3">
+          <p className="text-sm text-muted">
+            No wallet extension answered. Open this page inside your wallet app, or install one.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {TELECHARGEMENTS.map((t) => (
+              <a
+                key={t.nom}
+                href={t.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="border border-[var(--border)] px-3 py-2.5 text-xs font-bold uppercase tracking-widest text-muted transition-colors hover:text-foreground"
+              >
+                {t.nom}
+              </a>
+            ))}
           </div>
-        )}
-      </div>
-      </div>
-    </div>
+        </div>
+      ) : (
+        <p className="flex items-center gap-2 text-sm text-muted">
+          <IconSpinner size={14} />
+          Looking for your wallet…
+        </p>
+      )}
+
+      {erreur && <p className="text-xs text-accent-red">{erreur}</p>}
+    </Cadre>
   );
 }

@@ -34,7 +34,9 @@ service ne doit jamais porter ce préfixe.
 
 | Variable | Rôle | Sans elle |
 |---|---|---|
-| `ALCHEMY_API_KEY` | RPC des deux chaînes, et snapshots de holders | Repli sur les RPC publics, limités en débit |
+| `ALCHEMY_KEY` ou `ALCHEMY_API_KEY` | Lecture des NFT et RPC des deux chaînes | La porte ne peut pas lire Ethereum |
+| `HOODLRZ_CONTRACT` | Contrat OG Hoodlrz | Repli sur `0xdde5…bfa2` |
+| `HOODLRZ_EXTRA_CONTRACTS` | Contrats supplémentaires, `0xadresse:chainId` | Rien, c'est facultatif |
 | `ETH_MAINNET_RPC` | Force un fournisseur Ethereum | Alchemy, puis un endpoint public |
 | `RH_MAINNET_RPC` | Force un fournisseur Robinhood Chain | Alchemy, puis l'endpoint public |
 | `CRON_SECRET` | Authentifie la veille hebdomadaire | La route refuse tout, y compris le programmateur |
@@ -145,6 +147,12 @@ l'éditeur publie lui-même, et un lien vers chez lui, ouvert dans un
 nouvel onglet. Le classement entre crypto, NFT et meme coin se fait par
 mots-clés, sans appel de modèle : trier des titres ne justifie pas une
 dépendance extérieure qui tombe un lundi matin.
+
+**Les deux noms de clé Alchemy coexistent** dans le projet pour des
+raisons historiques. Tout ce qui interroge Alchemy passe désormais par
+`src/lib/hoodlrz/alchemy.ts`, qui lit les deux. C'est important : la
+porte avait sa propre lecture avec d'autres noms, et comptait donc zéro
+pièce pour des wallets dont le site affichait la collection.
 
 ### Ce qui ne dépend d'aucun service
 
