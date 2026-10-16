@@ -40,6 +40,20 @@ export default function TopBar() {
       }
       try {
         const r = await fetch("/api/auth/holder");
+
+        // Le serveur ne reconnait pas la session : le cookie est perime.
+        // On se deconnecte localement plutot que d'afficher un membre
+        // connecte a qui chaque appel repondra 401 - c'est cet ecart
+        // entre l'ecran et la realite qui rendait la panne illisible.
+        if (r.status === 401) {
+          await supabase.auth.signOut().catch(() => {});
+          if (!vivant) return;
+          setConnecte(false);
+          setIdentite("");
+          setAvatar(null);
+          return;
+        }
+
         const j = await r.json();
         if (!vivant) return;
         if (j.pseudonym) setIdentite(j.pseudonym);

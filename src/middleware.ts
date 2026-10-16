@@ -93,8 +93,6 @@ export async function middleware(request: NextRequest) {
   };
 
   const adminRoute = pathname.startsWith("/admin");
-  if (!adminRoute && !isGated(pathname)) return suite();
-
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const cle = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   // Sans configuration, on laisse passer : c'est le cas du developpement
@@ -129,9 +127,33 @@ export async function middleware(request: NextRequest) {
    */
   const rediriger = (vers: URL) => redirigerAvecCookies(vers, reponse, csp);
 
+  /**
+   * LE JETON SE RAFRAICHIT ICI, POUR TOUTES LES PAGES.
+   *
+   * C'est la cause du bug qui a resiste a trois correctifs. Le jeton
+   * d'acces de Supabase expire au bout d'une heure ; il se renouvelle
+   * uniquement quand quelque chose appelle `getUser()` sur un serveur
+   * capable de reecrire les cookies. Ce middleware ne le faisait que
+   * pour les pages fermees et pour /admin.
+   *
+   * Consequence : un membre connecte la veille gardait un cookie
+   * perime. L'interface le croyait connecte - le cookie est bien la, et
+   * la barre du haut affichait son bouton de deconnexion - pendant que
+   * chaque appel a /api/auth/holder repondait 401. Il suffisait d'une
+   * heure pour que la connexion « cesse de marcher » sans que personne
+   * n'ait rien touche.
+   *
+   * Il tourne donc maintenant sur CHAQUE requete que le matcher couvre,
+   * pages publiques et routes d'API comprises. C'est le motif que
+   * Supabase documente, et il n'y en a pas d'autre qui tienne.
+   */
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Page publique : on s'arrete la. Le passage ci-dessus a suffi a
+  // renouveler le jeton, ce qui etait tout l'objet de la manoeuvre.
+  if (!adminRoute && !isGated(pathname)) return reponse;
 
   if (!user) {
     const vers = request.nextUrl.clone();

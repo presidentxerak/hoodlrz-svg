@@ -84,6 +84,12 @@ export default function AccessPage() {
         if (!data.session?.user) return;
         try {
           const r = await fetch("/api/auth/holder");
+          // Cookie perime : on nettoie et on montre l'ecran de connexion,
+          // au lieu d'un refus de detention qui n'a rien a voir.
+          if (r.status === 401) {
+            await createClient().auth.signOut().catch(() => {});
+            return;
+          }
           const j = await r.json();
           if (j.schema === "incomplet") {
             setSchemaKo(true);

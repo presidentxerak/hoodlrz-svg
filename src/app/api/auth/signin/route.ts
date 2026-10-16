@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const reponse = NextResponse.json({ success: true });
-    return attacherCookies(reponse, aPoser, request.headers.get("host") ?? undefined);
+    return attacherCookies(reponse, aPoser);
   } catch (err) {
     console.error("[auth/signin] Error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

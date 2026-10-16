@@ -30,57 +30,29 @@ export interface CookieAPoser {
  * sa propre reponse - c'est le seul endroit ou cela ne peut pas echouer
  * en silence.
  */
-export function attacherCookies(
-  reponse: NextResponse,
-  aPoser: CookieAPoser[],
-  /** L'hote de la requete, pour elargir le cookie au domaine. */
-  hote?: string,
-): NextResponse {
-  const domaine = domaineCookie(hote);
+export function attacherCookies(reponse: NextResponse, aPoser: CookieAPoser[]): NextResponse {
   for (const c of aPoser) {
-    reponse.cookies.set({
-      name: c.name,
-      value: c.value,
-      ...(c.options ?? {}),
-      ...(domaine ? { domain: domaine } : {}),
-    });
+    reponse.cookies.set({ name: c.name, value: c.value, ...(c.options ?? {}) });
   }
   return reponse;
 }
 
 /**
- * Le domaine sur lequel poser le cookie de session.
+ * POURQUOI ON NE POSE PAS DE `domain` SUR LE COOKIE.
  *
- * LE DEUXIEME VISAGE DU MEME BUG. Le site repondait sur hoodlrz.com et
- * sur www.hoodlrz.com. Un cookie pose sans domaine est lie a l'hote
- * exact : celui de l'apex n'est pas envoye a www, et inversement. Une
- * page ouverte sur l'un appelait une route servie par l'autre, et le
- * serveur ne voyait aucune session - 401, alors que l'interface
- * affichait un membre connecte.
+ * J'ai cru un moment que le site repondait sur deux hotes, hoodlrz.com
+ * et www.hoodlrz.com, parce que la barre d'adresse montrait l'un et la
+ * console l'autre. C'etait faux : Chrome masque « www. » dans la barre
+ * d'adresse. Il n'y a qu'un hote.
  *
- * La redirection vers l'hote canonique (next.config.mjs) supprime la
- * cause. Elargir le cookie au domaine parent eteint le probleme aussi
- * pour les sessions deja ouvertes sur le mauvais hote.
+ * Elargir le cookie au domaine parent aurait donc corrige un probleme
+ * inexistant, et en aurait cree un vrai : l'ancien cookie, lie a l'hote,
+ * et le nouveau, lie au domaine, coexistent et sont envoyes tous les
+ * deux. Le serveur en choisit un, pas forcement le bon, et la session
+ * devient intermittente d'une facon tres difficile a diagnostiquer.
  *
- * RENVOIE `undefined` DANS DEUX CAS, ET C'EST IMPORTANT :
- *  - en local, ou « localhost » n'a pas de domaine parent ;
- *  - sur vercel.app, qui est un suffixe public : un cookie pose sur
- *    « .vercel.app » serait refuse par le navigateur, et s'il ne
- *    l'etait pas, il serait partage avec tous les autres projets.
+ * On laisse donc Supabase poser ses cookies comme il l'entend.
  */
-export function domaineCookie(hote?: string): string | undefined {
-  if (!hote) return undefined;
-  const nu = hote.split(":")[0].toLowerCase();
-
-  if (nu === "localhost" || /^[0-9.]+$/.test(nu)) return undefined;
-  if (nu.endsWith(".vercel.app") || nu === "vercel.app") return undefined;
-
-  const morceaux = nu.split(".");
-  if (morceaux.length < 3) return undefined; // deja le domaine nu
-  // On ne remonte que d'un cran, au domaine enregistrable usuel :
-  // www.hoodlrz.com -> .hoodlrz.com
-  return `.${morceaux.slice(-2).join(".")}`;
-}
 
 /**
  * Une session sans cookie n'est pas une session.
