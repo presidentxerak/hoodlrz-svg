@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
       schema: schemaOk ? "ok" : "incomplet",
     });
 
-    return attacherCookies(reponse, aPoser);
+    return attacherCookies(reponse, aPoser, request.headers.get("host") ?? undefined);
   } catch (err) {
     console.error("[auth/wallet/verify] Error:", err);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

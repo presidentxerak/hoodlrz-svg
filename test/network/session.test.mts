@@ -24,6 +24,7 @@ import { NextResponse } from "next/server";
 import { redirigerAvecCookies } from "../../src/lib/security/redirect";
 import {
   attacherCookies,
+  domaineCookie,
   sessionOuverte,
   type CookieAPoser,
 } from "../../src/lib/security/session";
@@ -104,9 +105,38 @@ verifier(
   );
 }
 
+/* ── Le cookie doit valoir pour l'apex ET pour www ───────────────────
+ * Le site repondait sur les deux hotes. Un cookie sans domaine est lie
+ * a l'hote exact : celui de l'apex n'est pas envoye a www. Une page
+ * ouverte sur l'un appelait une route servie par l'autre, et le serveur
+ * repondait 401 pendant que l'interface affichait un membre connecte. */
+{
+  verifier("www.hoodlrz.com donne .hoodlrz.com", domaineCookie("www.hoodlrz.com") === ".hoodlrz.com");
+  verifier("le port est ignore", domaineCookie("www.hoodlrz.com:443") === ".hoodlrz.com");
+  verifier("hoodlrz.com reste sans domaine", domaineCookie("hoodlrz.com") === undefined);
+  verifier("localhost reste sans domaine", domaineCookie("localhost:3000") === undefined);
+  // vercel.app est un suffixe public : un cookie pose dessus serait
+  // refuse, et sinon partage avec tous les autres projets.
+  verifier(
+    "un apercu vercel.app reste sans domaine",
+    domaineCookie("hoodlrz-j1mj-abc.vercel.app") === undefined,
+  );
+  verifier("une adresse IP reste sans domaine", domaineCookie("127.0.0.1:3000") === undefined);
+
+  const r = attacherCookies(
+    NextResponse.json({ ok: true }),
+    [{ name: "sb-access-token", value: "x", options: { path: "/" } }],
+    "www.hoodlrz.com",
+  );
+  verifier(
+    "le cookie pose porte bien le domaine",
+    r.cookies.get("sb-access-token")?.domain === ".hoodlrz.com",
+  );
+}
+
 console.log(
   echecs === 0
-    ? "\nTout passe. La session s'ouvre et survit aux redirections.\n"
+    ? "\nTout passe. La session s'ouvre, porte le bon domaine, et survit aux redirections.\n"
     : `\n${echecs} verification(s) en echec.\n`,
 );
 process.exit(echecs === 0 ? 0 : 1);

@@ -34,6 +34,40 @@ const nextConfig = {
     NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   },
 
+  /**
+   * UN SEUL HOTE, ET C'EST UNE CORRECTION DE BUG, PAS DU CONFORT.
+   *
+   * Le site repondait sur hoodlrz.com ET sur www.hoodlrz.com. Ce sont
+   * deux origines differentes pour un navigateur. Une page ouverte sur
+   * l'apex appelait /api/auth/holder, la requete finissait sur www, et
+   * le cookie de session - pose sur l'apex - n'etait PAS envoye : 401.
+   *
+   * D'ou le symptome vu dans la console : l'interface montre un membre
+   * connecte, la barre du haut affiche meme son bouton de deconnexion,
+   * et le serveur repond « non connecte » a chaque appel.
+   *
+   * Tout ce qui n'est pas l'hote canonique y est donc renvoye, en
+   * redirection permanente, AVANT que la moindre page ne soit rendue.
+   */
+  async redirects() {
+    let canonique;
+    try {
+      canonique = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.hoodlrz.com").host;
+    } catch {
+      return [];
+    }
+    const apex = canonique.replace(/^www\./, "");
+    if (apex === canonique) return [];
+    return [
+      {
+        source: "/:chemin*",
+        has: [{ type: "host", value: apex }],
+        destination: `https://${canonique}/:chemin*`,
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
